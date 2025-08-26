@@ -1,0 +1,7 @@
+build/**
+vcpkg/**
+vcpkg_installed/**
+notes.txt
+vcpkg-configuration.json
+vcpkg.json
+.cache/**
