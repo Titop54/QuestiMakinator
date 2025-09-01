@@ -35,7 +35,7 @@ inline std::string json_escape(const std::string& str) {
     return oss.str();
 }
 
-inline std::string to_json(const std::string& input) {
+inline std::string to_json(const std::string& input, bool use_extra = false) {
     // Tabla de códigos de color hexadecimales
     static const std::string COLOR_CODES[16] = {
         "#000000", "#0000AA", "#00AA00", "#00AAAA", "#AA0000", "#AA00AA", 
@@ -271,24 +271,56 @@ inline std::string to_json(const std::string& input) {
     }
     flush_text();
 
-    if (!has_formatting) {
+    if(!has_formatting)
+    {
         return "\"" + json_escape(input) + "\"";
-    } else if (components.empty()) {
+    }
+    else if(components.empty())
+    {
         return "\"\"";
-    } else if (components.size() == 1) {
+    }
+    else if(components.size() == 1)
+    {
         return "[" + components[0] + "]";
-    } else {
-        std::string result = "[";
-        for (size_t j = 0; j < components.size(); ++j) {
-            if (j > 0) result += ",";
-            result += components[j];
+    }
+    else
+    {
+        if(use_extra)
+        {
+            std::string first_component = components[0];
+            
+            if(!first_component.empty() && first_component.back() == '}')
+            {
+                first_component.pop_back();
+            }
+
+            first_component += ",\"extra\":[";
+            for(size_t j = 1; j < components.size(); ++j)
+            {
+                if(j > 1) first_component += ",";
+                first_component += components[j];
+            }
+            first_component += "]}";
+            
+            return first_component;
         }
-        result += "]";
-        return result;
+        else //original
+        {
+            
+            std::string result = "[";
+            for(size_t j = 0; j < components.size(); ++j)
+            {
+                if(j > 0) result += ",";
+                result += components[j];
+            }
+            result += "]";
+            return result;
+        }
     }
 }
 
-inline void hola() {
+inline void hola()
+{
     std::cout << "Program made by Titop54 - https://github.com/Titop54\n"
               << "You can't use this program unless explicit permission by Titop54 which has being granted with screenshots proof\n"
               << "If you are found using this without permission, you are granting me to remove your content :)\n"
@@ -313,19 +345,38 @@ inline void hola() {
               << "- Show item on hover (&&item:\"<item_id>\"), words before this will be affected\n\n";
 }
 
-inline void interactive_converter() {
+inline void interactive_converter()
+{
     hola();
     std::string input;
-    while (true) {
-        std::cout << "> ";
+    bool use_extra_mode = false;
+    
+    while(true)
+    {
+        std::cout << "Use mode <extra | array> to change mode\n";
+        std::cout << "> (Mode: " << (use_extra_mode ? "EXTRA" : "ARRAY") << ") ";
         std::getline(std::cin, input);
         
-        if (input == "F" || input == "f") {
+        if(input == "F" || input == "f")
+        {
             std::cout << "Exiting converter...\n";
             break;
         }
         
-        std::string json = to_json(input);
+        if(input == "mode extra")
+        {
+            use_extra_mode = true;
+            std::cout << "Extra mode\n";
+            continue;
+        }
+        else if(input == "mode array")
+        {
+            use_extra_mode = false;
+            std::cout << "Array mode\n";
+            continue;
+        }
+        
+        std::string json = to_json(input, use_extra_mode);
         std::cout << "\nJSON Result:\n";
         std::cout << json << "\n\n";
     }
