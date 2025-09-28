@@ -14,7 +14,7 @@ int main()
                      sf::VideoMode(sf::Vector2u(800, 600)),
                     "Prueba",
                     sf::Style::Default,
-                    sf::State::Windowed,
+                    sf::State::Fullscreen,
                     {}
     );
     if(!ImGui::SFML::Init(window)) return -1;
@@ -25,9 +25,7 @@ int main()
     std::string resultado = "";
 
 
-    
-
-    // Dentro del main(), después de ImGui::SFML::Init
+    //After calling init, we need to pass the style
     ImGuiStyle& style = ImGui::GetStyle();
     style.Colors[ImGuiCol_WindowBg] = ImVec4(0.0f, 0.0f, 0.1f, 0.9f);
     style.Colors[ImGuiCol_TitleBg] = ImVec4(0.0f, 0.5f, 0.8f, 1.0f);
@@ -41,8 +39,8 @@ int main()
     float zoom_factor = 3.0f;
     ImGuiIO& io = ImGui::GetIO();
     io.FontGlobalScale = zoom_factor;
-
     sf::Clock deltaClock;
+
     while(window.isOpen())
     {
         while (std::optional<sf::Event> event = window.pollEvent()) {
@@ -57,7 +55,6 @@ int main()
         ImVec2 center = ImVec2(window.getSize().x / 2.0f, window.getSize().y / 2.0f);
         ImGui::SetNextWindowPos(center, ImGuiCond_FirstUseEver, ImVec2(0.5f, 0.5f));
 
-        bool opened = true;
         ImGui::Begin("Ventana");
         ImGui::InputText("##input1", &inputText1);
         ImGui::InputText("##input2", &inputText2);
@@ -78,4 +75,6 @@ int main()
         window.display();
     }
     ImGui::SFML::Shutdown();
+
+    return 0;
 }
