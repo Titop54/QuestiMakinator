@@ -5,3 +5,4 @@ notes.txt
 vcpkg-configuration.json
 vcpkg.json
 .cache/**
+imgui.ini
