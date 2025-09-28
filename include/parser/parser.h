@@ -13,10 +13,10 @@
 #include <vector>
 #include <limits>
 #include <cmath>
-#include <fstream>
 
-// Define SNBT data structure
-namespace snbt {
+
+namespace snbt
+{
 
     using Byte = int8_t;
     using Boolean = bool;
@@ -43,7 +43,7 @@ namespace snbt {
             List, Compound
         };
 
-        // Value storage using std::variant
+        // Value storage using std::variant, aka union
         using Value = std::variant<
             Byte, Short, Int, Long, Boolean,
             Float, Double,

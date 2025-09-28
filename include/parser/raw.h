@@ -465,7 +465,7 @@ namespace raw
         return true;
     }
 
-    inline bool change_gradient3(std::string &text)
+    inline std::string change_gradient3(std::string &text)
     {
         struct Text {
             int start;
@@ -497,23 +497,31 @@ namespace raw
         // Función para encontrar el límite del texto a modificar
         auto find_limit = [](const std::string& str) -> size_t {
             size_t pos = 0;
-            while (pos < str.size()) {
-                if (str[pos] == '\\' && pos + 1 < str.size()) {
+            while(pos < str.size())
+            {
+                if(str[pos] == '\\' && pos + 1 < str.size())
+                {
                     pos += 2;
                     continue;
                 }
                 
-                if (str[pos] == '&') {
-                    if (pos + 1 < str.size()) {
-                        if (str[pos + 1] == 'r') {
+                if(str[pos] == '&')
+                {
+                    if(pos + 1 < str.size())
+                    {
+                        if(str[pos + 1] == 'r')
+                        {
                             return pos;
                         }
-                        if (str[pos + 1] == '#' && pos + 8 <= str.size()) {
+                        if(str[pos + 1] == '#' && pos + 8 <= str.size())
+                        {
                             return pos;
                         }
                         std::string candidate = str.substr(pos, 2);
-                        for (const auto& cmd : IGNORED_COMMANDS) {
-                            if (candidate == cmd) {
+                        for(const auto& cmd : IGNORED_COMMANDS)
+                        {
+                            if(candidate == cmd)
+                            {
                                 return pos;
                             }
                         }
@@ -527,29 +535,33 @@ namespace raw
         std::vector<Text> cases;
         size_t status = 0;
 
-        while (status != std::string::npos) {
+        while(status != std::string::npos)
+        {
             status = text.find("&@gradient:\"", status);
-            if (status == std::string::npos) break;
+            if(status == std::string::npos) break;
 
             Text segment;
             segment.start = static_cast<int>(status);
             size_t end_pos = text.find("\"", status + 12);
-            if (end_pos == std::string::npos) break;
+            if(end_pos == std::string::npos) break;
 
             size_t next_gradient = text.find("&@gradient:\"", status + 1);
             segment.end = (next_gradient == std::string::npos) ? text.size() - 1 : next_gradient - 1;
             segment.text = text.substr(segment.start, segment.end - segment.start + 1);
 
-            if (segment.text.size() < 15) {
+            if(segment.text.size() < 15)
+            {
                 status = segment.end + 1;
                 continue;
             }
             std::cout << segment.text.substr(12, 1) << std::flush;
             segment.type = std::stoi(segment.text.substr(12, 1));
 
-            switch (segment.type) {
+            switch(segment.type)
+            {
                 case 1:
-                    if (segment.text.size() < 30) {
+                    if(segment.text.size() < 30)
+                    {
                         segment.type = -1;
                         break;
                     }
@@ -557,16 +569,18 @@ namespace raw
                     segment.colors.emplace_back(segment.text.substr(23, 6));
                     break;
                 case 2:
-                    if (segment.text.size() < 22) {
+                    if(segment.text.size() < 22)
+                    {
                         segment.type = -1;
                         break;
                     }
                     {
                         size_t color_pos = 15;
-                        while (color_pos + 6 <= segment.text.size()) {
+                        while(color_pos + 6 <= segment.text.size())
+                        {
                             segment.colors.emplace_back(segment.text.substr(color_pos, 6));
                             color_pos += 8;
-                            if (color_pos >= segment.text.size() || segment.text[color_pos - 1] != '#') break;
+                            if(color_pos >= segment.text.size() || segment.text[color_pos - 1] != '#') break;
                         }
                     }
                     break;
@@ -589,17 +603,16 @@ namespace raw
 
                     if(color_pos != std::string::npos && color_pos < static_cast<size_t>(segment.end))
                     {
-                        // Manejar &r
                         if(segment.text.substr(color_pos, 2) == "&r") //we found nothing
                         {
                             break;
                         }
-                        // Manejar códigos hex
+                        //hex colors
                         else if(segment.text.substr(color_pos, 2) == "&#" && color_pos + 8 <= static_cast<size_t>(segment.end))
                         {
                             segment.colors.emplace_back(segment.text.substr(color_pos + 2, 6));
                         }
-                        // Manejar códigos de letra
+                        //letters
                         else if(color_pos + 1 < static_cast<size_t>(segment.end))
                         {
                             segment.colors.emplace_back(
@@ -614,14 +627,16 @@ namespace raw
                     break;
             }
 
-            if (segment.type != -1) {
+            if(segment.type != -1)
+            {
                 cases.emplace_back(segment);
             }
             status = segment.end + 1;
         }
 
-        // Procesar los casos desde el final hacia el inicio
-        for (int i = cases.size() - 1; i >= 0; i--)
+        //last to start, why? because we will change stuff
+        std::string text_input = text;
+        for(int i = cases.size() - 1; i >= 0; i--)
         {
             auto& c = cases[i];
             size_t content_start = c.text.find("\"", 12) + 1;
@@ -640,16 +655,17 @@ namespace raw
             else
             {
                 size_t length = text_to_color.size();
-                for (size_t j = 0; j < length; j++) {
-                    // Calculate position in gradient
+                for(size_t j = 0; j < length; j++)
+                {
                     float t = static_cast<float>(j) / (length - 1);
-                    // Map to color segments
                     float segment = t * (c.colors.size() - 1);
                     int color_index = static_cast<int>(segment);
-                    // Handle last color segment
-                    if (static_cast<size_t>(color_index) >= c.colors.size() - 1) {
+                    if(static_cast<size_t>(color_index) >= c.colors.size() - 1)
+                    {
                         colored_text += "&#" + c.colors.back() + text_to_color[j];
-                    } else {
+                    }
+                    else
+                    {
                         float segment_t = segment - color_index;
                         std::string color = interpolate_color(
                             c.colors[color_index],
@@ -662,10 +678,10 @@ namespace raw
             }
 
             std::string new_segment = colored_text + remaining_text;
-            text.replace(c.start, c.end - c.start + 1, new_segment);
+            text_input.replace(c.start, c.end - c.start + 1, new_segment);
         }
 
-        return true;
+        return text_input;
     }
 
     inline std::string json_escape(const std::string& str)
@@ -699,8 +715,8 @@ namespace raw
 
     inline std::string to_json(std::string& input, bool use_extra = false)
     {
-        change_gradient3(input);
-        if(!check_non_ftb(input)) return input;
+        std::string text_input = change_gradient3(input);
+        if(!check_non_ftb(text_input)) return text_input;
 
         struct State
         {
@@ -781,17 +797,22 @@ namespace raw
         };
 
         size_t i = 0;
-        while (i < input.size()) {
-            if (input[i] == '&' && (i + 1) < input.size()) {
+        while(i < text_input.size())
+        {
+            if(text_input[i] == '&' && (i + 1) < input.size())
+            {
                 char code = input[i + 1];
-                if (code == 'r') {
+                if(code == 'r')
+                {
                     flush_text();
                     // Reset completo del estado (incluyendo eventos)
                     current_state = State();
                     has_formatting = true;
                     i += 2;
                     continue;
-                } else if (code == 'l' || code == 'o' || code == 'n' || code == 'm' || code == 'k') {
+                }
+                else if(code == 'l' || code == 'o' || code == 'n' || code == 'm' || code == 'k')
+                {
                     flush_text();
                     if (code == 'l') current_state.bold = true;
                     else if (code == 'o') current_state.italic = true;
@@ -808,36 +829,38 @@ namespace raw
                 {
                     flush_text();
                     int index;
-                    if (code >= '0' && code <= '9') index = code - '0';
-                    else if (code >= 'a' && code <= 'f') index = 10 + (code - 'a');
+                    if(code >= '0' && code <= '9') index = code - '0';
+                    else if(code >= 'a' && code <= 'f') index = 10 + (code - 'a');
                     else index = 10 + (code - 'A');
                     current_state.color = COLOR_CODES[index];
                     has_formatting = true;
                     i += 2;
                     continue;
                 }
-                else if(code == '#' && (i + 7) < input.size())
+                else if(code == '#' && (i + 7) < text_input.size())
                 {
                     flush_text();
-                    current_state.color = "#" + input.substr(i + 2, 6);
+                    current_state.color = "#" + text_input.substr(i + 2, 6);
                     has_formatting = true;
                     i += 8;
                     continue;
                 }
-                else if(code == '@' && (i + 2) < input.size())
+                else if(code == '@' && (i + 2) < text_input.size())
                 {
                     size_t start = i + 2;
                     size_t pos = start;
                     std::string cmd;
                     
                     // Extraer el nombre del comando
-                    while (pos < input.size() && (std::isalpha(input[pos]) || input[pos] == '_')) {
-                        cmd += input[pos];
+                    while(pos < text_input.size() && (std::isalpha(text_input[pos]) || text_input[pos] == '_'))
+                    {
+                        cmd += text_input[pos];
                         pos++;
                     }
                     
                     // Manejar comando de página sin parámetros
-                    if (cmd == "page") {
+                    if(cmd == "page")
+                    {
                         flush_text();
                         components.emplace_back("{\"text\":\"\\n{@pagebreak}\\n\"}");
                         has_formatting = true;
@@ -846,37 +869,51 @@ namespace raw
                     }
                     
                     // Manejar comandos con parámetros entre comillas
-                    if(pos < input.size() && input[pos+1] == '"') 
+                    if(pos < text_input.size() && text_input[pos+1] == '"') 
                     {
                         size_t end_quote = pos + 2;
-                        while (end_quote < input.size() && input[end_quote] != '"') {
-                            if (input[end_quote] == '\\' && end_quote + 1 < input.size()) {
+                        while(end_quote < text_input.size() && text_input[end_quote] != '"')
+                        {
+                            if(text_input[end_quote] == '\\' && end_quote + 1 < text_input.size())
+                            {
                                 end_quote++; // Saltar caracter de escape
                             }
                             end_quote++;
                         }
                         
-                        if (end_quote < input.size()) {
-                            std::string value = input.substr(pos + 2, end_quote - pos - 2);
+                        if(end_quote < text_input.size())
+                        {
+                            std::string value = text_input.substr(pos + 2, end_quote - pos - 2);
                             flush_text();
                             has_formatting = true;
                             
-                            if (cmd == "url") {
+                            if(cmd == "url")
+                            {
                                 current_state.click_action = "open_url";
                                 current_state.click_value = value;
-                            } else if (cmd == "in") {
+                            }
+                            else if(cmd == "in")
+                            {
                                 current_state.click_action = "suggest_command";
                                 current_state.click_value = value;
-                            } else if (cmd == "file") {
+                            }
+                            else if(cmd == "file")
+                            {
                                 current_state.click_action = "open_file";
                                 current_state.click_value = value;
-                            } else if (cmd == "command") {
+                            }
+                            else if(cmd == "command")
+                            {
                                 current_state.click_action = "run_command";
                                 current_state.click_value = value;
-                            } else if (cmd == "copy") {
+                            }
+                            else if(cmd == "copy")
+                            {
                                 current_state.click_action = "copy_to_clipboard";
                                 current_state.click_value = value;
-                            } else if (cmd == "change") {
+                            }
+                            else if(cmd == "change")
+                            {
                                 current_state.click_action = "change_page";
                                 current_state.click_value = value;
                             }
@@ -886,27 +923,29 @@ namespace raw
                         }
                     }
                 }
-                else if (code == '&' && (i + 2) < input.size()) {
+                else if(code == '&' && (i + 2) < text_input.size())
+                {
                     // Manejo de eventos hover
                     size_t start = i + 2;
                     size_t pos = start;
                     std::string cmd;
 
-                    while (pos < input.size() && (std::isalpha(input[pos]) || input[pos] == '_')) {
-                        cmd += input[pos];
+                    while(pos < text_input.size() && (std::isalpha(text_input[pos]) || text_input[pos] == '_'))
+                    {
+                        cmd += text_input[pos];
                         pos++;
                     }
 
-                    if(pos < input.size() && input[pos+1] == '"')
+                    if(pos < text_input.size() && text_input[pos+1] == '"')
                     {
                         size_t end_quote = pos + 2;
-                        while(end_quote < input.size())
+                        while(end_quote < text_input.size())
                         {
-                            if(input[end_quote] == '\\' && end_quote + 1 < input.size())
+                            if(text_input[end_quote] == '\\' && end_quote + 1 < text_input.size())
                             {
                                 end_quote += 2;
                             }
-                            else if(input[end_quote] == '"')
+                            else if(text_input[end_quote] == '"')
                             {
                                 break;
                             }
@@ -916,14 +955,18 @@ namespace raw
                             }
                         }
 
-                        if (end_quote < input.size() && input[end_quote] == '"') {
-                            std::string value = input.substr(pos + 2, end_quote - pos - 2);
+                        if(end_quote < text_input.size() && text_input[end_quote] == '"')
+                        {
+                            std::string value = text_input.substr(pos + 2, end_quote - pos - 2);
                             has_formatting = true;
 
-                            if (cmd == "text") {
+                            if(cmd == "text")
+                            {
                                 current_state.hover_action = "show_text";
                                 current_state.hover_value = value;
-                            } else if (cmd == "item") {
+                            }
+                            else if(cmd == "item")
+                            {
                                 current_state.hover_action = "show_item";
                                 current_state.hover_value = value;
                             }
@@ -934,14 +977,14 @@ namespace raw
                     }
                 }
             }
-            current_text += input[i];
+            current_text += text_input[i];
             i++;
         }
         flush_text();
 
         if(!has_formatting)
         {
-            return "\"" + json_escape(input) + "\"";
+            return "\"" + json_escape(text_input) + "\"";
         }
         else if(components.empty())
         {
@@ -999,8 +1042,8 @@ namespace raw
                 << "- Strikethrough (&m)\n"
                 << "- Colors (&0 to &f)\n"
                 << "- Reset to default (&r)\n"
-                << "\nCustom commands:\n"
                 << "- Custom colors (&#<6-digit hex>), goes before anything else\n"
+                << "\nCustom commands:\n"
                 << "- Obfuscated (&k)\n"
                 << "- Insert URL (&@url:\"<url>\"), words after this will be affected\n"
                 << "- Insert chat text (&@in:\"<text>\"), words after this will be affected\n"
