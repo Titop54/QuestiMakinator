@@ -18,3 +18,12 @@ vcpkg install --triplet x64-mingw-static --host-triplet=x64-mingw-static --x-ins
 
 echo -e "\nInstalando para x64-linux"
 vcpkg install --triplet x64-linux --host-triplet=x64-linux --x-install-root=./vcpkg_installed/x64-linux
+
+python3 licenses.py --no_print
+vcpkg license-report
+prinft "You can get all licenses on vcpkg_installed/licenses/licenses.csv"
+
+printf "(FTL OR GPL-2.0-or-later) -> Choosen FTL license"
+printf "(MIT OR CC-PDDC) -> Choosen MIT license"
+printf "(Unlicense OR MIT-0) -> Choosen MIT-0 license"
+

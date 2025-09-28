@@ -1,6 +1,7 @@
 import os
 import csv
 from typing import Dict, List, Tuple
+import sys
 
 BASE_DIR: str = "vcpkg_installed"
 LICENSES_DIR = os.path.join(BASE_DIR, "licenses")
@@ -80,7 +81,8 @@ def main() -> None:
     save_to_csv(all_licenses)
     print(f"Licenses saved on: {os.path.join(LICENSES_DIR, 'licenses.csv')}")
 
-    print_licenses(all_licenses)
+    if("--no_print" not in sys.argv):
+        print_licenses(all_licenses)
 
 
 if __name__ == "__main__":
