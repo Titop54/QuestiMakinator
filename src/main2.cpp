@@ -5,6 +5,7 @@
 #include <SFML/System/Vector2.hpp>
 #include <SFML/Window/Event.hpp>
 #include <SFML/Window/WindowEnums.hpp>
+#include <cmath>
 #include "imgui_stdlib.h"
 #include "parser/raw.h"
 
@@ -14,12 +15,19 @@ int main()
                      sf::VideoMode(sf::Vector2u(800, 600)),
                     "Prueba",
                     sf::Style::Default,
-                    sf::State::Fullscreen,
+                    sf::State::Windowed,
                     {}
     );
+
+    //https://en.sfml-dev.org/forums/index.php?topic=14607.0
+    auto desktop = sf::VideoMode::getDesktopMode();
+    int x = desktop.size.x/2 - window.getSize().x/2;
+    int y = desktop.size.y/2 - window.getSize().y/2;
+    window.setPosition(sf::Vector2(x, y));
+
     if(!ImGui::SFML::Init(window)) return -1;
+
     window.setFramerateLimit(60);
-    window.setPosition(ImGui::GetMainViewport()->GetCenter());
     std::string inputText1 = "";
     std::string inputText2 = "";
     std::string resultado = "";
@@ -43,7 +51,8 @@ int main()
 
     while(window.isOpen())
     {
-        while (std::optional<sf::Event> event = window.pollEvent()) {
+        while(std::optional<sf::Event> event = window.pollEvent())
+        {
             ImGui::SFML::ProcessEvent(window, *event);
             if(event->is<sf::Event::Closed>())
             {
