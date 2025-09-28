@@ -75,7 +75,8 @@ static std::string shapeToString(Shapes s) {
     }
 }
 
-static std::string progressionToString(Progression p) {
+static std::string progressionToString(Progression p)
+{
     return (p == Progression::LINEAR) ? "linear" : "default";
 }
 
