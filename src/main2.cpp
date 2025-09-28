@@ -64,9 +64,16 @@ int main()
         ImVec2 center = ImVec2(window.getSize().x / 2.0f, window.getSize().y / 2.0f);
         ImGui::SetNextWindowPos(center, ImGuiCond_FirstUseEver, ImVec2(0.5f, 0.5f));
 
-        ImGui::Begin("Ventana");
-        ImGui::InputText("##input1", &inputText1);
-        ImGui::InputText("##input2", &inputText2);
+        ImGui::Begin("Window");
+        float width = ImGui::GetContentRegionAvail().x;
+
+        ImVec2 size(width, ImGui::GetTextLineHeight() * 8);
+        ImGui::InputTextMultiline("##input1", &inputText1, size, 
+            ImGuiInputTextFlags_AllowTabInput);
+
+        ImGui::InputTextMultiline("##input2", &inputText2, size, 
+            ImGuiInputTextFlags_AllowTabInput | ImGuiInputTextFlags_ReadOnly);
+
         if(ImGui::Button("Convert"))
         {
             inputText2 = raw::to_json(inputText1, true);
