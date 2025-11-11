@@ -23,7 +23,7 @@ python3 licenses.py --no_print
 vcpkg license-report
 prinft "You can get all licenses on vcpkg_installed/licenses/licenses.csv"
 
-printf "(FTL OR GPL-2.0-or-later) -> Choosen FTL license"
-printf "(MIT OR CC-PDDC) -> Choosen MIT license"
-printf "(Unlicense OR MIT-0) -> Choosen MIT-0 license"
+printf "(FTL OR GPL-2.0-or-later) -> Choosen FTL license\n"
+printf "(MIT OR CC-PDDC) -> Choosen MIT license\n"
+printf "(Unlicense OR MIT-0) -> Choosen MIT-0 license\n"
 
