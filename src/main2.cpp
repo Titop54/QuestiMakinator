@@ -9,6 +9,203 @@
 #include "imgui_stdlib.h"
 #include "parser/raw.h"
 
+
+#include <SFML/Network.hpp>
+#include <string>
+#include <iostream>
+#include <thread>
+#include <chrono>
+#include <sstream>
+
+class ProbeJSClient {
+private:
+    int port;
+    std::string auth;
+    bool connected;
+    sf::TcpSocket socket;
+
+public:
+    ProbeJSClient(int port = 61423, std::string auth = "probejs")
+        : port(port), auth(auth), connected(false) {}
+
+    bool connect() {
+        if (socket.connect(sf::IpAddress::LocalHost, port, sf::seconds(5)) == sf::Socket::Status::Done) {
+            connected = true;
+            std::cout << "Conectado a ProbeJS en puerto " << port << std::endl;
+            return true;
+        } else {
+            std::cout << "Error conectando a ProbeJS en puerto " << port << std::endl;
+            connected = false;
+            return false;
+        }
+    }
+
+    bool tryConnect() {
+        int originalPort = port;
+        
+        // Intentar conectar en varios puertos (como hace la extensión)
+        for (int i = 0; i < 10; i++) {
+            if (connect()) {
+                return true;
+            }
+            port++;
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        
+        // Volver al puerto original y probar una vez más
+        port = originalPort;
+        return connect();
+    }
+
+    bool sendReloadCommand(const std::string& scriptType) {
+        if (!connected && !tryConnect()) {
+            std::cout << "No se pudo conectar a ProbeJS" << std::endl;
+            return false;
+        }
+
+        std::string path;
+        if (scriptType == "server_scripts") {
+            path = "/api/reload/server";
+        } else if (scriptType == "client_scripts") {
+            path = "/api/reload/client";
+        } else if (scriptType == "startup_scripts") {
+            path = "/api/reload/startup";
+        } else {
+            return false;
+        }
+
+        // Construir la petición HTTP completa como lo hace axios
+        std::stringstream httpRequest;
+        httpRequest << "POST " << path << " HTTP/1.1\r\n";
+        httpRequest << "Host: localhost:" << port << "\r\n";
+        httpRequest << "Accept: application/json, text/plain, */*\r\n";
+        httpRequest << "Content-Type: application/x-www-form-urlencoded\r\n";
+        httpRequest << "Authorization: Bearer " << auth << "\r\n";
+        httpRequest << "User-Agent: MyCppApp/1.0\r\n";
+        httpRequest << "Connection: close\r\n";
+        httpRequest << "Content-Length: 0\r\n";
+        httpRequest << "\r\n";
+
+        std::string requestStr = httpRequest.str();
+        
+        if (socket.send(requestStr.c_str(), requestStr.size()) != sf::Socket::Status::Done) {
+            std::cout << "Error enviando comando reload" << std::endl;
+            connected = false;
+            return false;
+        }
+
+        std::cout << "Comando reload enviado: " << scriptType << std::endl;
+
+        // Esperar y leer la respuesta
+        char buffer[4096];
+        std::size_t received;
+        std::string response;
+        
+        // Leer toda la respuesta disponible
+        while (socket.receive(buffer, sizeof(buffer), received) == sf::Socket::Status::Done) {
+            response.append(buffer, received);
+            if (received < sizeof(buffer)) break; // Probablemente llegamos al final
+        }
+
+        // Verificar si la respuesta fue exitosa
+        if (response.find("HTTP/1.1 200") != std::string::npos || 
+            response.find("HTTP/1.1 204") != std::string::npos) {
+            std::cout << "Comando ejecutado exitosamente" << std::endl;
+            return true;
+        } else {
+            std::cout << "Error en la respuesta: " << std::endl;
+            // Imprimir solo las primeras líneas para debug
+            std::istringstream responseStream(response);
+            std::string line;
+            int lineCount = 0;
+            while (std::getline(responseStream, line) && lineCount < 5) {
+                std::cout << line << std::endl;
+                lineCount++;
+            }
+            return false;
+        }
+    }
+
+    bool sendCommand(const std::string& command) {
+        if (!connected && !tryConnect()) {
+            std::cout << "No se pudo conectar a ProbeJS" << std::endl;
+            return false;
+        }
+
+        // Construir el cuerpo JSON con el comando
+        std::string jsonBody = "{\"command\":\"" + command + "\"}";
+
+        // Construir la petición HTTP para ejecutar comandos
+        std::stringstream httpRequest;
+        httpRequest << "POST /api/probejs/run-command HTTP/1.1\r\n";
+        httpRequest << "Host: localhost:" << port << "\r\n";
+        httpRequest << "Accept: application/json, text/plain, */*\r\n";
+        httpRequest << "Content-Type: application/json\r\n";
+        httpRequest << "Authorization: Bearer " << auth << "\r\n";
+        httpRequest << "User-Agent: MyCppApp/1.0\r\n";
+        httpRequest << "Connection: close\r\n";
+        httpRequest << "Content-Length: " << jsonBody.length() << "\r\n";
+        httpRequest << "\r\n";
+        httpRequest << jsonBody;
+
+        std::string requestStr = httpRequest.str();
+        
+        if (socket.send(requestStr.c_str(), requestStr.size()) != sf::Socket::Status::Done) {
+            std::cout << "Error enviando comando: " << command << std::endl;
+            connected = false;
+            return false;
+        }
+
+        std::cout << "Comando enviado: " << command << std::endl;
+
+        // Esperar y leer la respuesta
+        char buffer[4096];
+        std::size_t received;
+        std::string response;
+        
+        // Leer toda la respuesta disponible
+        while (socket.receive(buffer, sizeof(buffer), received) == sf::Socket::Status::Done) {
+            response.append(buffer, received);
+            if (received < sizeof(buffer)) break; // Probablemente llegamos al final
+        }
+
+        // Verificar si la respuesta fue exitosa
+        if (response.find("HTTP/1.1 200") != std::string::npos || 
+            response.find("HTTP/1.1 204") != std::string::npos) {
+            std::cout << "Comando ejecutado exitosamente" << std::endl;
+            
+            // Extraer y mostrar la respuesta del comando si está disponible
+            size_t jsonStart = response.find("{");
+            if (jsonStart != std::string::npos) {
+                std::string jsonResponse = response.substr(jsonStart);
+                std::cout << "Respuesta: " << jsonResponse << std::endl;
+            }
+            
+            return true;
+        } else {
+            std::cout << "Error en la respuesta del comando: " << std::endl;
+            // Imprimir solo las primeras líneas para debug
+            std::istringstream responseStream(response);
+            std::string line;
+            int lineCount = 0;
+            while (std::getline(responseStream, line) && lineCount < 10) {
+                std::cout << line << std::endl;
+                lineCount++;
+            }
+            return false;
+        }
+    }
+
+    void disconnect() {
+        socket.disconnect();
+        connected = false;
+    }
+
+    bool isConnected() const {
+        return connected;
+    }
+};
+
 // Estructura para manejar el estado de selección de texto
 struct TextEditorState {
     std::string text;
@@ -468,6 +665,27 @@ int main()
         if(ImGui::Button("Copiar Texto"))
         {
             ImGui::SetClipboardText(inputText2.c_str());
+        }
+        ImGui::SameLine();
+
+        if(ImGui::Button("Reload Minecraft"))
+        {
+            static ProbeJSClient probe(61423, "1wR7P7aCSu-0p5Yc6zYhzUkYp2y5dNQWI05rZaEYEaYH");
+            if(probe.tryConnect())
+            {
+                if(probe.sendCommand("give @p minecraft:diamond 1")) 
+                {
+                    inputText2 = "Reload exitoso!";
+                }
+                else
+                {
+                    inputText2 = "Error al ejecutar reload";
+                }
+            }
+            else
+            {
+                inputText2 = "No se ha podido conectar con el server";
+            }
         }
         ImGui::SameLine();
 
