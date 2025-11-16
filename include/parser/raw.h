@@ -23,8 +23,20 @@ namespace raw
     static const std::vector<std::string> IGNORED_COMMANDS = {
         "l", "o", "n", "m", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", 
         "a", "b", "c", "d", "e", "f", "r", "k", "@url:\"", "@in:\"", "@file:\"", 
-        "@command:\"", "@copy:\"", "@change:\"", "@page", "&text:\"", "&item:\""
+        "@command:\"", "@copy:\"", "@change:\"", "@page", "&text:\"", "&item:\"", "&shadow:\""
     };
+
+    inline unsigned int argb_hex_to_decimal(const std::string& argb_hex) {
+        if (argb_hex.length() != 8) {
+            return 0;
+        }
+        
+        try {
+            return std::stoul(argb_hex, nullptr, 16);
+        } catch (...) {
+            return 0;
+        }
+    }
 
     inline std::string get_color(std::string hex)
     {
@@ -60,7 +72,8 @@ namespace raw
            text.contains("&@copy:") ||
            text.contains("&@change:") ||
            text.contains("&&text:") ||
-           text.contains("&&item:")
+           text.contains("&&item:") ||
+           text.contains("&&shadow:")
         ) return true;
 
         return false;
@@ -331,6 +344,7 @@ namespace raw
             std::string click_value;
             std::string hover_action;
             std::string hover_value;
+            std::string shadow;
         };
 
         std::vector<std::string> components;
@@ -353,7 +367,8 @@ namespace raw
                     s.strikethrough ||
                     s.obfuscated ||
                     !s.click_action.empty() ||
-                    !s.hover_action.empty();
+                    !s.hover_action.empty() ||
+                    !s.shadow.empty();
             };
 
             // Verificar si es el primer componente y tiene propiedades extra
@@ -371,6 +386,10 @@ namespace raw
             if (current_state.underlined) oss << ",\"underlined\":true";
             if (current_state.strikethrough) oss << ",\"strikethrough\":true";
             if (current_state.obfuscated) oss << ",\"obfuscated\":true";
+            
+            if (!current_state.shadow.empty()) {
+                oss << ",\"shadow_color\":" << current_state.shadow;
+            }
             
             if (!current_state.click_action.empty()) {
                 oss << ",\"clickEvent\":{\"action\":\"" << current_state.click_action 
@@ -395,6 +414,7 @@ namespace raw
             current_state.hover_value.clear();
             current_state.click_action.clear();
             current_state.click_value.clear();
+            current_state.shadow.clear();
         };
 
         size_t i = 0;
@@ -571,6 +591,15 @@ namespace raw
                                 current_state.hover_action = "show_item";
                                 current_state.hover_value = value;
                             }
+                            else if(cmd == "shadow")
+                            {
+                                if (value.length() >= 1 && value[0] == '#' && value.length() == 9) {
+                                    // #AARRGGBB
+                                    std::string argb_hex = value.substr(1);
+                                    unsigned int shadow_decimal = argb_hex_to_decimal(argb_hex);
+                                    current_state.shadow = std::to_string(shadow_decimal);
+                                }
+                            }
 
                             i = end_quote + 1;
                             continue;
@@ -654,7 +683,8 @@ namespace raw
                 << "- Change page (&@change:\"<value>\"), words after this will be affected\n"
                 << "- New page (&@page), acts as the new page on ftb\n"
                 << "- Show text on hover (&&text:\"<text>\"), words before this will be affected\n"
-                << "- Show item on hover (&&item:\"<item_id>\"), words before this will be affected\n\n";
+                << "- Show item on hover (&&item:\"<item_id>\"), words before this will be affected\n"
+                << "- Set shadow color (&&shadow:\"#AARRGGBB\"), words before this will be affected\n\n";
     }
 
     inline void interactive_converter()

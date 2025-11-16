@@ -1,21 +1,23 @@
-#include "imgui.h"
-#include "imgui-SFML.h"
+#include <imgui.h>
+#include <imgui-SFML.h>
 #include <SFML/Graphics/RenderStates.hpp>
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/System/Vector2.hpp>
 #include <SFML/Window/Event.hpp>
 #include <SFML/Window/WindowEnums.hpp>
 #include <cmath>
-#include "imgui_stdlib.h"
-#include "parser/raw.h"
-
+#include <imgui_stdlib.h>
+#include <parser/parser.h>
+#include <parser/raw.h>
 
 #include <SFML/Network.hpp>
+#include <cstdio>
 #include <string>
 #include <iostream>
 #include <thread>
 #include <chrono>
 #include <sstream>
+#include <unistd.h>
 
 class ProbeJSClient {
 private:
@@ -31,10 +33,10 @@ public:
     bool connect() {
         if (socket.connect(sf::IpAddress::LocalHost, port, sf::seconds(5)) == sf::Socket::Status::Done) {
             connected = true;
-            std::cout << "Conectado a ProbeJS en puerto " << port << std::endl;
+            std::cout << "Connected to KubeJS on port " << port << std::endl;
             return true;
         } else {
-            std::cout << "Error conectando a ProbeJS en puerto " << port << std::endl;
+            std::cout << "Error connecting to KubeJS on port " << port << std::endl;
             connected = false;
             return false;
         }
@@ -43,7 +45,7 @@ public:
     bool tryConnect() {
         int originalPort = port;
         
-        // Intentar conectar en varios puertos (como hace la extensión)
+        // Try connecting on multiple ports (like the extension does)
         for (int i = 0; i < 10; i++) {
             if (connect()) {
                 return true;
@@ -52,14 +54,14 @@ public:
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
         
-        // Volver al puerto original y probar una vez más
+        // Return to original port and try once more
         port = originalPort;
         return connect();
     }
 
     bool sendReloadCommand(const std::string& scriptType) {
         if (!connected && !tryConnect()) {
-            std::cout << "No se pudo conectar a ProbeJS" << std::endl;
+            std::cout << "Could not connect to KubeJS" << std::endl;
             return false;
         }
 
@@ -74,7 +76,7 @@ public:
             return false;
         }
 
-        // Construir la petición HTTP completa como lo hace axios
+        // Build the complete HTTP request like axios does
         std::stringstream httpRequest;
         httpRequest << "POST " << path << " HTTP/1.1\r\n";
         httpRequest << "Host: localhost:" << port << "\r\n";
@@ -89,32 +91,32 @@ public:
         std::string requestStr = httpRequest.str();
         
         if (socket.send(requestStr.c_str(), requestStr.size()) != sf::Socket::Status::Done) {
-            std::cout << "Error enviando comando reload" << std::endl;
+            std::cout << "Error sending reload command" << std::endl;
             connected = false;
             return false;
         }
 
-        std::cout << "Comando reload enviado: " << scriptType << std::endl;
+        std::cout << "Reload command sent: " << scriptType << std::endl;
 
-        // Esperar y leer la respuesta
+        // Wait and read the response
         char buffer[4096];
         std::size_t received;
         std::string response;
         
-        // Leer toda la respuesta disponible
+        // Read all available response
         while (socket.receive(buffer, sizeof(buffer), received) == sf::Socket::Status::Done) {
             response.append(buffer, received);
-            if (received < sizeof(buffer)) break; // Probablemente llegamos al final
+            if (received < sizeof(buffer)) break; // Probably reached the end
         }
 
-        // Verificar si la respuesta fue exitosa
+        // Check if the response was successful
         if (response.find("HTTP/1.1 200") != std::string::npos || 
             response.find("HTTP/1.1 204") != std::string::npos) {
-            std::cout << "Comando ejecutado exitosamente" << std::endl;
+            std::cout << "Command executed successfully" << std::endl;
             return true;
         } else {
-            std::cout << "Error en la respuesta: " << std::endl;
-            // Imprimir solo las primeras líneas para debug
+            std::cout << "Error in response: " << std::endl;
+            // Print only the first lines for debug
             std::istringstream responseStream(response);
             std::string line;
             int lineCount = 0;
@@ -128,14 +130,14 @@ public:
 
     bool sendCommand(const std::string& command) {
         if (!connected && !tryConnect()) {
-            std::cout << "No se pudo conectar a ProbeJS" << std::endl;
+            std::cout << "Could not connect to ProbeJS" << std::endl;
             return false;
         }
 
-        // Construir el cuerpo JSON con el comando
+        // Build JSON body with the command
         std::string jsonBody = "{\"command\":\"" + command + "\"}";
 
-        // Construir la petición HTTP para ejecutar comandos
+        // Build HTTP request to execute commands
         std::stringstream httpRequest;
         httpRequest << "POST /api/probejs/run-command HTTP/1.1\r\n";
         httpRequest << "Host: localhost:" << port << "\r\n";
@@ -151,40 +153,40 @@ public:
         std::string requestStr = httpRequest.str();
         
         if (socket.send(requestStr.c_str(), requestStr.size()) != sf::Socket::Status::Done) {
-            std::cout << "Error enviando comando: " << command << std::endl;
+            std::cout << "Error sending command: " << command << std::endl;
             connected = false;
             return false;
         }
 
-        std::cout << "Comando enviado: " << command << std::endl;
+        std::cout << "Command sent: " << command << std::endl;
 
-        // Esperar y leer la respuesta
+        // Wait and read the response
         char buffer[4096];
         std::size_t received;
         std::string response;
         
-        // Leer toda la respuesta disponible
+        // Read all available response
         while (socket.receive(buffer, sizeof(buffer), received) == sf::Socket::Status::Done) {
             response.append(buffer, received);
-            if (received < sizeof(buffer)) break; // Probablemente llegamos al final
+            if (received < sizeof(buffer)) break; // Probably reached the end
         }
 
-        // Verificar si la respuesta fue exitosa
+        // Check if the response was successful
         if (response.find("HTTP/1.1 200") != std::string::npos || 
             response.find("HTTP/1.1 204") != std::string::npos) {
-            std::cout << "Comando ejecutado exitosamente" << std::endl;
+            std::cout << "Command executed successfully" << std::endl;
             
-            // Extraer y mostrar la respuesta del comando si está disponible
+            // Extract and show command response if available
             size_t jsonStart = response.find("{");
             if (jsonStart != std::string::npos) {
                 std::string jsonResponse = response.substr(jsonStart);
-                std::cout << "Respuesta: " << jsonResponse << std::endl;
+                std::cout << "Response: " << jsonResponse << std::endl;
             }
             
             return true;
         } else {
-            std::cout << "Error en la respuesta del comando: " << std::endl;
-            // Imprimir solo las primeras líneas para debug
+            std::cout << "Error in command response: " << std::endl;
+            // Print only the first lines for debug
             std::istringstream responseStream(response);
             std::string line;
             int lineCount = 0;
@@ -206,7 +208,7 @@ public:
     }
 };
 
-// Estructura para manejar el estado de selección de texto
+// Structure to handle text selection state
 struct TextEditorState {
     std::string text;
     bool hasSelection = false;
@@ -233,31 +235,50 @@ struct TextEditorState {
             std::string result = text;
             result.replace(start, end - start, prefix + selectedText + suffix);
             
-            // Actualizar posiciones después del reemplazo
+            // Update positions after replacement
             selectionStart = start + prefix.length();
             selectionEnd = selectionStart + selectedText.length();
             
             return result;
         } else {
-            // Si no hay selección, añadir al final
+            // If no selection, add at the end
             return text + prefix + suffix;
         }
     }
 };
 
-// Función para mostrar tooltips
-void ShowHelpMarker(const char* desc) {
-    ImGui::TextDisabled("(?)");
+// Improved tooltip function with delay
+struct TooltipState {
+    float hoverTime = 0.0f;
+    bool isHovering = false;
+};
+
+bool ShowDelayedTooltip(TooltipState& state, const char* desc) {
+    bool showTooltip = false;
     if (ImGui::IsItemHovered()) {
-        ImGui::BeginTooltip();
-        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-        ImGui::TextUnformatted(desc);
-        ImGui::PopTextWrapPos();
-        ImGui::EndTooltip();
+        if (!state.isHovering) {
+            state.isHovering = true;
+            state.hoverTime = 0.0f;
+        }
+        state.hoverTime += ImGui::GetIO().DeltaTime;
+        
+        if (state.hoverTime >= 1.0f) {
+            ImGui::BeginTooltip();
+            ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+            ImGui::TextUnformatted(desc);
+            ImGui::PopTextWrapPos();
+            ImGui::EndTooltip();
+            showTooltip = true;
+        }
+    } else {
+        state.isHovering = false;
+        state.hoverTime = 0.0f;
     }
+    
+    return showTooltip;
 }
 
-// Callback personalizado para capturar la selección
+// Callback to capture text selection
 static int InputTextCallback(ImGuiInputTextCallbackData* data) {
     TextEditorState* state = static_cast<TextEditorState*>(data->UserData);
     if (state) {
@@ -273,7 +294,7 @@ int main()
 {
     sf::RenderWindow window(
                      sf::VideoMode(sf::Vector2u(800, 600)),
-                    "Prueba",
+                    "QuestiMakinator",
                     sf::Style::Default,
                     sf::State::Windowed,
                     {}
@@ -288,19 +309,23 @@ int main()
 
     window.setFramerateLimit(60);
     
-    // Usar nuestro estado personalizado
+    // Use our custom state
     TextEditorState editorState;
     std::string inputText2 = "";
     
-    // Variables para efectos con parámetros
+    // Variables for effects with parameters
     std::string effectParam1 = "1.0";
     std::string effectParam2 = "1.0";
     std::string effectParam3 = "1.0";
     std::string customText = "";
     std::string colorHex = "FFFFFF";
     
-    // Estado para radio buttons
+    // State for radio buttons
     static int selected_option = 0;
+
+    // Tooltip states for buttons
+    TooltipState tooltipStates[100] = {}; // Enough for all buttons
+    int tooltipIndex = 0;
 
     // After calling init, we need to pass the style
     ImGuiStyle& style = ImGui::GetStyle();
@@ -333,367 +358,407 @@ int main()
         ImVec2 center = ImVec2(window.getSize().x / 2.0f, window.getSize().y / 2.0f);
         ImGui::SetNextWindowPos(center, ImGuiCond_FirstUseEver, ImVec2(0.5f, 0.5f));
 
-        ImGui::Begin("Window");
+        ImGui::Begin("Text Formatter");
         float width = ImGui::GetContentRegionAvail().x;
 
-        // ===== GRUPO 1: FORMATOS BÁSICOS =====
-        ImGui::Text("Formatos Básicos:");
+        // Reset tooltip index for this frame
+        tooltipIndex = 0;
+
+        // ===== GROUP 1: BASIC FORMATS =====
+        ImGui::Text("Basic Formats:");
         
         if (ImGui::Button("Bold")) {
             editorState.text = editorState.wrapSelection("&l");
         }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Bold text (&l)");
         ImGui::SameLine();
-        ShowHelpMarker("Texto en negrita (&l)");
         
         if (ImGui::Button("Italic")) {
             editorState.text = editorState.wrapSelection("&o");
         }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Italic text (&o)");
         ImGui::SameLine();
-        ShowHelpMarker("Texto en cursiva (&o)");
-        
+
         if (ImGui::Button("Underline")) {
             editorState.text = editorState.wrapSelection("&n");
         }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Underlined text (&n)");
         ImGui::SameLine();
-        ShowHelpMarker("Texto subrayado (&n)");
-        
+
         if (ImGui::Button("Strikethrough")) {
             editorState.text = editorState.wrapSelection("&m");
         }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Strikethrough text (&m)");
         ImGui::SameLine();
-        ShowHelpMarker("Texto tachado (&m)");
-        
+
         if (ImGui::Button("Reset")) {
             editorState.text = editorState.wrapSelection("&r");
         }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Reset formatting (&r)");
         ImGui::SameLine();
-        ShowHelpMarker("Resetear formato (&r)");
-        
+
         if (ImGui::Button("Obfuscated")) {
             editorState.text = editorState.wrapSelection("&k");
         }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Obfuscated text (&k)");
         ImGui::SameLine();
-        ShowHelpMarker("Texto ofuscado (&k)");
-
         ImGui::NewLine();
 
-        // ===== GRUPO 2: COLORES BÁSICOS =====
-        ImGui::Text("Colores Básicos:");
+        // ===== GROUP 2: BASIC COLORS =====
+        ImGui::Text("Basic Colors:");
         
-        // Primera fila de colores
-        if (ImGui::Button("Negro (&0)")) {
+        // First row of colors
+        if (ImGui::Button("Black (&0)")) {
             editorState.text = editorState.wrapSelection("&0");
         }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Black color (&0)");
         ImGui::SameLine();
-        
-        if (ImGui::Button("Azul Osc (&1)")) {
+
+        if (ImGui::Button("Dark Blue (&1)")) {
             editorState.text = editorState.wrapSelection("&1");
         }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Dark blue color (&1)");
         ImGui::SameLine();
-        
-        if (ImGui::Button("Verde Osc (&2)")) {
+
+        if (ImGui::Button("Dark Green (&2)")) {
             editorState.text = editorState.wrapSelection("&2");
         }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Dark green color (&2)");
         ImGui::SameLine();
-        
-        if (ImGui::Button("Azul Claro (&3)")) {
+
+        if (ImGui::Button("Light Blue (&3)")) {
             editorState.text = editorState.wrapSelection("&3");
         }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Light blue color (&3)");
         ImGui::SameLine();
-        
-        if (ImGui::Button("Rojo (&4)")) {
+
+        if (ImGui::Button("Red (&4)")) {
             editorState.text = editorState.wrapSelection("&4");
         }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Red color (&4)");
         ImGui::SameLine();
-        
-        if (ImGui::Button("Púrpura (&5)")) {
+
+        if (ImGui::Button("Purple (&5)")) {
             editorState.text = editorState.wrapSelection("&5");
         }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Purple color (&5)");
+        ImGui::SameLine();
 
-        // Segunda fila de colores
-        if (ImGui::Button("Naranja (&6)")) {
+        // Second row of colors
+        if (ImGui::Button("Orange (&6)")) {
             editorState.text = editorState.wrapSelection("&6");
         }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Orange color (&6)");
         ImGui::SameLine();
-        
-        if (ImGui::Button("Gris Claro (&7)")) {
+
+        if (ImGui::Button("Light Gray (&7)")) {
             editorState.text = editorState.wrapSelection("&7");
         }
-        ImGui::SameLine();
-        
-        if (ImGui::Button("Gris (&8)")) {
-            editorState.text = editorState.wrapSelection("&8");
-        }
-        ImGui::SameLine();
-        
-        if (ImGui::Button("Azul (&9)")) {
-            editorState.text = editorState.wrapSelection("&9");
-        }
-        ImGui::SameLine();
-        
-        if (ImGui::Button("Verde Claro (&a)")) {
-            editorState.text = editorState.wrapSelection("&a");
-        }
-        ImGui::SameLine();
-        
-        if (ImGui::Button("Agua (&b)")) {
-            editorState.text = editorState.wrapSelection("&b");
-        }
-
-        // Tercera fila de colores
-        if (ImGui::Button("Rojo Claro (&c)")) {
-            editorState.text = editorState.wrapSelection("&c");
-        }
-        ImGui::SameLine();
-        
-        if (ImGui::Button("Rosa (&d)")) {
-            editorState.text = editorState.wrapSelection("&d");
-        }
-        ImGui::SameLine();
-        
-        if (ImGui::Button("Amarillo (&e)")) {
-            editorState.text = editorState.wrapSelection("&e");
-        }
-        ImGui::SameLine();
-        
-        if (ImGui::Button("Blanco (&f)")) {
-            editorState.text = editorState.wrapSelection("&f");
-        }
-
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Light gray color (&7)");
         ImGui::NewLine();
 
-        // ===== GRUPO 3: ACCIONES ESPECIALES =====
-        ImGui::Text("Acciones Especiales:");
+        if (ImGui::Button("Gray (&8)")) {
+            editorState.text = editorState.wrapSelection("&8");
+        }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Gray color (&8)");
+        ImGui::SameLine();
+
+        if (ImGui::Button("Blue (&9)")) {
+            editorState.text = editorState.wrapSelection("&9");
+        }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Blue color (&9)");
+        ImGui::SameLine();
+
+        if (ImGui::Button("Light Green (&a)")) {
+            editorState.text = editorState.wrapSelection("&a");
+        }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Light green color (&a)");
+        ImGui::SameLine();
+
+        if (ImGui::Button("Aqua (&b)")) {
+            editorState.text = editorState.wrapSelection("&b");
+        }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Aqua color (&b)");
+        ImGui::SameLine();
+
+        // Third row of colors
+        if (ImGui::Button("Light Red (&c)")) {
+            editorState.text = editorState.wrapSelection("&c");
+        }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Light red color (&c)");
+        ImGui::SameLine();
+
+        if (ImGui::Button("Pink (&d)")) {
+            editorState.text = editorState.wrapSelection("&d");
+        }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Pink color (&d)");
+        ImGui::SameLine();
+
+        if (ImGui::Button("Yellow (&e)")) {
+            editorState.text = editorState.wrapSelection("&e");
+        }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Yellow color (&e)");
+        ImGui::SameLine();
+
+        if (ImGui::Button("White (&f)")) {
+            editorState.text = editorState.wrapSelection("&f");
+        }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "White color (&f)");
+        ImGui::SameLine();
+        ImGui::NewLine();
+
+        // ===== GROUP 3: SPECIAL ACTIONS =====
+        ImGui::Text("Special Actions:");
         
         if (ImGui::Button("Insert URL")) {
             editorState.text = editorState.wrapSelection("&@url:\"", "\"");
         }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Insert URL: &@url:\"url\"");
         ImGui::SameLine();
-        ShowHelpMarker("Insertar URL: &@url:\"url\"");
-        
+
         if (ImGui::Button("Insert Text")) {
             editorState.text = editorState.wrapSelection("&@in:\"", "\"");
         }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Insert chat text: &@in:\"text\"");
         ImGui::SameLine();
-        ShowHelpMarker("Insertar texto de chat: &@in:\"texto\"");
-        
+
         if (ImGui::Button("Open File")) {
             editorState.text = editorState.wrapSelection("&@file:\"", "\"");
         }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Open file: &@file:\"path\"");
         ImGui::SameLine();
-        ShowHelpMarker("Abrir archivo: &@file:\"ruta\"");
-        
+
         if (ImGui::Button("Run Command")) {
             editorState.text = editorState.wrapSelection("&@command:\"", "\"");
         }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Execute command: &@command:\"command\"");
         ImGui::SameLine();
-        ShowHelpMarker("Ejecutar comando: &@command:\"comando\"");
-        
+
         if (ImGui::Button("Copy Text")) {
             editorState.text = editorState.wrapSelection("&@copy:\"", "\"");
         }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Copy text: &@copy:\"text\"");
         ImGui::SameLine();
-        ShowHelpMarker("Copiar texto: &@copy:\"texto\"");
-        
+
         if (ImGui::Button("Change Quest")) {
             editorState.text = editorState.wrapSelection("&@change:\"", "\"");
         }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Change quest: &@change:\"text\"");
         ImGui::SameLine();
-        ShowHelpMarker("Cambiar misión: &@change:\"texto\"");
-        
+
         if (ImGui::Button("New Page")) {
             editorState.text = editorState.wrapSelection("&@page");
         }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "New page: &@page");
         ImGui::SameLine();
-        ShowHelpMarker("Nueva página: &@page");
-
         ImGui::NewLine();
 
-        // ===== GRUPO 4: HOVER EFFECTS =====
-        ImGui::Text("Efectos Hover:");
+        // ===== GROUP 4: HOVER EFFECTS / EFFECTS =====
+        ImGui::Text("Hover Effects:");
         
         if (ImGui::Button("Show Text Hover")) {
             editorState.text = editorState.wrapSelection("&&text:\"", "\"");
         }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Show text on hover: &&text:\"text\"");
         ImGui::SameLine();
-        ShowHelpMarker("Mostrar texto al hover: &&text:\"texto\"");
-        
+
         if (ImGui::Button("Show Item Hover")) {
             editorState.text = editorState.wrapSelection("&&item:\"", "\"");
         }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Show item on hover: &&item:\"item\"");
         ImGui::SameLine();
-        ShowHelpMarker("Mostrar item al hover: &&item:\"item\"");
-
+        
+        if (ImGui::Button("Shadow Text")) {
+            editorState.text = editorState.wrapSelection("&&shadow:\"", "\"");
+        }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Put a shadow on the text (Not working) (#AARRGGBB)");
+        ImGui::SameLine();
         ImGui::NewLine();
 
-        // ===== GRUPO 5: EFECTOS DEL MOD =====
-        ImGui::Text("Efectos del Mod:");
+        // ===== GROUP 5: MOD EFFECTS =====
+        ImGui::Text("Mod Effects:");
         
-        // Primera fila de efectos
+        // First row of effects
         if (ImGui::Button("Typewriter")) {
             editorState.text = editorState.wrapSelection("<typewriter>", "</typewriter>");
         }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Typewriter effect");
         ImGui::SameLine();
-        ShowHelpMarker("Efecto máquina de escribir");
-        
+
         if (ImGui::Button("Bounce")) {
             editorState.text = editorState.wrapSelection("<bounce a=1.0 f=1.0 w=1.0>", "</bounce>");
         }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Vertical bounce effect");
         ImGui::SameLine();
-        ShowHelpMarker("Rebote vertical");
-        
+
         if (ImGui::Button("Fade")) {
             editorState.text = editorState.wrapSelection("<fade a=0.3 f=1.0 w=0.0>", "</fade>");
         }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Fade effect");
         ImGui::SameLine();
-        ShowHelpMarker("Efecto desvanecimiento");
         
         if (ImGui::Button("Glitch")) {
             editorState.text = editorState.wrapSelection("<glitch f=1.0 j=0.015 b=0.003 s=0.08>", "</glitch>");
         }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Glitch effect");
         ImGui::SameLine();
-        ShowHelpMarker("Efecto glitch");
 
-        // Segunda fila de efectos
+        // Second row of effects
         if (ImGui::Button("Gradient")) {
             editorState.text = editorState.wrapSelection("<grad from=#7FFFD4 to=#1E90FF hue=false f=0.0 sp=20.0 uni=false>", "</grad>");
         }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Color gradient effect");
         ImGui::SameLine();
-        ShowHelpMarker("Gradiente de color");
-        
+
         if (ImGui::Button("Neon")) {
             editorState.text = editorState.wrapSelection("<neon p=10 r=2 a=0.12>", "</neon>");
         }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Neon effect");
         ImGui::SameLine();
-        ShowHelpMarker("Efecto neón");
-        
+
         if (ImGui::Button("Pendulum")) {
             editorState.text = editorState.wrapSelection("<pend f=1.0 a=30 r=0.0>", "</pend>");
         }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Circular pendulum effect");
         ImGui::SameLine();
-        ShowHelpMarker("Péndulo circular");
-        
+
         if (ImGui::Button("Pulse")) {
             editorState.text = editorState.wrapSelection("<pulse base=0.75 a=1.0 f=1.0 w=0.0>", "</pulse>");
         }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Brightness pulse effect");
         ImGui::SameLine();
-        ShowHelpMarker("Pulsación de brillo");
 
-        // Tercera fila de efectos
+        // Third row of effects
         if (ImGui::Button("Rainbow")) {
             editorState.text = editorState.wrapSelection("<rainb f=1.0 w=1.0>", "</rainb>");
         }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Rainbow color effect");
         ImGui::SameLine();
-        ShowHelpMarker("Efecto arcoíris");
-        
+
         if (ImGui::Button("Shadow")) {
             editorState.text = editorState.wrapSelection("<shadow x=0.0 y=0.0 c=000000 a=1.0>", "</shadow>");
         }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Modify text shadow");
         ImGui::SameLine();
-        ShowHelpMarker("Modificar sombra");
-        
+
         if (ImGui::Button("Shake")) {
             editorState.text = editorState.wrapSelection("<shake a=1.0 f=1.0>", "</shake>");
         }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Random shake effect");
         ImGui::SameLine();
-        ShowHelpMarker("Vibración aleatoria");
-        
+
         if (ImGui::Button("Swing")) {
             editorState.text = editorState.wrapSelection("<swing a=1.0 f=1.0 w=0.0>", "</swing>");
         }
-        ImGui::SameLine();
-        ShowHelpMarker("Oscilación de caracteres");
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Character swing effect");
+        ImGui::NewLine();
 
-        // Cuarta fila de efectos
+        // Fourth row of effects
         if (ImGui::Button("Turbulence")) {
             editorState.text = editorState.wrapSelection("<turb a=1.0 f=1.0>", "</turb>");
         }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Turbulence effect");
         ImGui::SameLine();
-        ShowHelpMarker("Efecto turbulencia");
-        
+
         if (ImGui::Button("Wave")) {
             editorState.text = editorState.wrapSelection("<wave a=1.0 f=1.0 w=1.0>", "</wave>");
         }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Wave-like undulation effect");
         ImGui::SameLine();
-        ShowHelpMarker("Ondulación como olas");
-        
+
         if (ImGui::Button("Wiggle")) {
             editorState.text = editorState.wrapSelection("<wiggle a=1.0 f=1.0 w=1.0>", "</wiggle>");
         }
-        ImGui::SameLine();
-        ShowHelpMarker("Movimiento aleatorio por caracter");
-
-        // Separador antes de los textfields
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Per-character random movement");
+        ImGui::NewLine();
         ImGui::Separator();
 
-        // Mostrar información de selección (debug)
+        // Show selection information (debug)
         if (editorState.hasSelection) {
-            ImGui::Text("Selección: '%s' (%d-%d)", 
+            ImGui::Text("Selection: '%s' (%d-%d)", 
                        editorState.selectedText.c_str(), 
                        editorState.selectionStart, 
                        editorState.selectionEnd);
         } else {
-            ImGui::Text("Sin selección");
+            ImGui::Text("No selection");
         }
 
-        // Primer textfield con callback para capturar selección
+        // First textfield with callback to capture selection
         ImVec2 size(width, ImGui::GetTextLineHeight() * 8);
         ImGui::InputTextMultiline("##input1", &editorState.text, size, 
             ImGuiInputTextFlags_AllowTabInput | ImGuiInputTextFlags_CallbackAlways,
             InputTextCallback, &editorState);
 
-        // Segundo textfield
+        // Second textfield
         ImGui::InputTextMultiline("##input2", &inputText2, size, 
             ImGuiInputTextFlags_ReadOnly);
 
-        // Radio buttons (solo uno seleccionado)
-        ImGui::Text("Opciones:");
+        // Radio buttons (only one selected)
+        ImGui::Text("Options:");
         ImGui::RadioButton("Array", &selected_option, 0);
         ImGui::SameLine();
         ImGui::RadioButton("Extra", &selected_option, 1);
         ImGui::SameLine();
 
-        // Botones de acción
+        // Action buttons
         if(ImGui::Button("Convert"))
         {
             inputText2 = raw::to_json(editorState.text, selected_option ? true : false);
             ImGui::SetClipboardText(inputText2.c_str());
         }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Convert text to JSON format and copy to clipboard");
         ImGui::SameLine();
 
-        // Botón para copiar texto
-        if(ImGui::Button("Copiar Texto"))
+        // Button to copy text
+        if(ImGui::Button("Copy Text Output"))
         {
             ImGui::SetClipboardText(inputText2.c_str());
         }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Copy converted text to clipboard");
         ImGui::SameLine();
-
+        
         if(ImGui::Button("Reload Minecraft"))
         {
-            static ProbeJSClient probe(61423, "1wR7P7aCSu-0p5Yc6zYhzUkYp2y5dNQWI05rZaEYEaYH");
+            /*static ProbeJSClient probe(61423, "");
             if(probe.tryConnect())
             {
                 if(probe.sendCommand("give @p minecraft:diamond 1")) 
                 {
-                    inputText2 = "Reload exitoso!";
+                    inputText2 = "Reload successful!";
                 }
                 else
                 {
-                    inputText2 = "Error al ejecutar reload";
+                    inputText2 = "Error executing reload";
                 }
             }
             else
             {
-                inputText2 = "No se ha podido conectar con el server";
-            }
+                inputText2 = "Could not connect to server";
+            }*/
         }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Reload Minecraft scripts (requires KubeJS)");
+        ImGui::SameLine();
+
+        if(ImGui::Button("Change zoom"))
+        {
+            zoom_factor += 1.0f;
+            if(zoom_factor >= 4.0f)
+            {
+                zoom_factor = 1.0f;
+            }
+            ImGuiIO& io = ImGui::GetIO();
+            io.FontGlobalScale = zoom_factor;
+        }
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Changes zoom level from 1 to 4");
         ImGui::SameLine();
 
         if(ImGui::Button("Exit"))
         {
             window.close();
         }
-        
+        ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Close the application");
+        ImGui::SameLine();
+
         ImGui::End();
 
         window.clear();

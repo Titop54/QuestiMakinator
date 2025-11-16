@@ -5,38 +5,91 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug Linux (lldb)",
-            "type": "lldb",
-            "request": "launch",
-            "program": "${workspaceFolder}/build/QuestiMakinator",
-            "args": [],
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "name": "Debug Linux 2 (lldb)",
+            "name": "Setup and Launch",
             "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/build/x64-linux/QuestiMakinator",
             "args": [],
-            "cwd": "${workspaceFolder}"
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "setup-and-build-release",
+            "internalConsoleOptions": "openOnSessionStart"
         },
         {
-            "type": "bashdb",
+            "name": "Setup and Launch debug",
+            "type": "lldb",
             "request": "launch",
-            "name": "Bash-Debug (simplest configuration)",
-            "program": "${file}",
-            "terminalKind": "integrated",
-            "args": [
-                "--windows"
-            ]
+            "program": "${workspaceFolder}/build/x64-linux/QuestiMakinator",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "setup-and-build-debug",
+            "internalConsoleOptions": "openOnSessionStart"
         },
         {
-            "name": "Python Debugger: Current File with Arguments",
+            "name": "Debug program",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/x64-linux/QuestiMakinator",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "build-debug-linux-no-config",
+            "internalConsoleOptions": "openOnSessionStart"
+        },
+        {
+            "name": "Debug program (Win)",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/x64-mingw-static/QuestiMakinator.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "build-debug-windows-no-config",
+            "internalConsoleOptions": "openOnSessionStart"
+        },
+        {
+            "name": "Licences",
             "type": "debugpy",
             "request": "launch",
-            "program": "${file}",
+            "program": "${workspaceFolder}/licences.py",
             "console": "integratedTerminal",
-            "args": "--no_print"
+            "args": ["--no_print"]
+        },
+        {
+            "name": "Debug Setup",
+            "type": "bashdb",
+            "request": "launch",
+            "program": "${workspaceFolder}/setup.sh",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "terminalKind": "integrated"
+        },
+        {
+            "name": "Debug Launch (Linux)",
+            "type": "bashdb",
+            "request": "launch",
+            "program": "${workspaceFolder}/launch.sh",
+            "args": ["--linux"],
+            "cwd": "${workspaceFolder}",
+            "terminalKind": "integrated"
+        },
+        {
+            "name": "Debug Launch (Win)",
+            "type": "bashdb",
+            "request": "launch",
+            "program": "${workspaceFolder}/launch.sh",
+            "args": ["--windows"],
+            "cwd": "${workspaceFolder}",
+            "terminalKind": "integrated"
+        }
+    ],
+    "compounds": [
+        {
+            "name": "setup-and-build-release",
+            "configurations": ["Setup and Launch"],
+            "preLaunchTask": "${workspaceFolder}/.vscode/tasks:setup-project && ${workspaceFolder}/.vscode/tasks:build-release-linux"
+        },
+        {
+            "name": "setup-and-build-debug",
+            "configurations": ["Setup and Launch debug"],
+            "preLaunchTask": "${workspaceFolder}/.vscode/tasks:setup-project && ${workspaceFolder}/.vscode/tasks:build-debug-linux"
         }
     ]
 }

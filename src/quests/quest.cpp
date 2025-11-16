@@ -4,7 +4,6 @@
 #include <quests/quest.h>
 #include <set>
 #include <functional>
-#include <bits/stdc++.h>
 #include <files/basic_header.h>
 
 

@@ -3,97 +3,95 @@
 # Configuración
 PROJECT_NAME="QuestiMakinator"
 VCPKG_ROOT="vcpkg/"
-TRIPLET=""
+TRIPLET="x64-linux"
 BUILD_TYPE="Release"
-FORCE_TRIPLET=false
+NO_CONFIG=false
 
 # Procesar argumentos
-for arg in "$@"
-do
-    case $arg in
+while [[ $# -gt 0 ]]; do
+    case $1 in
         --windows | --window)
-        TRIPLET="x64-mingw-static"
-        FORCE_TRIPLET=true
-        shift
-        ;;
-        --linux)
-        TRIPLET="x64-linux"
-        FORCE_TRIPLET=true
-        shift
-        ;;
-        *)
-        echo "Argumento no reconocido: $arg"
-        echo "Uso: $0 [--windows | --linux]"
-        exit 1
-        ;;
-    esac
-done
-
-# Detectar SO si no se forzó un triplet
-if [ "$FORCE_TRIPLET" = false ]; then
-    case "$(uname -s)" in
-        Linux*)
-            TRIPLET="x64-linux"
-            ;;
-        MINGW*|MSYS*)
             TRIPLET="x64-mingw-static"
+            shift
+            ;;
+        --linux)
+            TRIPLET="x64-linux"
+            shift
+            ;;
+        --no_config)
+            NO_CONFIG=true
+            shift
+            ;;
+        --debug)
+            BUILD_TYPE="Debug"
+            shift
+            ;;
+        --release)
+            BUILD_TYPE="Release"
+            shift
             ;;
         *)
-            echo "Sistema operativo no soportado"
+            printf "Argument not valid: %s\n" "$1"
+            printf "Valid arguments: [--windows | --linux] [--no_config] [--debug | --release]\n"
             exit 1
             ;;
     esac
-fi
+done
 
-# Crear directorio de build
+
 mkdir -p build/${TRIPLET}
-cd build/${TRIPLET}
-export VCPKG_ROOT=vcpkg/
+cd build/${TRIPLET} || exit
+export VCPKG_ROOT=../../vcpkg/
 export PATH=$VCPKG_ROOT:$PATH
 
-# Configurar CMake
-if [ "$TRIPLET" = "x64-mingw-static" ]; then
-    export CC=x86_64-w64-mingw32-gcc
-    export CXX=x86_64-w64-mingw32-g++
-    
-    # Configurar CMake con toolchain específico para MinGW
-    cmake ../../ \
-        -DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake \
-        -DVCPKG_TARGET_TRIPLET=${TRIPLET} \
-        -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
-        -DVCPKG_INSTALLED_DIR=$PWD/vcpkg_installed/${TRIPLET} \
-        -DVCPKG_HOST_TRIPLET=${TRIPLET} \
-        -DCMAKE_SYSTEM_NAME=Windows \
-        -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc \
-        -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++ \
-        -DCMAKE_RC_COMPILER=x86_64-w64-mingw32-windres
-else
-    # Configuración para Linux
-    cmake ../../ \
-        -DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake \
-        -DVCPKG_TARGET_TRIPLET=${TRIPLET} \
-        -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
-        -DVCPKG_INSTALLED_DIR=$PWD/vcpkg_installed/${TRIPLET} \
-        -DVCPKG_HOST_TRIPLET=${TRIPLET}
+if [ "$NO_CONFIG" = false ]; then
+    if [ "$TRIPLET" = "x64-mingw-static" ]; then
+        cmake ../../ \
+            -DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake \
+            -DVCPKG_TARGET_TRIPLET=${TRIPLET} \
+            -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+            -DVCPKG_INSTALLED_DIR="$PWD/../../vcpkg_installed/${TRIPLET}" \
+            -DVCPKG_HOST_TRIPLET=${TRIPLET} \
+            -DCMAKE_SYSTEM_NAME="Windows" \
+            -DCMAKE_C_COMPILER=x86_64-w64-mingw32-clang \
+            -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-clang++ \
+            -DCMAKE_RC_COMPILER=x86_64-w64-mingw32-windres
+    else
+        # Linux
+        cmake ../../ \
+            -DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake \
+            -DVCPKG_TARGET_TRIPLET=${TRIPLET} \
+            -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+            -DVCPKG_INSTALLED_DIR="$PWD/../../vcpkg_installed/${TRIPLET}" \
+            -DVCPKG_HOST_TRIPLET=${TRIPLET} \
+            -DCMAKE_C_COMPILER=clang \
+            -DCMAKE_CXX_COMPILER=clang++
+    fi
 fi
 
 # Compilar
-echo "Compiling"
+printf "Compiling\n"
 cmake --build . --config ${BUILD_TYPE}
 
-# Buscar el ejecutable (puede estar en diferentes ubicaciones dependiendo del generador)
+# Buscar el ejecutable en las ubicaciones especificadas
 EXECUTABLE_PATH=""
-if [ -f "${BUILD_TYPE}/${PROJECT_NAME}.exe" ]; then
-    EXECUTABLE_PATH="${BUILD_TYPE}/${PROJECT_NAME}.exe"
-elif [ -f "${PROJECT_NAME}.exe" ]; then
-    EXECUTABLE_PATH="${PROJECT_NAME}.exe"
-elif [ -f "${BUILD_TYPE}/${PROJECT_NAME}" ]; then
-    EXECUTABLE_PATH="${BUILD_TYPE}/${PROJECT_NAME}"
-elif [ -f "${PROJECT_NAME}" ]; then
-    EXECUTABLE_PATH="${PROJECT_NAME}"
-else
-    echo "No se pudo encontrar el ejecutable"
-    exit 1
+PROJECT_ROOT="$(cd ../.. && pwd)"  # Directorio raíz del proyecto
+
+# Verificar en las tres ubicaciones posibles
+if [ -f "${PROJECT_ROOT}/build" ]; then
+    EXECUTABLE_PATH="${PROJECT_ROOT}/build"
+elif [ -f "${PROJECT_ROOT}/build/${TRIPLET}/${PROJECT_NAME}" ]; then
+    EXECUTABLE_PATH="${PROJECT_ROOT}/build/${TRIPLET}/${PROJECT_NAME}"
+elif [ -f "${PROJECT_ROOT}/build/${TRIPLET}/${PROJECT_NAME}.exe" ]; then
+    EXECUTABLE_PATH="${PROJECT_ROOT}/build/${TRIPLET}/${PROJECT_NAME}.exe"
 fi
 
-echo "Executable can be found at this path ${EXECUTABLE_PATH}"
+if [ -n "$EXECUTABLE_PATH" ]; then
+    printf "Executable can be found at this path: %s\n" "$EXECUTABLE_PATH"
+else
+    printf "No se pudo encontrar el ejecutable\n"
+    printf "Se buscó en:\n"
+    printf "  %s/build\n" "$PROJECT_ROOT"
+    printf "  %s/build/%s/%s\n" "$PROJECT_ROOT" "$TRIPLET" "$PROJECT_NAME"
+    printf "  %s/build/%s/%s.exe\n" "$PROJECT_ROOT" "$TRIPLET" "$PROJECT_NAME"
+fi

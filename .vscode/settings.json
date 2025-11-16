@@ -1,0 +1,8 @@
+{
+    "cmake.configureSettings": {
+        "CMAKE_TOOLCHAIN_FILE": "/home/paruiza/Proyecto/QuestiMakinator/vcpkg/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_TARGET_TRIPLET": "x64-linux"
+    },
+    "cmake.buildDirectory": "${workspaceFolder}/build/x64-linux",
+    "cmake.generator": "Unix Makefiles"
+}
