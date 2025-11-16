@@ -46,6 +46,13 @@ For Windows, you would need to install VSCode and WSL2
    ```bash
    ./launch.sh
    ```
+### Method 2: Manually
+
+Well.... I don't recommend this option when you have the bash scripts
+
+### Method 3: CMake extension on VSCode
+
+It will try to configure and run some commands, but not 100%
 
 ## Build Options
 
