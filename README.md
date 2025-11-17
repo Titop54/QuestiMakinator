@@ -18,6 +18,9 @@ A tool designed to simplify text generation for FTB Quests mod with enhanced eff
 - **C++ Compiler** - Clang recommended
 - **Git** - Version control and dependency management
 - **Bash-compatible terminal** - For running setup scripts
+- **pkg-config** - Needed for configure 
+- **zip** - Library used to get vcpkg -> It will tells you about that on an error
+- Some libraries will require some other dependecies, which would be told on the messages
 
 ### Additional Tools (for Windows compilation)
 - **LLVM-Mingw** - Cross-compilation toolchain for Windows
