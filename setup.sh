@@ -52,7 +52,7 @@ export VCPKG_ROOT=$ROOT
 export PATH=$VCPKG_ROOT:$PATH
 
 vcpkg new --application
-vcpkg add port imgui-sfml sfml
+vcpkg add port imgui-sfml sfml nlohmann-json bdwgc
 
 if [ "$no_win" = false ]; then
     printf "\nInstalling x64-mingw-static libraries\n"

@@ -39,6 +39,8 @@ endif()
 # Dependency search
 find_package(SFML COMPONENTS Network Graphics Window Audio System CONFIG REQUIRED)
 find_package(ImGui-SFML CONFIG REQUIRED)
+find_package(BDWgc CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
 
 # Source files configuration (this can be done with all .cpp)
 file(GLOB_RECURSE SOURCES "src/*.cpp")
@@ -60,6 +62,11 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     SFML::Audio
     SFML::System
     ImGui-SFML::ImGui-SFML
+    BDWgc::gc
+    BDWgc::cord
+    BDWgc::gccpp
+    BDWgc::gctba
+    nlohmann_json::nlohmann_json
 )
 
 # Installation configuration

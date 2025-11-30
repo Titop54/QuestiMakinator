@@ -6,3 +6,4 @@ vcpkg-configuration.json
 vcpkg.json
 .cache/**
 imgui.ini
+compile_commands.json

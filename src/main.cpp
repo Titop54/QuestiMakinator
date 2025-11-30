@@ -1,212 +1,16 @@
 #include <imgui.h>
 #include <imgui-SFML.h>
-#include <SFML/Graphics/RenderStates.hpp>
-#include <SFML/Graphics/RenderWindow.hpp>
+#include <imgui_stdlib.h>
+
 #include <SFML/System/Vector2.hpp>
 #include <SFML/Window/Event.hpp>
 #include <SFML/Window/WindowEnums.hpp>
-#include <cmath>
-#include <imgui_stdlib.h>
-#include <parser/parser.h>
+
 #include <parser/raw.h>
+#include <integration/kubejs.h>
+#include <gui/display/Image.h>
 
-#include <SFML/Network.hpp>
-#include <cstdio>
 #include <string>
-#include <iostream>
-#include <thread>
-#include <chrono>
-#include <sstream>
-#include <unistd.h>
-
-class ProbeJSClient {
-private:
-    int port;
-    std::string auth;
-    bool connected;
-    sf::TcpSocket socket;
-
-public:
-    ProbeJSClient(int port = 61423, std::string auth = "probejs")
-        : port(port), auth(auth), connected(false) {}
-
-    bool connect() {
-        if (socket.connect(sf::IpAddress::LocalHost, port, sf::seconds(5)) == sf::Socket::Status::Done) {
-            connected = true;
-            std::cout << "Connected to KubeJS on port " << port << std::endl;
-            return true;
-        } else {
-            std::cout << "Error connecting to KubeJS on port " << port << std::endl;
-            connected = false;
-            return false;
-        }
-    }
-
-    bool tryConnect() {
-        int originalPort = port;
-        
-        // Try connecting on multiple ports (like the extension does)
-        for (int i = 0; i < 10; i++) {
-            if (connect()) {
-                return true;
-            }
-            port++;
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        }
-        
-        // Return to original port and try once more
-        port = originalPort;
-        return connect();
-    }
-
-    bool sendReloadCommand(const std::string& scriptType) {
-        if (!connected && !tryConnect()) {
-            std::cout << "Could not connect to KubeJS" << std::endl;
-            return false;
-        }
-
-        std::string path;
-        if (scriptType == "server_scripts") {
-            path = "/api/reload/server";
-        } else if (scriptType == "client_scripts") {
-            path = "/api/reload/client";
-        } else if (scriptType == "startup_scripts") {
-            path = "/api/reload/startup";
-        } else {
-            return false;
-        }
-
-        // Build the complete HTTP request like axios does
-        std::stringstream httpRequest;
-        httpRequest << "POST " << path << " HTTP/1.1\r\n";
-        httpRequest << "Host: localhost:" << port << "\r\n";
-        httpRequest << "Accept: application/json, text/plain, */*\r\n";
-        httpRequest << "Content-Type: application/x-www-form-urlencoded\r\n";
-        httpRequest << "Authorization: Bearer " << auth << "\r\n";
-        httpRequest << "User-Agent: MyCppApp/1.0\r\n";
-        httpRequest << "Connection: close\r\n";
-        httpRequest << "Content-Length: 0\r\n";
-        httpRequest << "\r\n";
-
-        std::string requestStr = httpRequest.str();
-        
-        if (socket.send(requestStr.c_str(), requestStr.size()) != sf::Socket::Status::Done) {
-            std::cout << "Error sending reload command" << std::endl;
-            connected = false;
-            return false;
-        }
-
-        std::cout << "Reload command sent: " << scriptType << std::endl;
-
-        // Wait and read the response
-        char buffer[4096];
-        std::size_t received;
-        std::string response;
-        
-        // Read all available response
-        while (socket.receive(buffer, sizeof(buffer), received) == sf::Socket::Status::Done) {
-            response.append(buffer, received);
-            if (received < sizeof(buffer)) break; // Probably reached the end
-        }
-
-        // Check if the response was successful
-        if (response.find("HTTP/1.1 200") != std::string::npos || 
-            response.find("HTTP/1.1 204") != std::string::npos) {
-            std::cout << "Command executed successfully" << std::endl;
-            return true;
-        } else {
-            std::cout << "Error in response: " << std::endl;
-            // Print only the first lines for debug
-            std::istringstream responseStream(response);
-            std::string line;
-            int lineCount = 0;
-            while (std::getline(responseStream, line) && lineCount < 5) {
-                std::cout << line << std::endl;
-                lineCount++;
-            }
-            return false;
-        }
-    }
-
-    bool sendCommand(const std::string& command) {
-        if (!connected && !tryConnect()) {
-            std::cout << "Could not connect to ProbeJS" << std::endl;
-            return false;
-        }
-
-        // Build JSON body with the command
-        std::string jsonBody = "{\"command\":\"" + command + "\"}";
-
-        // Build HTTP request to execute commands
-        std::stringstream httpRequest;
-        httpRequest << "POST /api/probejs/run-command HTTP/1.1\r\n";
-        httpRequest << "Host: localhost:" << port << "\r\n";
-        httpRequest << "Accept: application/json, text/plain, */*\r\n";
-        httpRequest << "Content-Type: application/json\r\n";
-        httpRequest << "Authorization: Bearer " << auth << "\r\n";
-        httpRequest << "User-Agent: MyCppApp/1.0\r\n";
-        httpRequest << "Connection: close\r\n";
-        httpRequest << "Content-Length: " << jsonBody.length() << "\r\n";
-        httpRequest << "\r\n";
-        httpRequest << jsonBody;
-
-        std::string requestStr = httpRequest.str();
-        
-        if (socket.send(requestStr.c_str(), requestStr.size()) != sf::Socket::Status::Done) {
-            std::cout << "Error sending command: " << command << std::endl;
-            connected = false;
-            return false;
-        }
-
-        std::cout << "Command sent: " << command << std::endl;
-
-        // Wait and read the response
-        char buffer[4096];
-        std::size_t received;
-        std::string response;
-        
-        // Read all available response
-        while (socket.receive(buffer, sizeof(buffer), received) == sf::Socket::Status::Done) {
-            response.append(buffer, received);
-            if (received < sizeof(buffer)) break; // Probably reached the end
-        }
-
-        // Check if the response was successful
-        if (response.find("HTTP/1.1 200") != std::string::npos || 
-            response.find("HTTP/1.1 204") != std::string::npos) {
-            std::cout << "Command executed successfully" << std::endl;
-            
-            // Extract and show command response if available
-            size_t jsonStart = response.find("{");
-            if (jsonStart != std::string::npos) {
-                std::string jsonResponse = response.substr(jsonStart);
-                std::cout << "Response: " << jsonResponse << std::endl;
-            }
-            
-            return true;
-        } else {
-            std::cout << "Error in command response: " << std::endl;
-            // Print only the first lines for debug
-            std::istringstream responseStream(response);
-            std::string line;
-            int lineCount = 0;
-            while (std::getline(responseStream, line) && lineCount < 10) {
-                std::cout << line << std::endl;
-                lineCount++;
-            }
-            return false;
-        }
-    }
-
-    void disconnect() {
-        socket.disconnect();
-        connected = false;
-    }
-
-    bool isConnected() const {
-        return connected;
-    }
-};
 
 // Structure to handle text selection state
 struct TextEditorState {
@@ -353,8 +157,8 @@ int main()
                 window.close();
             }
         }
-
-        ImGui::SFML::Update(window, deltaClock.restart());
+        sf::Time dt = deltaClock.restart();
+        ImGui::SFML::Update(window, dt);
         ImVec2 center = ImVec2(window.getSize().x / 2.0f, window.getSize().y / 2.0f);
         ImGui::SetNextWindowPos(center, ImGuiCond_FirstUseEver, ImVec2(0.5f, 0.5f));
 
@@ -717,12 +521,12 @@ int main()
         ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Copy converted text to clipboard");
         ImGui::SameLine();
         
-        if(ImGui::Button("Reload Minecraft"))
+        if(ImGui::Button("Reload Minecraft (Not yet)"))
         {
-            /*static ProbeJSClient probe(61423, "");
-            if(probe.tryConnect())
+            
+            if(client.connect())
             {
-                if(probe.sendCommand("give @p minecraft:diamond 1")) 
+                if(client.sendReloadCommand(ReloadType::SERVER)) 
                 {
                     inputText2 = "Reload successful!";
                 }
@@ -734,7 +538,7 @@ int main()
             else
             {
                 inputText2 = "Could not connect to server";
-            }*/
+            }
         }
         ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Reload Minecraft scripts (requires KubeJS)");
         ImGui::SameLine();
@@ -759,7 +563,10 @@ int main()
         ShowDelayedTooltip(tooltipStates[tooltipIndex++], "Close the application");
         ImGui::SameLine();
 
+
         ImGui::End();
+        //browser.update(deltaClock.getElapsedTime().asSeconds());
+        createKubejsImageBrowser(dt.asSeconds());
 
         window.clear();
         ImGui::SFML::Render(window);

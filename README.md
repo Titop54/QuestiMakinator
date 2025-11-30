@@ -138,6 +138,13 @@ What does this mean for you?
 3. **License Generation**
    - Run `python3 licenses.py` to regenerate license information
 
+4. **Clangd server complaining**
+   - Run the following command
+   ```bash 
+      #On the root folder
+      ln -s build/x64-linux/compile_commands.json compile_commands.json
+   ```
+
 ### Getting Help
 Check the generated executable path displayed after successful compilation.
 If issues persist, verify all prerequisite tools are correctly installed and accessible from your terminal.
