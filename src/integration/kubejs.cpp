@@ -17,12 +17,12 @@ bool KubeJSClient::connect() {
     return tryConnect();
 }
 
-inline void KubeJSClient::disconnect() {
+void KubeJSClient::disconnect() {
     socket.disconnect();
     connected = false;
 }
 
-inline bool KubeJSClient::isConnected() const {
+bool KubeJSClient::isConnected() const {
     return connected;
 }
 
@@ -39,7 +39,7 @@ bool KubeJSClient::tryConnect() {
     return false;
 }
 
-inline std::string KubeJSClient::extractHttpBody(const std::string& httpResponse) {
+std::string KubeJSClient::extractHttpBody(const std::string& httpResponse) {
     size_t headerEnd = httpResponse.find("\r\n\r\n");
     if (headerEnd != std::string::npos) {
         return httpResponse.substr(headerEnd + 4);
@@ -95,7 +95,7 @@ bool KubeJSClient::sendHttpRequest(const std::string& method, const std::string&
     return true;
 }
 
-inline bool KubeJSClient::sendHttpRequest(const std::string& method, const std::string& path, const std::string& body) {
+bool KubeJSClient::sendHttpRequest(const std::string& method, const std::string& path, const std::string& body) {
     std::string dummy;
     return sendHttpRequest(method, path, body, dummy);
 }
