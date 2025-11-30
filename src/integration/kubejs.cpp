@@ -243,9 +243,12 @@ std::vector<sf::Image> KubeJSClient::splitVerticalFrames(const sf::Image& sprite
     int count = height / frameHeight;
 
     for(int i = 0; i < count; ++i) {
-        sf::Image frame({width, static_cast<unsigned int>(frameHeight)});
-        frame.copy(spriteSheet, {0, 0}, sf::IntRect({0, i * frameHeight}, {(int)width, frameHeight}));
-        frames.push_back(frame);
+        sf::Image frame(sf::Vector2u(width, static_cast<unsigned int>(frameHeight)));
+        if (!frame.copy(spriteSheet, {0, 0}, sf::IntRect({0, i * frameHeight}, {(int)width, frameHeight}))) {
+             std::cerr << "Failed to copy frame " << i << "\n";
+        }
+        
+        frames.emplace_back(frame);
     }
     return frames;
 }

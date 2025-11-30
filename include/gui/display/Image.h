@@ -1,4 +1,5 @@
 #include <SFML/Graphics/Texture.hpp>
+#include <SFML/System/Vector2.hpp>
 #include <integration/kubejs.h>
 #include <integration/model.h>
 #include <SFML/Graphics.hpp>
@@ -229,7 +230,7 @@ private:
                 std::cerr << "Error while loading texture" << std::endl;
             }
         } else {
-            sf::Texture a({1,1});
+            sf::Texture a(sf::Vector2u{1,1});
             currentTexture = a;
         }
     }
