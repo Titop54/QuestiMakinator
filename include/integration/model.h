@@ -33,6 +33,13 @@ struct TextureAnimation {
     }
 };
 
+inline std::string changeFilename(const std::string& input) {
+    std::string output = input;
+    std::replace(output.begin(), output.end(), ':', '_');
+    std::replace(output.begin(), output.end(), '/', '_');
+    return output;
+}
+
 class ModelGenerator {
 private:
     nlohmann::json modelJson;
@@ -50,6 +57,22 @@ public:
      * @return vector containing 1 or more images to display
      */
     std::vector<sf::Image> generateIsometricSequence(unsigned int outputSize = 64);
+
+    /**
+     * @brief Downloads JSON and all textures to a folder named "mod_itemid_assets"
+     */
+    void saveAssets(const std::string& itemId);
+
+    /**
+     * @brief Generates an animated .webp file from the generated sequence
+     */
+    void saveAnimationWebP(const std::string& itemId, const std::string& outputDir, const std::vector<sf::Image>& frames);
+
+    /**
+     * @brief Exports the 3D model to .obj and .mtl for Blender
+     */
+    void exportToObj(const std::string& itemId, const std::string& outputdir);
+
 };
 
 #endif

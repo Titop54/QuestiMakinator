@@ -41,6 +41,7 @@ find_package(SFML COMPONENTS Network Graphics Window Audio System CONFIG REQUIRE
 find_package(ImGui-SFML CONFIG REQUIRED)
 find_package(BDWgc CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
+find_package(WebP CONFIG REQUIRED)
 
 # Source files configuration (this can be done with all .cpp)
 file(GLOB_RECURSE SOURCES "src/*.cpp")
@@ -67,6 +68,10 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     BDWgc::gccpp
     BDWgc::gctba
     nlohmann_json::nlohmann_json
+    WebP::webp
+    WebP::webpdecoder
+    WebP::webpdemux
+    WebP::libwebpmux
 )
 
 # Installation configuration

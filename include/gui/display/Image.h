@@ -10,6 +10,7 @@
 #include <vector>
 #include <map>
 #include <iostream>
+#include <memory> 
 
 using json = nlohmann::json;
 
@@ -33,6 +34,7 @@ private:
     std::string currentId;
     sf::Texture currentTexture;
     AnimationData* currentAnimation = nullptr;
+    std::unique_ptr<ModelGenerator> currentGenerator; 
     
     bool isLoading = false;
     bool assetsLoaded = false;
@@ -64,7 +66,6 @@ public:
         allItems = client.searchItems();
         
         validIds = allBlocks;
-        // Evitar duplicados si un ID está en ambos
         for(const auto& item : allItems) {
             bool found = false; 
             for(const auto& block : allBlocks) if(block == item) found = true;
@@ -78,10 +79,7 @@ public:
     void update(float deltaTime) {
         if (currentAnimation && currentAnimation->isPlaying && currentAnimation->totalFrames > 1) {
             currentAnimation->accumulatedTime += deltaTime;
-            
-            // Usamos la constante de Minecraft: 1 frame generado = 1 tick (0.05s)
             if (currentAnimation->accumulatedTime >= currentAnimation->SECONDS_PER_TICK) {
-                // Consumir tiempo en pasos fijos para mantener sincronía
                 while (currentAnimation->accumulatedTime >= currentAnimation->SECONDS_PER_TICK) {
                     currentAnimation->accumulatedTime -= currentAnimation->SECONDS_PER_TICK;
                     currentAnimation->currentFrame = (currentAnimation->currentFrame + 1) % currentAnimation->totalFrames;
@@ -99,9 +97,7 @@ public:
             loadImage(idInputBuffer);
         }
 
-        // --- Autocomplete Logic ---
         if (ImGui::IsItemActive()) {
-            // ... (Lógica de autocomplete igual que antes) ...
             sf::Vector2 pos(ImGui::GetItemRectMin().x, ImGui::GetItemRectSize().y + ImGui::GetItemRectMin().y);
             ImGui::SetNextWindowPos(pos);
             ImGui::SetNextWindowSize(ImVec2(ImGui::GetItemRectSize().x, 200));
@@ -123,45 +119,72 @@ public:
         }
 
         if (currentTexture.getSize().x > 0) {
-            float scale = 1.0f;
+            float scale = 2.0f;
             ImVec2 textureSize(currentTexture.getSize().x * scale, currentTexture.getSize().y * scale);
             
-            // Centrar imagen
             float windowWidth = ImGui::GetWindowSize().x;
             ImGui::SetCursorPosX((windowWidth - textureSize.x) * 0.5f);
             
-            ImGui::Image(currentTexture, textureSize, sf::Color::White, sf::Color::Transparent); // Borde transparente
+            ImGui::Image(currentTexture, textureSize, sf::Color::White, sf::Color::Transparent);
         } else if (!isLoading && !currentId.empty() && !currentAnimation) {
             ImGui::TextColored(ImVec4(1,0,0,1), "Failed to load model or texture.");
         }
 
-        // --- Controls ---
-        if (currentAnimation && currentAnimation->totalFrames > 1) {
+        if (currentAnimation) {
             ImGui::Separator();
             
-            // Botones centrados
-            float width = ImGui::GetWindowWidth();
-            ImGui::SetCursorPosX(width * 0.5f - 80);
-            
-            if (ImGui::Button(currentAnimation->isPlaying ? "Pause" : " Play ")) {
-                currentAnimation->isPlaying = !currentAnimation->isPlaying;
+            if (currentAnimation->totalFrames > 1) {
+                float width = ImGui::GetWindowWidth();
+                ImGui::SetCursorPosX(width * 0.5f - 80);
+                
+                if (ImGui::Button(currentAnimation->isPlaying ? "Pause" : " Play ")) {
+                    currentAnimation->isPlaying = !currentAnimation->isPlaying;
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Reset")) {
+                    currentAnimation->currentFrame = 0;
+                    currentAnimation->accumulatedTime = 0.0f;
+                    updateDisplayTexture();
+                }
+                
+                int frame = currentAnimation->currentFrame;
+                if (ImGui::SliderInt("Timeline (Ticks)", &frame, 0, currentAnimation->totalFrames - 1)) {
+                    currentAnimation->currentFrame = frame;
+                    currentAnimation->isPlaying = false;
+                    updateDisplayTexture();
+                }
             }
+            
+            ImGui::Separator();
+            ImGui::Text("Export Options:");
+            
+            if (ImGui::Button("Download Assets")) {
+                if (currentGenerator) {
+                    currentGenerator->saveAssets(currentId);
+                }
+            }
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Saves model.json and all textures to folder img/mod_id_assets and Blender .obj");
+            
             ImGui::SameLine();
-            if (ImGui::Button("Reset")) {
-                currentAnimation->currentFrame = 0;
-                currentAnimation->accumulatedTime = 0.0f;
-                updateDisplayTexture();
+            if (ImGui::Button("Download Animation")) {
+                if (currentGenerator) {
+                    std::string safeName = changeFilename(idInputBuffer);
+                    std::string targetDir = "img/" + safeName;
+                    currentGenerator->saveAnimationWebP(currentId, targetDir, currentAnimation->frames);
+                }
             }
-            
-            // Slider timeline
-            int frame = currentAnimation->currentFrame;
-            if (ImGui::SliderInt("Timeline (Ticks)", &frame, 0, currentAnimation->totalFrames - 1)) {
-                currentAnimation->currentFrame = frame;
-                currentAnimation->isPlaying = false; // Pausar al arrastrar
-                updateDisplayTexture();
-            }
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Saves as WebP");
 
-            ImGui::Text("Total Duration: %d ticks (%.2fs)", currentAnimation->totalFrames, currentAnimation->totalFrames / 20.0f);
+            ImGui::SameLine();
+            if (ImGui::Button("Clear")) {
+                currentId.clear();
+                idInputBuffer[0] = '\0'; 
+                currentAnimation = nullptr;
+                currentGenerator.reset();
+                sf::Texture empty;
+                currentTexture = empty;
+            }
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Clear the current item/block");
         }
 
         if (isLoading) {
@@ -175,16 +198,10 @@ private:
     void loadImage(const std::string& id) {
         if (id.empty()) return;
         currentId = id;
-        
-        auto it = animations.find(id);
-        if (it != animations.end()) {
-            currentAnimation = &it->second;
-            updateDisplayTexture();
-            return;
-        }
 
         isLoading = true;
         currentAnimation = nullptr;
+        currentGenerator.reset();
         
         std::string ns, path;
         parseId(id, ns, path);
@@ -199,9 +216,9 @@ private:
         }
 
         if(!jsonBody.empty()) {
-            ModelGenerator generator(jsonBody, client);
+            currentGenerator = std::make_unique<ModelGenerator>(jsonBody, client);
             
-            std::vector<sf::Image> frames = generator.generateIsometricSequence(128);
+            std::vector<sf::Image> frames = currentGenerator->generateIsometricSequence(128);
 
             if (!frames.empty()) {
                 AnimationData anim;

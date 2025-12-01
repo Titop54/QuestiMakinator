@@ -1,8 +1,14 @@
+#include <cstddef>
 #include <integration/model.h>
 #include <iostream>
 #include <cmath>
 #include <numeric>
 #include <set>
+#include <fstream>
+#include <webp/encode.h>
+#include <webp/mux.h>
+
+namespace fs = std::filesystem;
 
 
 ModelGenerator::ModelGenerator(const std::string& rawJson, KubeJSClient& client) {
@@ -406,4 +412,223 @@ std::vector<sf::Image> ModelGenerator::generateIsometricSequence(unsigned int ou
         if(!anyAnimated) break;
     }
     return resultFrames;
+}
+
+void ModelGenerator::saveAssets(const std::string& itemId) {
+    std::string safeName = changeFilename(itemId);
+    std::string targetDir = "img/" + safeName;
+    
+    if (!fs::exists(targetDir)) {
+        fs::create_directories(targetDir);
+    }
+    std::ofstream jsonFile(targetDir + "/model.json");
+    jsonFile << std::setw(4) << modelJson << std::endl;
+    jsonFile.close();
+
+    for (const auto& [path, animData] : textures) {
+        if (animData.texture.getSize().x == 0) continue;
+        
+        std::string texName = changeFilename(path) + ".png";
+        sf::Image img = animData.texture.copyToImage();
+        img.saveToFile(targetDir + "/" + texName);
+    }
+    bool isItem = false;
+    if (modelJson.contains("parent") && modelJson["parent"].get<std::string>().find("item/generated") != std::string::npos) isItem = true;
+    if (modelJson.contains("textures") && modelJson["textures"].contains("layer0")) isItem = true;
+    if(!isItem) exportToObj(itemId, targetDir);
+    saveAnimationWebP(itemId, targetDir, generateIsometricSequence(128));
+}
+
+
+void ModelGenerator::saveAnimationWebP(const std::string& itemId, const std::string& outputDir, const std::vector<sf::Image>& frames) {
+    if (frames.empty()) return;
+
+    std::string baseName = changeFilename(itemId);
+    std::string filename = baseName + ".webp";
+    std::string fullPath = outputDir + "/" + filename;
+
+    int width = frames[0].getSize().x;
+    int height = frames[0].getSize().y;
+
+    WebPAnimEncoderOptions enc_options;
+    WebPAnimEncoderOptionsInit(&enc_options);
+    
+    WebPAnimEncoder* enc = WebPAnimEncoderNew(width, height, &enc_options);
+    if (!enc) {
+        std::cerr << "WebP: Failed to create encoder" << std::endl;
+        return;
+    }
+
+    int timestamp_ms = 0;
+    int frame_duration = 50; // 1 tick (0.05s)
+
+    for (const auto& img : frames) {
+        WebPConfig config;
+        WebPConfigInit(&config);
+        config.lossless = 1;
+
+        WebPPicture pic;
+        WebPPictureInit(&pic);
+        pic.width = width;
+        pic.height = height;
+        pic.use_argb = 1;
+        
+        if (!WebPPictureAlloc(&pic)) {
+            WebPAnimEncoderDelete(enc);
+            return;
+        }
+
+        const uint8_t* pixels = img.getPixelsPtr();
+        WebPPictureImportRGBA(&pic, pixels, width * 4);
+
+        if (!WebPAnimEncoderAdd(enc, &pic, timestamp_ms, &config)) {
+            std::cerr << "WebP: Error adding frame" << std::endl;
+            WebPPictureFree(&pic);
+            WebPAnimEncoderDelete(enc);
+            return;
+        }
+
+        WebPPictureFree(&pic);
+        timestamp_ms += frame_duration;
+    }
+
+    WebPAnimEncoderAdd(enc, nullptr, timestamp_ms, nullptr);
+
+    WebPData webp_data;
+    WebPDataInit(&webp_data);
+    WebPAnimEncoderAssemble(enc, &webp_data);
+
+    if (!fs::exists(outputDir)) {
+        fs::create_directories(outputDir);
+    }
+    std::ofstream file(fullPath, std::ios::binary);
+    if (file.is_open()) {
+        file.write(reinterpret_cast<const char*>(webp_data.bytes), webp_data.size);
+        file.close();
+    }
+
+    WebPDataClear(&webp_data);
+    WebPAnimEncoderDelete(enc);
+}
+
+void ModelGenerator::exportToObj(const std::string& itemId, const std::string& outputDir) {
+    std::string baseName = changeFilename(itemId);
+    std::string objFilename = outputDir + "/" + baseName + ".obj";
+    std::string mtlFilename = outputDir + "/" + baseName + ".mtl";
+    std::string mtlBaseName = baseName + ".mtl";
+
+    std::ofstream objFile(objFilename);
+    std::ofstream mtlFile(mtlFilename);
+
+    if (!objFile.is_open() || !mtlFile.is_open()) return;
+
+    objFile << "# Exported using QuestiMakinator\n";
+    objFile << "mtllib " << mtlBaseName << "\n";
+
+    int vertexCount = 0;
+    int uvCount = 0;
+     
+    std::set<std::string> usedMaterials;
+
+    if (modelJson.contains("elements")) {
+        for (const auto& element : modelJson["elements"]) {
+            auto from = element["from"];
+            auto to = element["to"];
+             
+            sf::Vector3f pMin(from[0], from[1], from[2]);
+            sf::Vector3f pMax(to[0], to[1], to[2]);
+            sf::Vector3f rotOrigin(8, 8, 8);
+
+            std::string rotAxis = "y";
+            float rotAngle = 0;
+            if (element.contains("rotation")) {
+                auto& rot = element["rotation"];
+                rotOrigin = {rot["origin"][0], rot["origin"][1], rot["origin"][2]};
+                rotAxis = rot.value("axis", "y");
+                rotAngle = rot.value("angle", 0.0f);
+            }
+
+            struct FaceDef { std::string dir; sf::Vector3f v[4]; sf::Vector3f normal; };
+            FaceDef faces[] = {
+                {"up",    {{pMin.x, pMax.y, pMin.z}, {pMax.x, pMax.y, pMin.z}, {pMax.x, pMax.y, pMax.z}, {pMin.x, pMax.y, pMax.z}}, {0,1,0}},
+                {"down",  {{pMin.x, pMin.y, pMin.z}, {pMax.x, pMin.y, pMin.z}, {pMax.x, pMin.y, pMax.z}, {pMin.x, pMin.y, pMax.z}}, {0,-1,0}},
+                {"north", {{pMax.x, pMax.y, pMin.z}, {pMin.x, pMax.y, pMin.z}, {pMin.x, pMin.y, pMin.z}, {pMax.x, pMin.y, pMin.z}}, {0,0,-1}},
+                {"south", {{pMin.x, pMax.y, pMax.z}, {pMax.x, pMax.y, pMax.z}, {pMax.x, pMin.y, pMax.z}, {pMin.x, pMin.y, pMax.z}}, {0,0,1}},
+                {"west",  {{pMin.x, pMax.y, pMin.z}, {pMin.x, pMax.y, pMax.z}, {pMin.x, pMin.y, pMax.z}, {pMin.x, pMin.y, pMin.z}}, {-1,0,0}},
+                {"east",  {{pMax.x, pMax.y, pMax.z}, {pMax.x, pMax.y, pMin.z}, {pMax.x, pMin.y, pMin.z}, {pMax.x, pMin.y, pMax.z}}, {1,0,0}}
+            };
+
+            for (const auto& f : faces) {
+                if (!element["faces"].contains(f.dir)) continue;
+                auto faceJson = element["faces"][f.dir];
+                
+                std::string texRef = faceJson.value("texture", "");
+                if (texRef.empty()) continue;
+
+                int depth = 0;
+                std::string resolvedPath = texRef;
+                while (!resolvedPath.empty() && resolvedPath[0] == '#' && depth < 5) {
+                    std::string key = resolvedPath.substr(1);
+                    if (modelJson["textures"].contains(key)) resolvedPath = modelJson["textures"][key];
+                    else break;
+                    depth++;
+                }
+                if (resolvedPath.empty()) continue;
+
+                std::string matName = changeFilename(resolvedPath);
+                usedMaterials.insert(resolvedPath);
+                objFile << "usemtl " << matName << "\n";
+
+                // Vertices
+                for (int i = 0; i < 4; i++) {
+                    sf::Vector3f rv = rotatePoint(f.v[i], rotOrigin, rotAxis, rotAngle);
+                    objFile << "v " << rv.x/16.0f << " " << rv.y/16.0f << " " << rv.z/16.0f << "\n";
+                }
+
+                // UVs
+                float u1=0, v1=0, u2=16, v2=16;
+                if (faceJson.contains("uv")) {
+                    u1 = faceJson["uv"][0]; v1 = faceJson["uv"][1];
+                    u2 = faceJson["uv"][2]; v2 = faceJson["uv"][3];
+                } else {
+                    if (f.dir == "up" || f.dir == "down") { u1=f.v[0].x; v1=f.v[0].z; u2=f.v[2].x; v2=f.v[2].z; }
+                    else { u1=0; v1=0; u2=16; v2=16; } 
+                }
+                
+                sf::Vector2f uvs[4];
+                uvs[0] = {u1, v1}; uvs[1] = {u2, v1}; uvs[2] = {u2, v2}; uvs[3] = {u1, v2};
+
+                for(int k=0; k<4; k++) {
+                   objFile << "vt " << uvs[k].x/16.0f << " " << (16.0f - uvs[k].y)/16.0f << "\n";
+                }
+
+                int baseV = vertexCount + 1;
+                int baseVT = uvCount + 1;
+                
+                objFile << "f " 
+                        << baseV << "/" << baseVT << " "
+                        << baseV+1 << "/" << baseVT+1 << " "
+                        << baseV+2 << "/" << baseVT+2 << " "
+                        << baseV+3 << "/" << baseVT+3 << "\n";
+
+                vertexCount += 4;
+                uvCount += 4;
+            }
+        }
+    }
+    objFile.close();
+
+    for (const auto& mat : usedMaterials) {
+        std::string matName = changeFilename(mat);
+        std::string texFilename = matName + ".png"; 
+        
+        mtlFile << "newmtl " << matName << "\n";
+        mtlFile << "Ka 1.000 1.000 1.000\n";
+        mtlFile << "Kd 1.000 1.000 1.000\n";
+        mtlFile << "d 1.0\n";
+        mtlFile << "illum 2\n";
+        mtlFile << "map_Kd " << texFilename << "\n\n";
+    }
+    mtlFile.close();
+
 }
