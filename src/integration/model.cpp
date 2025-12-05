@@ -430,7 +430,7 @@ void ModelGenerator::saveAssets(const std::string& itemId) {
         
         std::string texName = changeFilename(path) + ".png";
         sf::Image img = animData.texture.copyToImage();
-        img.saveToFile(targetDir + "/" + texName);
+        if(!img.saveToFile(targetDir + "/" + texName)) std::cerr << "Error loading image" << std::endl;
     }
     bool isItem = false;
     if (modelJson.contains("parent") && modelJson["parent"].get<std::string>().find("item/generated") != std::string::npos) isItem = true;

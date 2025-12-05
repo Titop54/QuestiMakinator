@@ -82,13 +82,13 @@ bool KubeJSClient::sendHttpRequest(const std::string& method, const std::string&
         return false;
     }
 
-    char buffer[4000];
+    std::vector<char> buffer(4000);
     std::size_t received;
     response.clear();
     
-    while(socket.receive(buffer, sizeof(buffer), received) == sf::Socket::Status::Done)
+    while(socket.receive(buffer.data(), buffer.size(), received) == sf::Socket::Status::Done)
     {
-        response.append(buffer, received);
+        response.append(buffer.data(), received);
     }
 
     response = extractHttpBody(response);
@@ -177,11 +177,6 @@ bool KubeJSClient::downloadAssetFile(const std::string& id) {
     return downloadToFile(url, sanitized + ".json");
 }
 
-std::vector<sf::Image> KubeJSClient::downloadAssetMem(const std::string& id) {
-    //Was looking for something and got gold somewhere else
-    return {}; 
-}
-
 std::vector<std::string> KubeJSClient::searchBlocks() {
     std::string resp;
     if (!sendHttpRequest("GET", "/api/client/search/blocks", "", resp)) return {};
@@ -251,9 +246,4 @@ std::vector<sf::Image> KubeJSClient::splitVerticalFrames(const sf::Image& sprite
         frames.emplace_back(frame);
     }
     return frames;
-}
-
-sf::Image KubeJSClient::createIsometricView(const sf::Image& texture) {
-    //was looking for copper and found gold
-    return texture;
 }

@@ -22,7 +22,8 @@ endif()
 # Platform-specific configuration
 if(WIN32 OR MINGW OR CMAKE_SYSTEM_NAME STREQUAL "Windows")
     message(STATUS "Windows (Mingw) configuration detected")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static -mwindows")
+    set(CMAKE_BUILD_TYPE MinSizeRel CACHE STRING "Choose the type of build." FORCE)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static -mwindows -Wall -Wextra -O3")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -static")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static -mwindows")
 else()
@@ -47,7 +48,10 @@ find_package(WebP CONFIG REQUIRED)
 file(GLOB_RECURSE SOURCES "src/*.cpp")
 
 # Executable creation
-add_executable(${PROJECT_NAME} ${SOURCES})
+add_executable(${PROJECT_NAME} 
+    ${SOURCES}
+    resources.rc
+)
 
 # Include directories configuration
 target_include_directories(${PROJECT_NAME} PRIVATE 
