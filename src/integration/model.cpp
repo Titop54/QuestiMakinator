@@ -1,3 +1,6 @@
+#define _USE_MATH_DEFINES
+#define TINYOBJLOADER_IMPLEMENTATION
+
 #include "integration/kubejs.h"
 #include <SFML/Graphics/Image.hpp>
 #include <SFML/Graphics/Vertex.hpp>
@@ -10,8 +13,6 @@
 #include <fstream>
 #include <webp/encode.h>
 #include <webp/mux.h>
-
-#define TINYOBJLOADER_IMPLEMENTATION
 
 namespace fs = std::filesystem;
 
