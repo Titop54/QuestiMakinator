@@ -1,9 +1,8 @@
+#include <SFML/System/Time.hpp>
 #include <integration/kubejs.h>
 #include <iostream>
 #include <fstream>
 #include <filesystem>
-#include <thread>
-#include <chrono>
 #include <nlohmann/json.hpp>
 
 KubeJSClient client(61423, "");
@@ -26,16 +25,21 @@ bool KubeJSClient::isConnected() const {
     return connected;
 }
 
+//We are on localhost, not across the globe
 bool KubeJSClient::tryConnect() {
     if (connected) return true;
+    if (needs_manual) return false;
     
     for (int i = 0; i < 5; ++i) {
-        if (socket.connect(sf::IpAddress::LocalHost, port) == sf::Socket::Status::Done) {
+        if (socket.connect(sf::IpAddress::LocalHost, port, sf::milliseconds(100)) == sf::Socket::Status::Done) {
             connected = true;
             return true;
         }
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        //std::this_thread::sleep_for(std::chrono::seconds(1));
     }
+    std::cout << "You need Kubejs on 1.21.1 with the WebServer at port 61423 on to see this page\n"
+              << "In case you want to view models, restart the app with Kubejs loaded at least on the main menu\n";
+    needs_manual = true;
     return false;
 }
 

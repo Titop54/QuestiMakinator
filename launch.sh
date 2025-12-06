@@ -47,6 +47,7 @@ export PATH=$VCPKG_ROOT:$PATH
 if [ "$NO_CONFIG" = false ]; then
     if [ "$TRIPLET" = "x64-mingw-static" ]; then
         cmake ../../ \
+            -DCMAKE_BUILD_TYPE=MinSizeRel \
             -DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake \
             -DVCPKG_TARGET_TRIPLET=${TRIPLET} \
             -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
@@ -59,6 +60,7 @@ if [ "$NO_CONFIG" = false ]; then
     else
         # Linux
         cmake ../../ \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             -DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake \
             -DVCPKG_TARGET_TRIPLET=${TRIPLET} \
             -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \

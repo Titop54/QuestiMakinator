@@ -1,4 +1,3 @@
-#include "gui/display/textfield_selection.h"
 #include <SFML/System/Err.hpp>
 #include <imgui.h>
 #include <imgui-SFML.h>
@@ -8,16 +7,31 @@
 #include <SFML/Window/Event.hpp>
 #include <SFML/Window/WindowEnums.hpp>
 
+#include <backward.hpp>
+
 #include <parser/raw.h>
 #include <integration/kubejs.h>
 #include <gui/display/Image.h>
 #include <gui/display/window.h>
 #include <gui/display/button_slow_tooltip.h>
+#include <gui/display/textfield_selection.h>
 
 #include <string>
+#include <fstream>
 
 int main()
 {
+    std::ofstream crashFile("errors.txt");
+    std::ofstream logFile("logs.txt");
+
+    auto originalCerr = std::cerr.rdbuf();
+    auto originalCout = std::cout.rdbuf();
+
+    std::cerr.rdbuf(crashFile.rdbuf());
+    std::cout.rdbuf(logFile.rdbuf());
+
+    backward::SignalHandling sh;
+
     auto window = WindowUtils::createWindow();
     if(!ImGui::SFML::Init(window)) return -1;
     
@@ -270,6 +284,12 @@ int main()
         window.display();
     }
     ImGui::SFML::Shutdown();
+
+    std::cerr.rdbuf(originalCerr);
+    std::cout.rdbuf(originalCout);
+
+    logFile.close();
+    crashFile.close();
 
     return 0;
 }

@@ -63,6 +63,7 @@ private:
     
 
 public:
+    bool needs_manual = false;
     KubeJSClient(int port, const std::string& auth); //auth is "" by default since we can't know if there is a correct folder
     
     bool connect(); //connect to the server

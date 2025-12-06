@@ -40,7 +40,8 @@ endif()
 # Dependency search
 find_package(SFML COMPONENTS Network Graphics Window Audio System CONFIG REQUIRED)
 find_package(ImGui-SFML CONFIG REQUIRED)
-find_package(BDWgc CONFIG REQUIRED)
+find_package(tinyobjloader CONFIG REQUIRED)
+find_package(Backward CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(WebP CONFIG REQUIRED)
 
@@ -67,15 +68,13 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     SFML::Audio
     SFML::System
     ImGui-SFML::ImGui-SFML
-    BDWgc::gc
-    BDWgc::cord
-    BDWgc::gccpp
-    BDWgc::gctba
+    Backward::Backward
     nlohmann_json::nlohmann_json
     WebP::webp
     WebP::webpdecoder
     WebP::webpdemux
     WebP::libwebpmux
+    tinyobjloader::tinyobjloader
 )
 
 # Installation configuration

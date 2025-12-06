@@ -91,7 +91,7 @@ inline int InputCallback(ImGuiInputTextCallbackData* data)
 }
 
 inline std::vector<std::string> filterResults(const std::string& text, 
-                                              const std::vector<std::string> validOptions,
+                                              const std::vector<std::string>& validOptions,
                                               const int& limit,
                                               const AutoCompleteState& state
                                             )

@@ -1,3 +1,6 @@
+#include "integration/kubejs.h"
+#include <SFML/Graphics/Image.hpp>
+#include <SFML/Graphics/Vertex.hpp>
 #include <cstddef>
 #include <integration/model.h>
 #include <iostream>
@@ -8,16 +11,18 @@
 #include <webp/encode.h>
 #include <webp/mux.h>
 
+#define TINYOBJLOADER_IMPLEMENTATION
+
 namespace fs = std::filesystem;
 
 
-ModelGenerator::ModelGenerator(const std::string& rawJson, KubeJSClient& client) {
+ModelGenerator::ModelGenerator(const std::string& rawJson, KubeJSClient& client, const std::string& id) {
     try {
         modelJson = nlohmann::json::parse(rawJson);
     } catch(...) {
         return;
     }
-
+    this->id = id;
     int recursionDepth = 0;
     nlohmann::json currentLevel = modelJson;
 
@@ -149,6 +154,98 @@ ModelGenerator::ModelGenerator(const std::string& rawJson, KubeJSClient& client)
     }
 }
 
+ModelGenerator::ModelGenerator(const std::string& objData, const std::string& mtlData, KubeJSClient& client, const std::string& checkNamespace, const std::string& id) {
+    isObjModel = true;
+    this->id = id;
+    std::string warn;
+    std::string err;
+
+    std::istringstream objStream(objData);
+
+    class MemMaterialReader : public tinyobj::MaterialReader {
+    public:
+        std::string mtlData;
+        MemMaterialReader(std::string data) : mtlData(data) {}
+        bool operator()(const std::string& matId, std::vector<tinyobj::material_t>* materials,
+                        std::map<std::string, int>* matMap, std::string* warn, std::string* err) override {
+            std::istringstream mtlStream(mtlData);
+            tinyobj::LoadMtl(matMap, materials, &mtlStream, warn, err);
+            matId.size();// Just to delete the warning
+            return true;
+        }
+    };
+    MemMaterialReader matReader(mtlData);
+
+    bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, &objStream, &matReader);
+
+    if (!warn.empty()) std::cout << "WARN: " << warn << std::endl;
+    if (!err.empty()) std::cerr << "ERR: " << err << std::endl;
+    if (!ret) return;
+
+    for (const auto& mat : materials) {
+        std::string texName = mat.diffuse_texname;
+        if (texName.empty()) continue;
+        std::string ns = checkNamespace;
+        std::string path = texName;
+
+        size_t colonPos = texName.find(':');
+        if (colonPos != std::string::npos) {
+            ns = texName.substr(0, colonPos);
+            path = texName.substr(colonPos + 1);
+        }
+
+        size_t dotPos = path.rfind('.');
+        if (dotPos != std::string::npos && path.substr(dotPos) == ".png") {
+            path = path.substr(0, dotPos);
+        }
+
+        std::vector<std::string> pathsToTry;
+
+        if (path.find("textures/") == 0) {
+            pathsToTry.push_back("/api/client/assets/get/" + ns + "/" + path + ".png");
+        } 
+        else {
+            pathsToTry.push_back("/api/client/assets/get/" + ns + "/textures/" + path + ".png");
+            pathsToTry.push_back("/api/client/assets/get/" + ns + "/textures/block/" + path + ".png");
+            pathsToTry.push_back("/api/client/assets/get/" + ns + "/textures/item/" + path + ".png");
+            if (ns != "minecraft") {
+                pathsToTry.push_back("/api/client/assets/get/minecraft/textures/block/" + path + ".png");
+            }
+        }
+
+        bool loaded = false;
+        std::string imgData;
+
+        for(const auto& url : pathsToTry) {
+            
+            if(client.sendHttpRequest("GET", url, "", imgData)) {
+                if (imgData.empty() || imgData.find("error") != std::string::npos) continue;
+
+                sf::Image img;
+                if (img.loadFromMemory(imgData.data(), imgData.size())) {
+                    TextureAnimation animData;
+                    if(!animData.texture.loadFromImage(img)) {
+                        std::cerr << "Error converting image to texture: " << texName << std::endl;
+                        continue;
+                    }
+                    
+                    animData.texture.setSmooth(false);
+                    animData.texture.setRepeated(true); 
+                    animData.frameHeight = img.getSize().y;
+                    textures[texName] = animData;
+                    
+                    loaded = true;
+                    break;
+                }
+            }
+        }
+
+        if(!loaded) {
+            std::cerr << "Failed to load texture for OBJ: " << texName << std::endl;
+        }
+    }
+}
+
 int ModelGenerator::calculateTotalLoopTicks() {
     int totalTicks = 1;
     for (const auto& [path, data] : textures) {
@@ -160,24 +257,40 @@ int ModelGenerator::calculateTotalLoopTicks() {
     return totalTicks;
 }
 
-inline sf::Vector3f rotatePoint(sf::Vector3f point, sf::Vector3f origin, std::string axis, float angleDeg) {
-    if (angleDeg == 0.0f) return point;
-    float angleRad = angleDeg * (3.14159265f / 180.0f);
-    float s = sin(angleRad);
-    float c = cos(angleRad);
-    sf::Vector3f p = point - origin;
-    sf::Vector3f r;
-    if (axis == "x") { r.x = p.x; r.y = p.y * c - p.z * s; r.z = p.y * s + p.z * c; }
-    else if (axis == "y") { r.x = p.x * c - p.z * s; r.y = p.y; r.z = p.x * s + p.z * c; }
-    else if (axis == "z") { r.x = p.x * c - p.y * s; r.y = p.x * s + p.y * c; r.z = p.z; }
-    else return point;
-    return r + origin;
+inline sf::Vector3f rotatePoint(sf::Vector3f point, sf::Vector3f origin, std::string axis, float angle) {
+    if (angle == 0.0f) return point;
+    float rad = angle * (M_PI / 180.0f);
+    float c = cos(rad);
+    float s = sin(rad);
+    
+    float x = point.x - origin.x;
+    float y = point.y - origin.y;
+    float z = point.z - origin.z;
+    
+    float nx = x, ny = y, nz = z;
+    
+    if (axis == "x") {
+        ny = y * c - z * s;
+        nz = y * s + z * c;
+    } else if (axis == "y") {
+        nx = x * c - z * s;
+        nz = x * s + z * c;
+    } else if (axis == "z") {
+        nx = x * c - y * s;
+        ny = x * s + y * c;
+    }
+    
+    return {nx + origin.x, ny + origin.y, nz + origin.z};
 }
 
-inline sf::Vector2f toIso(float x, float y, float z, float scale, float centerX, float centerY) {
-    float isoX = (x - z) * cos(0.523599f) * scale + centerX;
-    float isoY = (x + z) * sin(0.523599f) * scale - (y * scale) + centerY;
-    return {isoX, isoY};
+inline sf::Vector2f toIso(float x, float y, float z, float scale, float centerx, float centery) {
+    const float cos30 = 0.866025f;
+    const float sin30 = 0.5f;
+    
+    float isoX = (x - z) * cos30 * scale;
+    float isoY = ((x + z) * sin30 - y) * scale;
+    
+    return {centerx + isoX, centery + isoY};
 }
 
 struct RenderQuad {
@@ -187,11 +300,18 @@ struct RenderQuad {
 };
 
 std::vector<sf::Image> ModelGenerator::generateIsometricSequence(unsigned int outputSize) {
-    
     //We need to find out if its an item or not first
     bool isFlatItem = false;
     if (modelJson.contains("parent") && modelJson["parent"].get<std::string>().find("item/generated") != std::string::npos) isFlatItem = true;
     if (modelJson.contains("textures") && modelJson["textures"].contains("layer0")) isFlatItem = true;
+
+    if(modelJson.contains("loader"))
+    {
+        std::vector<sf::Image> temp;
+        std::string response = "";
+        temp.emplace_back(client.getPreview(this->id, outputSize, isFlatItem ? TypeElement::ITEM : TypeElement::BLOCK, false));
+        return temp;
+    }
 
     if (!modelJson.contains("elements")) {
         if (isFlatItem) {
@@ -414,6 +534,153 @@ std::vector<sf::Image> ModelGenerator::generateIsometricSequence(unsigned int ou
     return resultFrames;
 }
 
+inline std::string cleanTextureName(std::string path) {
+    std::replace(path.begin(), path.end(), '\\', '/');
+    size_t lastSlash = path.find_last_of('/');
+    if (lastSlash != std::string::npos) {
+        path = path.substr(lastSlash + 1);
+    }
+    size_t lastDot = path.find_last_of('.');
+    if (lastDot != std::string::npos) {
+        path = path.substr(0, lastDot);
+    }
+    return path;
+}
+
+std::vector<sf::Image> ModelGenerator::generateIsometricSequenceOBJ(unsigned int outputSize) {
+    float minIsoX = 1e9, maxIsoX = -1e9;
+    float minIsoY = 1e9, maxIsoY = -1e9;
+    bool hasVertices = false;
+
+    const float cos30 = 0.866025f;
+    const float sin30 = 0.5f;
+
+    for (size_t i = 0; i < attrib.vertices.size() / 3; i++) {
+        float vx = attrib.vertices[3 * i + 0];
+        float vy = attrib.vertices[3 * i + 1];
+        float vz = attrib.vertices[3 * i + 2];
+        float rawIsoX = (vx - vz) * cos30;
+        float rawIsoY = (vx + vz) * sin30 - vy;
+
+        if (rawIsoX < minIsoX) minIsoX = rawIsoX;
+        if (rawIsoX > maxIsoX) maxIsoX = rawIsoX;
+        if (rawIsoY < minIsoY) minIsoY = rawIsoY;
+        if (rawIsoY > maxIsoY) maxIsoY = rawIsoY;
+
+        hasVertices = true;
+    }
+
+    if (!hasVertices) return {};
+
+    float contentWidth = maxIsoX - minIsoX;
+    float contentHeight = maxIsoY - minIsoY;
+
+    if (contentWidth < 0.001f) contentWidth = 1.0f;
+    if (contentHeight < 0.001f) contentHeight = 1.0f;
+
+    float padding = 0.85f; 
+    float scaleX = (outputSize * padding) / contentWidth;
+    float scaleY = (outputSize * padding) / contentHeight;
+    float finalScale = std::min(scaleX, scaleY);
+    float isoCenterX = (minIsoX + maxIsoX) / 2.0f;
+    float isoCenterY = (minIsoY + maxIsoY) / 2.0f;
+    float screenCenterX = outputSize / 2.0f;
+    float screenCenterY = outputSize / 2.0f;
+
+    auto projectIso = [&](float x, float y, float z) -> sf::Vector2f {
+        float rx = (x - z) * cos30;
+        float ry = (x + z) * sin30 - y;
+        float centeredX = rx - isoCenterX;
+        float centeredY = ry - isoCenterY;
+
+        return {
+            screenCenterX + (centeredX * finalScale),
+            screenCenterY + (centeredY * finalScale)
+        };
+    };
+
+    sf::RenderTexture renderTex({outputSize, outputSize});
+    renderTex.clear(sf::Color::Transparent);
+
+    std::vector<RenderQuad> renderQueue;
+
+    for (const auto& shape : shapes) {
+        size_t index_offset = 0;
+        for (size_t f = 0; f < shape.mesh.num_face_vertices.size(); f++) {
+            int fv = shape.mesh.num_face_vertices[f];
+            RenderQuad poly;
+            float avgDepth = 0;
+
+            for (size_t v = 0; v < static_cast<size_t>(fv); v++) {
+                tinyobj::index_t idx = shape.mesh.indices[index_offset + v];
+                
+                float vx = attrib.vertices[3 * idx.vertex_index + 0];
+                float vy = attrib.vertices[3 * idx.vertex_index + 1];
+                float vz = attrib.vertices[3 * idx.vertex_index + 2];
+
+                sf::Vector2f isoPos = projectIso(vx, vy, vz);
+                avgDepth += (vx + vy + vz); 
+
+                sf::Vertex vert;
+                vert.position = isoPos;
+                vert.color = sf::Color::White;
+                poly.vertices.push_back(vert);
+            }
+            poly.depth = avgDepth / fv;
+
+            int matId = shape.mesh.material_ids[f];
+            if (matId >= 0 && static_cast<size_t>(matId) < materials.size()) {
+                std::string rawTexName = materials[matId].diffuse_texname;
+                sf::Texture* foundTex = nullptr;
+
+                if (textures.count(rawTexName)) {
+                    foundTex = &textures[rawTexName].texture;
+                } else {
+                    std::string cleanName = cleanTextureName(rawTexName);
+                    for(auto& [key, val] : textures) {
+                        if (cleanTextureName(key) == cleanName) {
+                            foundTex = &val.texture;
+                            break;
+                        }
+                    }
+                }
+
+                if (foundTex) {
+                    poly.texture = foundTex;
+                    float texW = (float)foundTex->getSize().x;
+                    float texH = (float)foundTex->getSize().y;
+
+                    for(size_t v = 0; v < static_cast<size_t>(fv) && v < poly.vertices.size(); v++) {
+                        tinyobj::index_t idx = shape.mesh.indices[index_offset + v];
+                        if (idx.texcoord_index >= 0) {
+                            float u = attrib.texcoords[2 * idx.texcoord_index + 0];
+                            float v_coord = attrib.texcoords[2 * idx.texcoord_index + 1];
+                            poly.vertices[v].texCoords = sf::Vector2f(u * texW, (1.0f - v_coord) * texH);
+                        }
+                    }
+                } else {
+                    for(auto& v : poly.vertices) v.color = sf::Color(150, 150, 150);
+                    poly.texture = nullptr;
+                }
+            }
+
+            if (poly.vertices.size() >= 3) renderQueue.push_back(poly);
+            index_offset += fv;
+        }
+    }
+
+    std::sort(renderQueue.begin(), renderQueue.end(), [](const RenderQuad& a, const RenderQuad& b) {
+        return a.depth < b.depth;
+    });
+
+    for (const auto& q : renderQueue) {
+        renderTex.draw(&q.vertices[0], q.vertices.size(), sf::PrimitiveType::TriangleFan, q.texture);
+    }
+
+    renderTex.display();
+    return { renderTex.getTexture().copyToImage() };
+}
+
 void ModelGenerator::saveAssets(const std::string& itemId) {
     std::string safeName = changeFilename(itemId);
     std::string targetDir = "img/" + safeName;
@@ -436,9 +703,16 @@ void ModelGenerator::saveAssets(const std::string& itemId) {
     if (modelJson.contains("parent") && modelJson["parent"].get<std::string>().find("item/generated") != std::string::npos) isItem = true;
     if (modelJson.contains("textures") && modelJson["textures"].contains("layer0")) isItem = true;
     if(!isItem) exportToObj(itemId, targetDir);
-    saveAnimationWebP(itemId, targetDir, generateIsometricSequence(128));
+    if(isObjModel)
+    {
+        saveAnimationWebP(itemId, targetDir, generateIsometricSequenceOBJ(128));
+    }
+    else
+    {
+        saveAnimationWebP(itemId, targetDir, generateIsometricSequence(128));
+    }
+    
 }
-
 
 void ModelGenerator::saveAnimationWebP(const std::string& itemId, const std::string& outputDir, const std::vector<sf::Image>& frames) {
     if (frames.empty()) return;

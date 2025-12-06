@@ -81,6 +81,7 @@ public:
 inline void createKubejsImageBrowser(float deltaTime, sf::RenderWindow& window) {
     static KubeJSImageBrowser browser;
     static bool firstRun = true;
+    if(client.needs_manual) return; //we dont have kubejs to help
     
     if (firstRun) {
         browser.loadAssets();

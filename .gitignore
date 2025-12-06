@@ -8,3 +8,5 @@ vcpkg.json
 imgui.ini
 compile_commands.json
 img/**
+errors.txt
+logs.txt

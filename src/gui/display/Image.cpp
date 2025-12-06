@@ -1,3 +1,5 @@
+#include "integration/kubejs.h"
+#include <cstddef>
 #include <gui/display/Image.h>
 #include <imgui.h>
 #include <imgui_stdlib.h>
@@ -92,7 +94,12 @@ void KubeJSImageBrowser::render() {
     }
 
     if(enterPressed && acState.isPopupOpen) {
-        idInputBuffer = filteredCandidates[acState.activeIdx];
+        if (acState.activeIdx >= 0 && static_cast<size_t>(acState.activeIdx) < filteredCandidates.size()) {
+            idInputBuffer = filteredCandidates[acState.activeIdx];
+        } 
+        else if (!filteredCandidates.empty()) {
+            idInputBuffer = filteredCandidates[0];
+        }
         acState.isPopupOpen = false;
         acState.activeIdx = -1;
         loadImage(idInputBuffer);
@@ -203,6 +210,7 @@ void KubeJSImageBrowser::render() {
 
     ImGui::End();
 }
+
 void KubeJSImageBrowser::loadImage(const std::string &id)
 {
     if(id.empty()) 
@@ -219,20 +227,80 @@ void KubeJSImageBrowser::loadImage(const std::string &id)
     parseId(id, ns, path);
 
     std::string jsonBody;
-    std::string urlBlock = "/api/client/assets/get/" + ns + "/models/block/" + path + ".json";
-    std::string urlItem = "/api/client/assets/get/" + ns + "/models/item/" + path + ".json";
+    bool modelFound = false;
 
+    std::string urlBlock = "/api/client/assets/get/" + ns + "/models/block/" + path + ".json";
     client.sendHttpRequest("GET", urlBlock, "", jsonBody);
-    if(jsonBody.empty() || jsonBody.find("error") != std::string::npos)
+
+    if(!jsonBody.empty() && jsonBody.find("error") == std::string::npos)
     {
-        client.sendHttpRequest("GET", urlItem, "", jsonBody);
+        currentGenerator = std::make_unique<ModelGenerator>(jsonBody, client, id);
+        modelFound = true;
     }
 
-    if(!jsonBody.empty())
+    if (!modelFound)
     {
-        currentGenerator = std::make_unique<ModelGenerator>(jsonBody, client);
+        auto objList = client.listAssetsByPrefix(".obj"); 
+        
+        std::string foundObjPath = "";
+        for(const auto& asset : objList) {
+            std::string p = asset.path;
+            if(p.find("/" + path + ".obj") != std::string::npos || 
+               p.find("/" + path + ".obj.ie") != std::string::npos ||
+               p == path + ".obj")
+            {
+                foundObjPath = p;
+                break;
+            }
+        }
 
-        std::vector<sf::Image> frames = currentGenerator->generateIsometricSequence(128);
+        if (!foundObjPath.empty()) 
+        {
+            std::string objData, mtlData;
+            std::string objUrl = "/api/client/assets/get/" + ns + "/models/" + foundObjPath; 
+            client.sendHttpRequest("GET", objUrl, "", objData);
+            if (!objData.empty() && objData.find("error") == std::string::npos) 
+            {
+                std::string mtlPath = foundObjPath;
+                size_t extPos = mtlPath.rfind(".obj"); 
+
+                if (extPos != std::string::npos) {
+                    mtlPath = mtlPath.substr(0, extPos) + ".mtl";
+                } else {
+                    mtlPath += ".mtl";
+                }
+
+                std::string mtlUrl = "/api/client/assets/get/" + ns + "/models/" + mtlPath;
+                client.sendHttpRequest("GET", mtlUrl, "", mtlData);
+                currentGenerator = std::make_unique<ModelGenerator>(objData, mtlData, client, ns, id);
+                modelFound = true;
+            }
+        }
+    }
+
+    if (!modelFound)
+    {
+        std::string urlItem = "/api/client/assets/get/" + ns + "/models/item/" + path + ".json";
+        jsonBody.clear();
+        client.sendHttpRequest("GET", urlItem, "", jsonBody);
+
+        if(!jsonBody.empty() && jsonBody.find("error") == std::string::npos)
+        {
+            currentGenerator = std::make_unique<ModelGenerator>(jsonBody, client, id);
+            modelFound = true;
+        }
+    }
+    if(modelFound && currentGenerator)
+    {
+        std::vector<sf::Image> frames;
+        if(currentGenerator->isObjModel)
+        {
+            frames = currentGenerator->generateIsometricSequenceOBJ(128);
+        }
+        else
+        {
+            frames = currentGenerator->generateIsometricSequence(128);
+        }
 
         if(!frames.empty())
         {
@@ -252,7 +320,7 @@ void KubeJSImageBrowser::loadImage(const std::string &id)
     }
     else
     {
-        std::cerr << "Could not find model json for " << id << std::endl;
+        std::cerr << "Could not find model (Block JSON, OBJ, or Item JSON) for " << id << std::endl;
     }
 
     isLoading = false;
