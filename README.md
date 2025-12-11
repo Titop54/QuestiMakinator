@@ -19,7 +19,9 @@ You can check more examples on the example folder!
 - Support for various text effects using quest methods
 - Cross-platform compilation (Windows and Linux) (Linux needs to compile manually)
 
-## Prerequisites
+If you just want executable, check this page ( https://github.com/Titop54/QuestiMakinator/releases )
+You just need to download the .exe for Windows 
+## Prerequisites for compilation 
 
 ### Required Tools
 
