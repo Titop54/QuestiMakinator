@@ -6,16 +6,18 @@ VCPKG_ROOT="vcpkg/"
 TRIPLET="x64-linux"
 BUILD_TYPE="Release"
 NO_CONFIG=false
+DYNAMIC=false
+OS_TARGET="linux"
 
 # Procesar argumentos
 while [[ $# -gt 0 ]]; do
     case $1 in
         --windows | --window)
-            TRIPLET="x64-mingw-static"
+            OS_TARGET="windows"
             shift
             ;;
         --linux)
-            TRIPLET="x64-linux"
+            OS_TARGET="linux"
             shift
             ;;
         --no_config)
@@ -30,14 +32,36 @@ while [[ $# -gt 0 ]]; do
             BUILD_TYPE="Release"
             shift
             ;;
+        --dynamic)
+            DYNAMIC=true
+            shift
+            ;;
         *)
             printf "Argument not valid: %s\n" "$1"
-            printf "Valid arguments: [--windows | --linux] [--no_config] [--debug | --release]\n"
+            printf "Valid arguments: [--windows | --linux] [--no_config] [--debug | --release] [--dynamic]\n"
             exit 1
             ;;
     esac
 done
 
+if [ "$OS_TARGET" = "windows" ]; then
+    if [ "$DYNAMIC" = true ]; then
+        TRIPLET="x64-mingw-dynamic"
+    else
+        TRIPLET="x64-mingw-static"
+    fi
+else
+    if [ "$DYNAMIC" = true ]; then
+        TRIPLET="x64-linux-dynamic"
+    else
+        TRIPLET="x64-linux"
+    fi
+fi
+
+CMAKE_DYNAMIC_FLAG="OFF"
+if [ "$DYNAMIC" = true ]; then
+    CMAKE_DYNAMIC_FLAG="ON"
+fi
 
 mkdir -p build/${TRIPLET}
 cd build/${TRIPLET} || exit
@@ -45,7 +69,7 @@ export VCPKG_ROOT=../../vcpkg/
 export PATH=$VCPKG_ROOT:$PATH
 
 if [ "$NO_CONFIG" = false ]; then
-    if [ "$TRIPLET" = "x64-mingw-static" ]; then
+    if [[ "$TRIPLET" == "x64-mingw"* ]]; then
         cmake ../../ \
             -DCMAKE_BUILD_TYPE=MinSizeRel \
             -DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake \
@@ -53,6 +77,7 @@ if [ "$NO_CONFIG" = false ]; then
             -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
             -DVCPKG_INSTALLED_DIR="$PWD/../../vcpkg_installed/${TRIPLET}" \
             -DVCPKG_HOST_TRIPLET=${TRIPLET} \
+            -DDYNAMIC_BUILD=${CMAKE_DYNAMIC_FLAG} \
             -DCMAKE_SYSTEM_NAME="Windows" \
             -DCMAKE_C_COMPILER=x86_64-w64-mingw32-clang \
             -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-clang++ \
@@ -66,6 +91,7 @@ if [ "$NO_CONFIG" = false ]; then
             -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
             -DVCPKG_INSTALLED_DIR="$PWD/../../vcpkg_installed/${TRIPLET}" \
             -DVCPKG_HOST_TRIPLET=${TRIPLET} \
+            -DDYNAMIC_BUILD=${CMAKE_DYNAMIC_FLAG} \
             -DCMAKE_C_COMPILER=clang \
             -DCMAKE_CXX_COMPILER=clang++
     fi

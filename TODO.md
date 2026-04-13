@@ -1,0 +1,10 @@
+- Change to Ninja https://gist.github.com/jrhemstad/811d1e41af9685670241fa472170ef32
+- .msi --> Done
+- dynamic linking --> Done
+- appimage --> Done
+- snap 
+- linux builds -- Done
+- github actions
+- Script to make all this happens without github, just in case --> Done
+- HotSpot + perf
+- Valgrid or similar for leaks

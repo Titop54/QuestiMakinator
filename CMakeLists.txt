@@ -20,12 +20,20 @@ if(NOT CMAKE_TOOLCHAIN_FILE)
 endif()
 
 # Platform-specific configuration
+option(DYNAMIC_BUILD "Habilita compilación dinámica y copiado de librerías" OFF)
+
 if(WIN32 OR MINGW OR CMAKE_SYSTEM_NAME STREQUAL "Windows")
     message(STATUS "Windows (Mingw) configuration detected")
     set(CMAKE_BUILD_TYPE MinSizeRel CACHE STRING "Choose the type of build." FORCE)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static -mwindows -Wall -Wextra -O3")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -static")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static -mwindows")
+    
+    if(NOT DYNAMIC_BUILD)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static -mwindows -Wall -Wextra -O3")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -static")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static -mwindows")
+    else()
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mwindows -Wall -Wextra -O3")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -mwindows")
+    endif()
 else()
     message(STATUS "Linux configuration detected")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -g")
@@ -38,12 +46,13 @@ if(DEFINED VCPKG_INSTALLED_DIR)
 endif()
 
 # Dependency search
-find_package(SFML COMPONENTS Network Graphics Window Audio System CONFIG REQUIRED)
+find_package(SFML COMPONENTS Network Graphics Audio System CONFIG REQUIRED)
 find_package(ImGui-SFML CONFIG REQUIRED)
 find_package(tinyobjloader CONFIG REQUIRED)
 find_package(Backward CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(WebP CONFIG REQUIRED)
+find_package(glfw3 CONFIG REQUIRED)
 
 # Source files configuration (this can be done with all .cpp)
 file(GLOB_RECURSE SOURCES "src/*.cpp")
@@ -64,7 +73,6 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 target_link_libraries(${PROJECT_NAME} PRIVATE
     SFML::Network
     SFML::Graphics
-    SFML::Window
     SFML::Audio
     SFML::System
     ImGui-SFML::ImGui-SFML
@@ -75,6 +83,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     WebP::webpdemux
     WebP::libwebpmux
     tinyobjloader::tinyobjloader
+    glfw
 )
 
 # Installation configuration

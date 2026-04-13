@@ -1,13 +1,23 @@
 #!/bin/bash
 
-tools=("git" "python3" "clang" "clang++" "make" "cmake")
+tools=("git" "python3" "clang" "clang++" "make" "cmake" "appimagetool")
 no_win=false
+dynamic=false
+
+#sudo apt install libfuse2
+#wget https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+#chmod +x appimagetool-x86_64.AppImage
+#sudo mv appimagetool-x86_64.AppImage /usr/local/bin/appimagetool
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
         --no_win)
             no_win=true
+            shift
+            ;;
+        --dynamic)
+            dynamic=true
             shift
             ;;
         *)
@@ -28,7 +38,7 @@ for tool in "${tools[@]}"; do
 done
 
 if [ "$no_win" = false ]; then
-    mingw_tools=("x86_64-w64-mingw32-clang++" "x86_64-w64-mingw32-clang" "x86_64-w64-mingw32-windres")
+    mingw_tools=("x86_64-w64-mingw32-clang++" "x86_64-w64-mingw32-clang" "x86_64-w64-mingw32-windres" "nsis")
     for tool in "${mingw_tools[@]}"; do
         if ! command -v "$tool" &> /dev/null; then
             printf "Error: %s is not found in PATH.\n" "$tool"
@@ -52,15 +62,25 @@ export VCPKG_ROOT=$ROOT
 export PATH=$VCPKG_ROOT:$PATH
 
 vcpkg new --application
-vcpkg add port imgui-sfml nlohmann-json libwebp tinyobjloader backward-cpp
+vcpkg add port imgui-sfml imgui[glfw-binding,opengl3-binding] nlohmann-json libwebp tinyobjloader backward-cpp glfw3[wayland]
 
 if [ "$no_win" = false ]; then
-    printf "\nInstalling x64-mingw-static libraries\n"
-    vcpkg install --triplet x64-mingw-static --host-triplet=x64-mingw-static --x-install-root=./vcpkg_installed/x64-mingw-static
+    if [ "$dynamic" = true ]; then
+        printf "\nInstalling x64-mingw-dynamic libraries\n"
+        vcpkg install --triplet x64-mingw-dynamic --host-triplet=x64-mingw-dynamic --x-install-root=./vcpkg_installed/x64-mingw-dynamic
+    else
+        printf "\nInstalling x64-mingw-static libraries\n"
+        vcpkg install --triplet x64-mingw-static --host-triplet=x64-mingw-static --x-install-root=./vcpkg_installed/x64-mingw-static
+    fi
 fi
 
-printf "\nInstalling x64-linux libraries\n"
-vcpkg install --triplet x64-linux --host-triplet=x64-linux --x-install-root=./vcpkg_installed/x64-linux
+if [ "$dynamic" = true ]; then
+    printf "\nInstalling x64-linux-dynamic libraries\n"
+    vcpkg install --triplet x64-linux-dynamic --host-triplet=x64-linux-dynamic --x-install-root=./vcpkg_installed/x64-linux-dynamic
+else
+    printf "\nInstalling x64-linux-static libraries\n"
+    vcpkg install --triplet x64-linux --host-triplet=x64-linux --x-install-root=./vcpkg_installed/x64-linux-static
+fi
 
 python3 licenses.py --no_print
 vcpkg license-report
