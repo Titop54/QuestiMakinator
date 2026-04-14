@@ -1,5 +1,4 @@
-#ifndef CHAPTER_QUESTS_H
-#define CHAPTER_QUESTS_H
+#pragma once
 
 #include <string>
 #include <cstdint>
@@ -33,5 +32,3 @@ public:
 
     bool generateQuestFile();
 };
-
-#endif

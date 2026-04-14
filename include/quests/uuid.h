@@ -1,5 +1,4 @@
-#ifndef UUID_QUESTS_H
-#define UUID_QUESTS_H
+#pragma once
 
 #include <random>
 #include <string>
@@ -55,5 +54,3 @@ inline std::string generate_v4()
 }
 
 }
-
-#endif

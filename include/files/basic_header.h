@@ -1,5 +1,4 @@
-#ifndef BASIC_HEADER_FILES_H
-#define BASIC_HEADER_FILES_H
+#pragma once
 
 enum class team_reward {DEFAULT, ENABLED, DISABLED};
 enum class auto_claim {DEFAULT, DISABLED, ENABLED, DISABLED_TOAST, ENABLED_TOAST};
@@ -14,4 +13,3 @@ enum class Shapes {DEFAULT, CIRCLE, SQUARE, ROUNDED_SQUARE, DIAMOND, PENTAGON, H
 enum class Progression {DEFAULT, LINEAR, FLEXIBLE};
 enum class DependecyMode {ALL_COMPLETED, ONE_COMPLETED, ALL_STARTED, ONE_STARTED};
 enum class Hide {DEFAULT, HIDDEN, VISIBLE};
-#endif

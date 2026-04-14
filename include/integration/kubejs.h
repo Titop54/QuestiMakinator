@@ -1,5 +1,4 @@
-#ifndef KUBEJS_H
-#define KUBEJS_H
+#pragma once
 
 #include <SFML/Graphics/Image.hpp>
 #include <SFML/Network.hpp>
@@ -230,5 +229,3 @@ public:
 
 // Global client instance
 extern KubeJSClient client;
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef CHAPTER_GROUP_QUESTS_H
-#define CHAPTER_GROUP_QUESTS_H
+#pragma once
 
 #include <vector>
 #include <string>
@@ -47,6 +46,3 @@ namespace quests
         return false;
     }
 }
-
-
-#endif

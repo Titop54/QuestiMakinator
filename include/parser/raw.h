@@ -1,5 +1,4 @@
-#ifndef RAW_JSON_HPP
-#define RAW_JSON_HPP
+#pragma once
 
 #include <cstddef>
 #include <cstdio>
@@ -725,5 +724,3 @@ namespace raw
     }
 
 }
-
-#endif

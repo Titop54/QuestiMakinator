@@ -1,7 +1,6 @@
-#ifndef QUEST_QUESTS_H
-#define QUEST_QUESTS_H
+#pragma once
 
-#include "parser/parser.h"
+//#include <parser/snbt.h>
 #include <cstdint>
 #include <vector>
 #include <string>
@@ -17,7 +16,7 @@ public:
     //quest property
     std::string id; //quest id
     std::string icon; //icon of the quest
-    snbt::List tags; //Tags for kubejs events (should only have snbt::String)
+    //snbt::List tags; //Tags for kubejs events (should only have snbt::String)
     bool disable_completion_toast; //If the textbox from completing should appear
 
     //apprearance
@@ -52,7 +51,7 @@ public:
     Hide hide_text_until_completed = Hide::DEFAULT; //Hide text until the quest is completed
 
 
-    std::vector<snbt::Tag> tasks; //all the tasks you need to do, 1 entry per task
+    //std::vector<snbt::Tag> tasks; //all the tasks you need to do, 1 entry per task
     std::vector<reward> rewards; //all the rewards you put
     std::vector<connected_nodes> linked_nodes; //linked node aka dependency of other nodes, needed for dfs
 
@@ -101,5 +100,3 @@ struct connected_nodes
     //Dst quest
     quest* node_linked;
 };
-
-#endif

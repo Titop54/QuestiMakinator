@@ -1,11 +1,10 @@
-#ifndef REWARD_QUESTS_H
-#define REWARD_QUESTS_H
+#pragma once
 
 #include <files/basic_header.h>
 #include <cstdint>
 #include <string>
 #include <stdlib.h>
-#include <parser/parser.h>
+//#include <parser/snbt.h>
 
 /**
  * @brief Represent a reward from a quest
@@ -25,7 +24,7 @@ private:
 public:
     std::string title;
     std::string icon; //icon{id: "modid:item"}
-    snbt::List tags;
+    //snbt::List tags;
     Hide team_reward = Hide::DEFAULT;
     Hide auto_claim = Hide::DEFAULT;
     bool exclude_from_claim_all = false;
@@ -62,5 +61,3 @@ public:
     reward generateToeastReward();
     reward generateStageReward();
 };
-
-#endif

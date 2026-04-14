@@ -1,5 +1,4 @@
-#ifndef REWARD_TABLE_QUESTS_H
-#define REWARD_TABLE_QUESTS_H
+#pragma once
 
 class reward_table
 {
@@ -9,6 +8,3 @@ public:
     reward_table() = default;
     ~reward_table() = default;
 };
-
-
-#endif

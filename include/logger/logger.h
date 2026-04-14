@@ -1,5 +1,4 @@
-#ifndef LOGGER_HPP
-#define LOGGER_HPP
+#pragma once
 
 #include <fstream>
 #include <string>
@@ -29,5 +28,3 @@ public:
     bool is_open(Logger log);
 
 };
-
-#endif

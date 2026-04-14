@@ -65,7 +65,7 @@ bool quest::addConnection(connected_nodes n)
 }
 
 
-static std::string shapeToString(Shapes s) {
+[[maybe_unused]] static std::string shapeToString(Shapes s) {
     switch(s) {
         case Shapes::CIRCLE:    return "circle";
         case Shapes::NO_SHAPE:  return "no_shape";
@@ -74,7 +74,7 @@ static std::string shapeToString(Shapes s) {
     }
 }
 
-static std::string progressionToString(Progression p)
+[[maybe_unused]] static std::string progressionToString(Progression p)
 {
     return (p == Progression::LINEAR) ? "linear" : "default";
 }
