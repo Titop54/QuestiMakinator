@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=${PROJECT_NAME}
+Exec=${PROJECT_NAME}
+Icon=${PROJECT_NAME}
+Type=Application
+Categories=Game;
+Terminal=false

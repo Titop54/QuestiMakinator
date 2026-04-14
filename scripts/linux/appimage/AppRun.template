@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+SELF=$(dirname $(readlink -f "$0"))
+
+export LD_LIBRARY_PATH="$SELF/usr/lib:$LD_LIBRARY_PATH"
+
+exec "$SELF/usr/bin/${PROJECT_NAME}" "$@"

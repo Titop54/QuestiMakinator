@@ -1,0 +1,7 @@
+Package: ${PKG_NAME}
+Version: ${VERSION}
+Section: base
+Priority: optional
+Architecture: amd64
+Maintainer: Titop54 <correo@ejemplo.com>
+Description: Help make quests for mc

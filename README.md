@@ -146,6 +146,7 @@ Managed automatically through vcpkg:
 - **libwebp** - For those nice .webp animated
 - **tinyobjloader** - For those special blocks / items
 - **backward-cpp** - For that nice stacktrace instead of "std::bad_alloc" alone
+- **glfw3** - For windows on Wayland/X11 and DearImGUI
 
 ## License
 

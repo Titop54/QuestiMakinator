@@ -105,15 +105,29 @@
             "cwd": "${workspaceFolder}",
             "preLaunchTask": "build-debug-linux-no-config",
             "internalConsoleOptions": "openOnSessionStart",
-            "env": {
-                "LIBGL_ALWAYS_SOFTWARE": "1",
-                "WAYLAND_DISPLAY": "wayland-0",
-                "XDG_SESSION_TYPE": "wayland"
-            },
             "presentation": {
                 "hidden": false,
                 "group": "Debug Linux",
                 "order": 2
+            }
+        },
+        {
+            "name": "Debug program (Linux Dynamic)",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/x64-linux-dynamic/QuestiMakinator",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "LIBGL_ALWAYS_SOFTWARE": "1",
+                "WAYLAND_DISPLAY": "",
+                "DISPLAY": ":0"
+            },
+            "internalConsoleOptions": "openOnSessionStart",
+            "presentation": {
+                "hidden": false,
+                "group": "Debug Linux",
+                "order": 3
             }
         },
         {

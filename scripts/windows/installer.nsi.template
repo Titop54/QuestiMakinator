@@ -1,0 +1,33 @@
+!include "MUI2.nsh"
+
+Name "${PROJECT_NAME}"
+OutFile "${OUTPUT_EXE}"
+InstallDir "$PROGRAMFILES64\${PROJECT_NAME}"
+ManifestDPIAware true
+
+;Icons
+!define MUI_ICON "${ICON_PATH}"
+!define MUI_UNICON "${ICON_PATH}"
+
+;Interfaces
+!insertmacro MUI_PAGE_WELCOME
+!insertmacro MUI_PAGE_DIRECTORY
+!insertmacro MUI_PAGE_INSTFILES
+!insertmacro MUI_PAGE_FINISH
+
+;Langs
+!insertmacro MUI_LANGUAGE "Spanish"
+!insertmacro MUI_LANGUAGE "English"
+!insertmacro MUI_LANGUAGE "French"
+!insertmacro MUI_LANGUAGE "German"
+!insertmacro MUI_LANGUAGE "Turkish"
+
+Section "Install"
+    SetOutPath "$INSTDIR"
+    File /r "*"
+    WriteUninstaller "$INSTDIR\Uninstall.exe"
+SectionEnd
+
+Section "Uninstall"
+    RMDir /r "$INSTDIR"
+SectionEnd

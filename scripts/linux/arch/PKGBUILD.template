@@ -1,0 +1,21 @@
+# Maintainer: Titop54 <correo@ejemplo.com>
+pkgname=${PKG_NAME}-bin
+pkgver=${VERSION}
+pkgrel=1
+pkgdesc="Something"
+arch=('x86_64')
+url="https://github.com/Titop54/QuestiMakinator"
+license=('custom')
+provides=("${PKG_NAME}")
+conflicts=("${PKG_NAME}")
+source=("${PKG_NAME}-${pkgver}-x86_64.tar.gz")
+sha256sums=('SKIP')
+
+package() {
+    mkdir -p "$pkgdir/usr/bin/${PKG_NAME}"
+    
+    cp -r "$srcdir/"* "$pkgdir/usr/bin/${PKG_NAME}/"
+    
+    mkdir -p "$pkgdir/usr/bin"
+    ln -s "/usr/bin/${PKG_NAME}/${PROJECT_NAME}" "$pkgdir/usr/bin/${PKG_NAME}-bin"
+}
