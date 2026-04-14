@@ -70,10 +70,9 @@ void KubeJSImageBrowser::render()
             "Connect to KubeJS",
             "",
             "Try to connect to KubeJS localhost server",
-            "",
-            {}
+            ""
         };
-        
+
         static bool has_tried = false;
         generateSlowedButton(a, [&]() {
             client.needs_manual = false;

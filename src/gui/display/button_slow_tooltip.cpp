@@ -36,19 +36,32 @@ bool ShowDelayedTooltip(TooltipState& state, const char* desc)
 bool generateSlowedButton(TextEditorState& editorState, FormatButtonData& data)
 {
     bool clicked = false;
+    ImVec2 original_position = ImGui::GetCursorPos();
+    if(data.pos.does_work())
+    {
+        ImGui::SetCursorPos(data.pos.vector());
+    }
+    
     if(ImGui::Button(data.label))
     {
         editorState.text = editorState.wrapSelection(data.prefix, data.ending);
         clicked = true;
     }
     ShowDelayedTooltip(data.state, data.tooltip);
-    
+    ImGui::SetCursorPos(original_position);
+
     return clicked;
 }
 
 bool generateSlowedButton(FormatButtonData& data, std::function<void()> onClickAction)
 {
     bool clicked = false;
+    ImVec2 original_position = ImGui::GetCursorPos();
+    if(data.pos.does_work())
+    {
+        ImGui::SetCursorPos(data.pos.vector());
+    }
+
     if(ImGui::Button(data.label))
     {
         if(onClickAction)
@@ -58,6 +71,7 @@ bool generateSlowedButton(FormatButtonData& data, std::function<void()> onClickA
         clicked = true;
     }
     ShowDelayedTooltip(data.state, data.tooltip);
+    ImGui::SetCursorPos(original_position);
     
     return clicked;
 }
