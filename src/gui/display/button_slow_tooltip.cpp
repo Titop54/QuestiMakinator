@@ -2,7 +2,7 @@
 #include <functional>
 #include <imgui.h>
 
-bool ShowDelayedTooltip(Tooltip& state, const char* desc)
+bool ShowDelayedTooltip(Tooltip& state, std::string desc)
 {
     bool showTooltip = false;
     if(ImGui::IsItemHovered())
@@ -18,7 +18,7 @@ bool ShowDelayedTooltip(Tooltip& state, const char* desc)
         {
             ImGui::BeginTooltip();
             ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-            ImGui::TextUnformatted(desc);
+            ImGui::TextUnformatted(desc.data());
             ImGui::PopTextWrapPos();
             ImGui::EndTooltip();
             showTooltip = true;
@@ -42,7 +42,7 @@ bool generateSlowedButton(TextField& editorState, Button& data)
         ImGui::SetCursorPos(data.pos.vector());
     }
     
-    if(ImGui::Button(data.label, data.size.vector()))
+    if(ImGui::Button(data.label.data(), data.size.vector()))
     {
         editorState.text = editorState.wrapSelection(data.prefix, data.ending);
         clicked = true;
@@ -62,7 +62,7 @@ bool generateSlowedButton(Button& data, std::function<void()> onClickAction)
         ImGui::SetCursorPos(data.pos.vector());
     }
 
-    if(ImGui::Button(data.label, data.size.vector()))
+    if(ImGui::Button(data.label.data(), data.size.vector()))
     {
         if(onClickAction)
         {

@@ -47,16 +47,16 @@ struct Size
 
 struct Button
 {
-    const char* label;
-    const char* prefix; //prefix
-    const char* tooltip;
-    const char* ending = "\"";
+    std::string label = "";
+    std::string prefix = ""; //prefix
+    std::string tooltip = "";
+    std::string ending = "";
     Position pos = {};
     Size size = {};
     Tooltip state = {};
 };
 
-bool ShowDelayedTooltip(Tooltip& state, const char* desc);
+bool ShowDelayedTooltip(Tooltip& state, std::string desc);
 
 bool generateSlowedButton(TextField& editorState, Button& data);
 

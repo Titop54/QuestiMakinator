@@ -81,47 +81,47 @@ int main(int argc, char* argv[])
     double lastTime = glfwGetTime();
 
     std::vector<Button> basicFormats = {
-        {"Bold", "&l", "Bold text (&l)"},
-        {"Italic", "&o", "Italic text (&o)"},
-        {"Underline", "&n", "Underlined text (&n)"},
-        {"Strikethrough", "&m", "Strikethrough text (&m)"},
+        {"Bold", "&l", "Bold text (&l)", "&r"},
+        {"Italic", "&o", "Italic text (&o)", "&r"},
+        {"Underline", "&n", "Underlined text (&n)", "&r"},
+        {"Strikethrough", "&m", "Strikethrough text (&m)", "&r"},
         {"Reset", "&r", "Reset formatting (&r)"},
-        {"Obfuscated", "&k", "Obfuscated text (&k)"}
+        {"Obfuscated", "&k", "Obfuscated text (&k)", "&r"}
     };
     
     std::vector<Button> basicColors = {
-        {"Black (&0)", "&0", "Black color (&0)"},
-        {"Dark Blue (&1)", "&1", "Dark blue color (&1)"},
-        {"Dark Green (&2)", "&2", "Dark green color (&2)"},
-        {"Light Blue (&3)", "&3", "Light blue color (&3)"},
-        {"Red (&4)", "&4", "Red color (&4)"},
-        {"Purple (&5)", "&5", "Purple color (&5)"},
-        {"Orange (&6)", "&6", "Orange color (&6)"},
-        {"Light Gray (&7)", "&7", "Light gray color (&7)"},
-        {"Gray (&8)", "&8", "Gray color (&8)"},
-        {"Blue (&9)", "&9", "Blue color (&9)"},
-        {"Light Green (&a)", "&a", "Light green color (&a)"},
-        {"Aqua (&b)", "&b", "Aqua color (&b)"},
-        {"Light Red (&c)", "&c", "Light red color (&c)"},
-        {"Pink (&d)", "&d", "Pink color (&d)"},
-        {"Yellow (&e)", "&e", "Yellow color (&e)"},
-        {"White (&f)", "&f", "White color (&f)"}
+        {"Black (&0)", "&0", "Black color (&0)", "&r"},
+        {"Dark Blue (&1)", "&1", "Dark blue color (&1)", "&r"},
+        {"Dark Green (&2)", "&2", "Dark green color (&2)", "&r"},
+        {"Light Blue (&3)", "&3", "Light blue color (&3)", "&r"},
+        {"Red (&4)", "&4", "Red color (&4)", "&r"},
+        {"Purple (&5)", "&5", "Purple color (&5)", "&r"},
+        {"Orange (&6)", "&6", "Orange color (&6)", "&r"},
+        {"Light Gray (&7)", "&7", "Light gray color (&7)", "&r"},
+        {"Gray (&8)", "&8", "Gray color (&8)", "&r"},
+        {"Blue (&9)", "&9", "Blue color (&9)", "&r"},
+        {"Light Green (&a)", "&a", "Light green color (&a)", "&r"},
+        {"Aqua (&b)", "&b", "Aqua color (&b)", "&r"},
+        {"Light Red (&c)", "&c", "Light red color (&c)", "&r"},
+        {"Pink (&d)", "&d", "Pink color (&d)", "&r"},
+        {"Yellow (&e)", "&e", "Yellow color (&e)", "&r"},
+        {"White (&f)", "&f", "White color (&f)", "&r"}
     };
 
     std::vector<Button> specialActions = {
-        {"Insert URL", "&@url:\"", "Insert URL: &@url:\"url\"", "\""},
-        {"Insert Text", "&@in:\"", "Insert chat text: &@in:\"text\"", "\""},
-        {"Open File", "&@file:\"", "Open file: &@file:\"path\"", "\""},
-        {"Run Command", "&@command:\"", "Execute command: &@command:\"command\"", "\""},
-        {"Copy Text", "&@copy:\"", "Copy text: &@copy:\"text\"", "\""},
-        {"Change Quest", "&@change:\"", "Change quest: &@change:\"text\"", "\""},
+        {"Insert URL", "&@url:\"", "Insert URL: &@url:\"url\"", "&r"},
+        {"Insert Text", "&@in:\"", "Insert chat text: &@in:\"text\"", "&r"},
+        {"Open File", "&@file:\"", "Open file: &@file:\"path\"", "&r"},
+        {"Run Command", "&@command:\"", "Execute command: &@command:\"command\"", "&r"},
+        {"Copy Text", "&@copy:\"", "Copy text: &@copy:\"text\"", "&r"},
+        {"Change Quest", "&@change:\"", "Change quest: &@change:\"text\"", "&r"},
         {"New Page", "&@page", "New page: &@page", ""}
     };
 
     std::vector<Button> hoverEffects = {
-        {"Show Text Hover", "&&text:\"", "Show text on hover: &&text:\"text\"", "\""},
-        {"Show Item Hover", "&&item:\"", "Show item on hover: &&item:\"item\"", "\""},
-        {"Shadow Text", "&&shadow:\"", "Put a shadow on the text (Not working) (#AARRGGBB)", "\""}
+        {"Show Text Hover", "&&text:\"", "Needs to be after the text.\nShow text on hover: <some text to show tooltip>&&text:\"text\"", "&r"},
+        {"Show Item Hover", "&&item:\"", "Needs to be after the text.\nShow item on hover: <some text to show tooltip>&&item:\"item\"", "&r"},
+        //{"Shadow Text", "&&shadow:\"", "Needs to be after the text.\n Put a shadow on the text (Not working) (#AARRGGBB)", "&r"}
     };
 
     std::vector<Button> modEffects = {
@@ -150,7 +150,6 @@ int main(int argc, char* argv[])
         {"Convert", "", "Convert text to JSON format and copy to clipboard"}, 
         {"Copy Text Output", "", "Copy converted text to clipboard"}, 
         {"Reload Minecraft (Not yet)", "", "Reload Minecraft scripts (requires KubeJS)"},
-        {"Change zoom", "", "Changes zoom level from 1 to 4"},
         {"Exit", "", "Close the application"}
     };
 
@@ -282,7 +281,7 @@ int main(int argc, char* argv[])
 
         // Second textfield
         ImGui::InputTextMultiline("##input2", &inputText2, size, 
-            ImGuiInputTextFlags_ReadOnly);
+            ImGuiInputTextFlags_ReadOnly | ImGuiInputTextFlags_WordWrap);
 
         // Radio buttons (only one selected)
         ImGui::Text("Options:");
