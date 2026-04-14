@@ -103,21 +103,27 @@ public:
     /**
      * @brief Generate a sequence of images to display
      * @param outputSize Output size (64x64 or 128x128)
+     * @param customRotation Use custom 3D rotation instead of default isometric
+     * @param pitch X-axis rotation
+     * @param yaw Y-axis rotation
      * @return vector containing 1 or more images to display
      */
-    std::vector<sf::Image> generateIsometricSequence(unsigned int outputSize = 64);
+    std::vector<sf::Image> generateIsometricSequence(unsigned int outputSize = 64, bool customRotation = false, float pitch = 30.0f, float yaw = 45.0f);
 
     /**
      * @brief Generate a sequence of images to display
      * @param outputSize Output size (128x128)
+     * @param customRotation Use custom 3D rotation instead of default isometric
+     * @param pitch X-axis rotation
+     * @param yaw Y-axis rotation
      * @return vector containing 1 or more images to display
      */
-    std::vector<sf::Image> generateIsometricSequenceOBJ(unsigned int outputSize = 128);
+    std::vector<sf::Image> generateIsometricSequenceOBJ(unsigned int outputSize = 128, bool customRotation = false, float pitch = 30.0f, float yaw = 45.0f);
 
     /**
      * @brief Downloads JSON and all textures to a folder named "mod_itemid_assets"
      */
-    void saveAssets(const std::string& itemId);
+    void saveAssets(const std::string& itemId, bool customRotation = false, float pitch = 30.0f, float yaw = 45.0f);
 
     /**
      * @brief Generates an animated .webp file from the generated sequence

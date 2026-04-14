@@ -365,7 +365,30 @@ void drawTriangle(sf::Image& target, const CustomVertex& v0, const CustomVertex&
     }
 }
 
-inline sf::Vector2f toIso(float x, float y, float z, float scale, float centerx, float centery) {
+inline sf::Vector3f project3DTransform(float x, float y, float z, float pitch, float yaw, float scale, float centerx, float centery, float pivotX = 8.0f, float pivotY = 8.0f, float pivotZ = 8.0f)
+{
+    x -= pivotX; 
+    y -= pivotY; 
+    z -= pivotZ;
+
+    float pitchRad = pitch * (std::numbers::pi_v<float> / 180.0f);
+    float yawRad = yaw * (std::numbers::pi_v<float> / 180.0f);
+
+    //Yaw
+    float x1 = x * cos(yawRad) - z * sin(yawRad);
+    float z1 = x * sin(yawRad) + z * cos(yawRad);
+    float y1 = y;
+
+    //Pitch
+    float x2 = x1;
+    float y2 = y1 * cos(pitchRad) - z1 * sin(pitchRad);
+    float z2 = y1 * sin(pitchRad) + z1 * cos(pitchRad);
+
+    return {centerx + x2 * scale, centery - y2 * scale, z2};
+}
+
+inline sf::Vector2f toIso(float x, float y, float z, float scale, float centerx, float centery)
+{
     const float cos30 = 0.866025f;
     const float sin30 = 0.5f;
     
@@ -375,7 +398,7 @@ inline sf::Vector2f toIso(float x, float y, float z, float scale, float centerx,
     return {centerx + isoX, centery + isoY};
 }
 
-std::vector<sf::Image> ModelGenerator::generateIsometricSequence(unsigned int outputSize) {
+std::vector<sf::Image> ModelGenerator::generateIsometricSequence(unsigned int outputSize, bool customRotation, float pitch, float yaw) {
     //We need to find out if its an item or not first
     bool isFlatItem = false;
     if (modelJson.contains("parent") && modelJson["parent"].get<std::string>().find("item/generated") != std::string::npos) isFlatItem = true;
@@ -563,11 +586,21 @@ std::vector<sf::Image> ModelGenerator::generateIsometricSequence(unsigned int ou
                         sf::Vector3f rotV[4];
                         for(int i=0; i<4; i++) {
                             rotV[i] = rotatePoint(f.v[i], rotOrigin, rotAxis, rotAngle);
-                            p[i] = toIso(rotV[i].x, rotV[i].y, rotV[i].z, scale, centerX, centerY);
-                            avgZ += (rotV[i].x + rotV[i].y + rotV[i].z);
+                            
+                            if (customRotation) {
+                                sf::Vector3f proj = project3DTransform(rotV[i].x, rotV[i].y, rotV[i].z, pitch, yaw, scale, centerX, centerY, 8.0f, 8.0f, 8.0f);
+                                p[i] = {proj.x, proj.y};
+                                avgZ += proj.z; // Usamos el Z transformado para el Painter's Algorithm
+                            } else {
+                                p[i] = toIso(rotV[i].x, rotV[i].y, rotV[i].z, scale, centerX, centerY);
+                                avgZ += (rotV[i].x + rotV[i].y + rotV[i].z);
+                            }
                         }
                         avgZ /= 4.0f;
-                        if (isBackFace(p[0], p[1], p[2])) continue; 
+                        if(!customRotation)
+                        {
+                            if(isBackFace(p[0], p[1], p[2])) continue; 
+                        }
                     }
 
                     sf::Color color = sf::Color::White;
@@ -626,7 +659,7 @@ inline std::string cleanTextureName(std::string path) {
     return path;
 }
 
-std::vector<sf::Image> ModelGenerator::generateIsometricSequenceOBJ(unsigned int outputSize) {
+std::vector<sf::Image> ModelGenerator::generateIsometricSequenceOBJ(unsigned int outputSize, bool customRotation, float pitch, float yaw) {
     float minIsoX = 1e9, maxIsoX = -1e9;
     float minIsoY = 1e9, maxIsoY = -1e9;
     bool hasVertices = false;
@@ -634,17 +667,28 @@ std::vector<sf::Image> ModelGenerator::generateIsometricSequenceOBJ(unsigned int
     const float cos30 = 0.866025f;
     const float sin30 = 0.5f;
 
+    auto getProjected = [&](float vx, float vy, float vz) -> sf::Vector3f {
+        if (customRotation) {
+            // El pivote de un OBJ asume el origen de coordenadas (0,0,0)
+            return project3DTransform(vx, vy, vz, pitch, yaw, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+        } else {
+            float rx = (vx - vz) * 0.866025f;
+            float ry = (vx + vz) * 0.5f - vy;
+            return {rx, ry, vx + vy + vz};
+        }
+    };
+
     for (size_t i = 0; i < attrib.vertices.size() / 3; i++) {
         float vx = attrib.vertices[3 * i + 0];
         float vy = attrib.vertices[3 * i + 1];
         float vz = attrib.vertices[3 * i + 2];
-        float rawIsoX = (vx - vz) * cos30;
-        float rawIsoY = (vx + vz) * sin30 - vy;
+        
+        sf::Vector3f proj = getProjected(vx, vy, vz);
 
-        if (rawIsoX < minIsoX) minIsoX = rawIsoX;
-        if (rawIsoX > maxIsoX) maxIsoX = rawIsoX;
-        if (rawIsoY < minIsoY) minIsoY = rawIsoY;
-        if (rawIsoY > maxIsoY) maxIsoY = rawIsoY;
+        if (proj.x < minIsoX) minIsoX = proj.x;
+        if (proj.x > maxIsoX) maxIsoX = proj.x;
+        if (proj.y < minIsoY) minIsoY = proj.y;
+        if (proj.y > maxIsoY) maxIsoY = proj.y;
 
         hasVertices = true;
     }
@@ -666,15 +710,16 @@ std::vector<sf::Image> ModelGenerator::generateIsometricSequenceOBJ(unsigned int
     float screenCenterX = outputSize / 2.0f;
     float screenCenterY = outputSize / 2.0f;
 
-    auto projectIso = [&](float x, float y, float z) -> sf::Vector2f {
-        float rx = (x - z) * cos30;
-        float ry = (x + z) * sin30 - y;
-        float centeredX = rx - isoCenterX;
-        float centeredY = ry - isoCenterY;
+
+    auto projectToScreen = [&](float vx, float vy, float vz) -> sf::Vector3f {
+        sf::Vector3f proj = getProjected(vx, vy, vz);
+        float centeredX = proj.x - isoCenterX;
+        float centeredY = proj.y - isoCenterY;
 
         return {
             screenCenterX + (centeredX * finalScale),
-            screenCenterY + (centeredY * finalScale)
+            screenCenterY + (centeredY * finalScale),
+            proj.z
         };
     };
 
@@ -696,8 +741,9 @@ std::vector<sf::Image> ModelGenerator::generateIsometricSequenceOBJ(unsigned int
                 float vy = attrib.vertices[3 * idx.vertex_index + 1];
                 float vz = attrib.vertices[3 * idx.vertex_index + 2];
 
-                sf::Vector2f isoPos = projectIso(vx, vy, vz);
-                avgDepth += (vx + vy + vz); 
+                sf::Vector3f screenProj = projectToScreen(vx, vy, vz);
+                sf::Vector2f isoPos = {screenProj.x, screenProj.y};
+                avgDepth += screenProj.z; 
 
                 CustomVertex vert;
                 vert.position = isoPos;
@@ -762,40 +808,45 @@ std::vector<sf::Image> ModelGenerator::generateIsometricSequenceOBJ(unsigned int
     return { renderTarget };
 }
 
-void ModelGenerator::saveAssets(const std::string& itemId) {
+void ModelGenerator::saveAssets(const std::string& itemId, bool customRotation, float pitch, float yaw) {
     std::string safeName = changeFilename(itemId);
     std::string targetDir = "img/" + safeName;
     
-    if (!fs::exists(targetDir)) {
+    if(!fs::exists(targetDir))
+    {
         fs::create_directories(targetDir);
     }
+
     std::ofstream jsonFile(targetDir + "/model.json");
     jsonFile << std::setw(4) << modelJson << std::endl;
     jsonFile.close();
 
-    for (const auto& [path, animData] : textures) {
-        if (animData.texture.getSize().x == 0) continue;
+    for(const auto& [path, animData] : textures)
+    {
+        if(animData.texture.getSize().x == 0) continue;
         
         std::string texName = changeFilename(path) + ".png";
         sf::Image img = animData.texture.copyToImage();
         if(!img.saveToFile(targetDir + "/" + texName)) std::cerr << "Error loading image" << std::endl;
     }
+
     bool isItem = false;
-    if (modelJson.contains("parent") && modelJson["parent"].get<std::string>().find("item/generated") != std::string::npos) isItem = true;
-    if (modelJson.contains("textures") && modelJson["textures"].contains("layer0")) isItem = true;
+    if(modelJson.contains("parent") && modelJson["parent"].get<std::string>().find("item/generated") != std::string::npos) isItem = true;
+    if(modelJson.contains("textures") && modelJson["textures"].contains("layer0")) isItem = true;
     if(!isItem) exportToObj(itemId, targetDir);
     if(isObjModel)
     {
-        saveAnimationWebP(itemId, targetDir, generateIsometricSequenceOBJ(128));
+        saveAnimationWebP(itemId, targetDir, generateIsometricSequenceOBJ(128, customRotation, pitch, yaw));
     }
     else
     {
-        saveAnimationWebP(itemId, targetDir, generateIsometricSequence(128));
+        saveAnimationWebP(itemId, targetDir, generateIsometricSequence(128, customRotation, pitch, yaw));
     }
     
 }
 
-void ModelGenerator::saveAnimationWebP(const std::string& itemId, const std::string& outputDir, const std::vector<sf::Image>& frames) {
+void ModelGenerator::saveAnimationWebP(const std::string& itemId, const std::string& outputDir, const std::vector<sf::Image>& frames)
+{
     if(frames.empty()) return;
 
     std::string baseName = changeFilename(itemId);

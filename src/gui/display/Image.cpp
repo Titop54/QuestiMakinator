@@ -10,38 +10,37 @@
 void parseId(const std::string& fullId, std::string& ns, std::string& path)
 {
     size_t colon = fullId.find(':');
-    if (colon == std::string::npos) {
+    if(colon == std::string::npos)
+    {
         ns = "minecraft";
         path = fullId;
-    } else {
+    }
+    else
+    {
         ns = fullId.substr(0, colon);
         path = fullId.substr(colon + 1);
     }
 }
 
-void KubeJSImageBrowser::loadAssets() {
-    if(assetsLoaded)
-        return;
+void KubeJSImageBrowser::loadAssets()
+{
+    if(assetsLoaded) return;
     isLoading = true;
 
     allBlocks = client.searchBlocks();
     allItems = client.searchItems();
 
-    validIds = allBlocks;
-    for (const auto &item : allItems) {
-        bool found = false;
-        for (const auto &block : allBlocks)
-        if (block == item)
-            found = true;
-        if (!found)
-        validIds.push_back(item);
-    }
+    validIds.reserve(allBlocks.size() + allItems.size());
+    
+    validIds.insert(validIds.end(), allBlocks.begin(), allBlocks.end());
+    validIds.insert(validIds.end(), allItems.begin(), allItems.end());
 
     assetsLoaded = true;
     isLoading = false;
 }
 
-void KubeJSImageBrowser::update(float deltaTime) {
+void KubeJSImageBrowser::update(float deltaTime)
+{
     if(currentAnimation && currentAnimation->isPlaying &&
         currentAnimation->totalFrames > 1)
     {
@@ -79,7 +78,12 @@ void KubeJSImageBrowser::render()
             has_tried = !client.connect();
         });
 
-        if(has_tried) ImGui::TextColored(ImVec4(1, 0, 0, 1), "Failed to connect to the local server\n");
+        if(has_tried)
+        {
+            ImGui::NewLine();
+            ImGui::NewLine();
+            ImGui::TextColored(ImVec4(1, 0, 0, 1), "Failed to connect to the local server\n");
+        }
 
         ImGui::End();
         return;
@@ -187,13 +191,62 @@ void KubeJSImageBrowser::render()
         }
 
         ImGui::Separator();
+        ImGui::Text("3D View Controls");
+        bool viewChanged = false;
+        ImGui::SliderInt("Resolution", &currentOutputSize, 32, 512);
+        if(ImGui::IsItemDeactivatedAfterEdit())
+        {
+            viewChanged = true;
+        }
+        ImGui::SliderFloat("Yaw (Rotation)", &viewYaw, -180.0f, 180.0f);
+        if(ImGui::IsItemDeactivatedAfterEdit())
+        {
+            viewChanged = true;
+            useCustomView = true;
+        }
+        ImGui::SliderFloat("Pitch (Tilt)", &viewPitch, -90.0f, 90.0f);
+        if(ImGui::IsItemDeactivatedAfterEdit())
+        {
+            viewChanged = true;
+            useCustomView = true;
+        }
+        
+        ImGui::SameLine();
+        if (ImGui::Button("Reset View"))
+        {
+            viewYaw = 45.0f;
+            viewPitch = 30.0f;
+            useCustomView = false;
+            viewChanged = true;
+        }
+
+        if(viewChanged && currentGenerator)
+        {
+            std::vector<sf::Image> frames;
+            if(currentGenerator->isObjModel)
+            {
+                frames = currentGenerator->generateIsometricSequenceOBJ(currentOutputSize, useCustomView, viewPitch, viewYaw);
+            }
+            else
+            {
+                frames = currentGenerator->generateIsometricSequence(currentOutputSize, useCustomView, viewPitch, viewYaw);
+            }
+            
+            if(!frames.empty())
+            {
+                currentAnimation->frames = frames;
+                updateDisplayTexture();
+            }
+        }
+
+        ImGui::Separator();
         ImGui::Text("Export Options:");
 
         if(ImGui::Button("Download Assets"))
         {
             if(currentGenerator)
             {
-                currentGenerator->saveAssets(currentId);
+                currentGenerator->saveAssets(currentId, useCustomView, viewPitch, viewYaw);
             }
         }
         if (ImGui::IsItemHovered())
@@ -209,8 +262,7 @@ void KubeJSImageBrowser::render()
             {
                 std::string safeName = changeFilename(idInputBuffer);
                 std::string targetDir = "img/" + safeName;
-                currentGenerator->saveAnimationWebP(currentId, targetDir,
-                                                    currentAnimation->frames);
+                currentGenerator->saveAnimationWebP(currentId, targetDir, currentAnimation->frames);
             }
         }
         if(ImGui::IsItemHovered()) ImGui::SetTooltip("Saves as WebP");
@@ -246,7 +298,11 @@ void KubeJSImageBrowser::loadImage(const std::string &id)
     {
         return;
     }
+    useCustomView = false;
+    viewYaw = 45.0f;
+    viewPitch = 30.0f;
     currentId = id;
+    currentOutputSize = 128;
 
     isLoading = true;
     currentAnimation = nullptr;

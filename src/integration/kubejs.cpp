@@ -197,16 +197,27 @@ std::vector<std::string> KubeJSClient::searchBlocks() {
 
 std::vector<std::string> KubeJSClient::searchItems() {
     std::string resp;
-    if (!sendHttpRequest("GET", "/api/client/search/items", "", resp)) return {};
+    if(!sendHttpRequest("GET", "/api/client/search/items", "", resp)) return {};
     std::vector<std::string> ids;
-    try {
+    try
+    {
         auto j = json::parse(resp);
-        for(const auto& res : j["results"]) {
-            if(!res.contains("block")) {
+        for(const auto& res : j["results"])
+        {
+            if(res.contains("block"))
+            {
+                if(res["id"] != res["block"])
+                {
+                    ids.push_back(res["id"]);
+                }
+            }
+            else
+            {
                 ids.push_back(res["id"]);
             }
         }
-    } catch(...) {}
+    }
+    catch(...){}
     return ids;
 }
 

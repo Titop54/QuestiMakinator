@@ -45,6 +45,11 @@ private:
     bool assetsLoaded = false;
     std::string idInputBuffer = "";
 
+    float viewYaw = 45.0f;
+    float viewPitch = 30.0f;
+    bool useCustomView = false;
+    int currentOutputSize = 128;
+
 public:
     KubeJSImageBrowser() {
         if (!client.isConnected()) {
