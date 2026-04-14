@@ -8,3 +8,4 @@
 - Script to make all this happens without github, just in case --> Done
 - HotSpot + perf
 - Valgrid or similar for leaks
+- Fix text insertion --> Done

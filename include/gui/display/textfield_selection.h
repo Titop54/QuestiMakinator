@@ -45,6 +45,16 @@ struct TextField
         else
         {
             // If no selection, add at the end
+            if(text.empty())
+            {
+                return text + prefix + suffix;
+            }
+
+            std::string last_two = text.substr(text.size()-2, 2);
+            if(last_two == "&r")
+            {
+                return text + prefix;
+            }
             return text + prefix + suffix;
         }
     }
