@@ -1,10 +1,11 @@
+#include "gui/display/button_slow_tooltip.h"
 #include "integration/kubejs.h"
 #include <cstddef>
 #include <gui/display/Image.h>
 #include <imgui.h>
 #include <imgui_stdlib.h>
-#include <imgui-SFML.h>
-
+#include <GLFW/glfw3.h>
+#include <iostream>
 
 void parseId(const std::string& fullId, std::string& ns, std::string& path)
 {
@@ -59,8 +60,31 @@ void KubeJSImageBrowser::update(float deltaTime) {
     }
 }
 
-void KubeJSImageBrowser::render() {
+void KubeJSImageBrowser::render()
+{
     ImGui::Begin("KubeJS Image Browser");
+    if(client.needs_manual)
+    {
+        ImGui::Text("Not connect to KubeJS\nNeeds to be loaded on port localhost:61423\n");
+        FormatButtonData a = {
+            "Connect to KubeJS",
+            "",
+            "Try to connect to KubeJS localhost server",
+            "",
+            {}
+        };
+        
+        static bool has_tried = false;
+        generateSlowedButton(a, [&]() {
+            client.needs_manual = false;
+            has_tried = !client.connect();
+        });
+
+        if(has_tried) ImGui::TextColored(ImVec4(1, 0, 0, 1), "Failed to connect to the local server\n");
+
+        ImGui::End();
+        return;
+    }
 
     filteredCandidates = filterResults(idInputBuffer, validIds, 50, acState);
 
@@ -113,17 +137,19 @@ void KubeJSImageBrowser::render() {
     ImGui::Text("Current amount of blocks: %zu", allBlocks.size());
     ImGui::Separator();
 
-    if (currentTexture.getSize().x > 0)
+    if(currentTexture != 0 && currentAnimation && !currentAnimation->frames.empty())
     {
         float scale = 2.0f;
-        ImVec2 textureSize(currentTexture.getSize().x * scale,
-                        currentTexture.getSize().y * scale);
+        auto imgSize = currentAnimation->frames[currentAnimation->currentFrame].getSize();
+        ImVec2 textureSize(imgSize.x * scale, imgSize.y * scale);
 
         float windowWidth = ImGui::GetWindowSize().x;
         ImGui::SetCursorPosX((windowWidth - textureSize.x) * 0.5f);
 
-        ImGui::Image(currentTexture, textureSize, sf::Color::White,
-                    sf::Color::Transparent);
+        ImGui::Image((ImTextureID)(intptr_t)currentTexture, textureSize, 
+                     ImVec2(0, 0), ImVec2(1, 1), 
+                     ImVec4(1.0f, 1.0f, 1.0f, 1.0f),  // Color (Blanco)
+                     ImVec4(0.0f, 0.0f, 0.0f, 0.0f)); // Borde (Transparente)
     }
     else if(!isLoading && !currentId.empty() && !currentAnimation)
     {
@@ -197,8 +223,12 @@ void KubeJSImageBrowser::render() {
             idInputBuffer[0] = '\0';
             currentAnimation = nullptr;
             currentGenerator.reset();
-            sf::Texture empty;
-            currentTexture = empty;
+            
+            if(currentTexture != 0)
+            {
+                glDeleteTextures(1, &currentTexture);
+                currentTexture = 0;
+            }
         }
         if(ImGui::IsItemHovered()) ImGui::SetTooltip("Clear the current item/block");
     }

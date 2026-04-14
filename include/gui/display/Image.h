@@ -1,18 +1,17 @@
-#include "integration/kubejs.h"
-#include <SFML/Graphics/Image.hpp>
-#include <SFML/Graphics/RenderWindow.hpp>
-#include <SFML/Graphics/Texture.hpp>
+#pragma once
 
 #include <nlohmann/json.hpp>
 
 #include <gui/display/menu.h>
 #include <integration/model.h>
+#include "integration/kubejs.h"
 
-#include <iostream>
+#include <GLFW/glfw3.h>
 
 using json = nlohmann::json;
 
-struct AnimationData {
+struct AnimationData
+{
     std::vector<sf::Image> frames;
     int totalFrames = 0;
     int currentFrame = 0;
@@ -24,7 +23,8 @@ struct AnimationData {
 
 void parseId(const std::string& fullId, std::string& ns, std::string& path);
 
-class KubeJSImageBrowser {
+class KubeJSImageBrowser
+{
 private:
     std::map<std::string, AnimationData> animations;
     std::vector<std::string> allBlocks;
@@ -37,7 +37,7 @@ private:
 
     //Textures display
     std::string currentId;
-    sf::Texture currentTexture;
+    GLuint currentTexture = 0; 
     AnimationData* currentAnimation = nullptr;
     std::unique_ptr<ModelGenerator> currentGenerator; 
     
@@ -49,6 +49,14 @@ public:
     KubeJSImageBrowser() {
         if (!client.isConnected()) {
             client.connect();
+        }
+    }
+
+    ~KubeJSImageBrowser()
+    {
+        if(currentTexture != 0)
+        {
+            glDeleteTextures(1, &currentTexture);
         }
     }
 
@@ -65,28 +73,50 @@ public:
         if(currentAnimation && !currentAnimation->frames.empty())
         {
             const auto& img = currentAnimation->frames[currentAnimation->currentFrame];
-            if(!currentTexture.loadFromImage(img))
+            if(currentTexture != 0)
             {
-                std::cerr << "Error while loading texture" << std::endl;
+                glDeleteTextures(1, &currentTexture);
+                currentTexture = 0;
             }
+
+            glGenTextures(1, &currentTexture);
+            glBindTexture(GL_TEXTURE_2D, currentTexture);
+
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, img.getSize().x, img.getSize().y, 
+                         0, GL_RGBA, GL_UNSIGNED_BYTE, img.getPixelsPtr());
+
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+            glBindTexture(GL_TEXTURE_2D, 0);
         }
         else
         {
-            sf::Texture a(sf::Vector2u{1,1});
-            currentTexture = a;
+            if(currentTexture != 0)
+            {
+                glDeleteTextures(1, &currentTexture);
+                currentTexture = 0;
+            }
         }
     }
 };
 
-inline void createKubejsImageBrowser(float deltaTime, sf::RenderWindow& window) {
-    static KubeJSImageBrowser browser;
-    static bool firstRun = true;
-    if(client.needs_manual) return; //we dont have kubejs to help
-    
-    if (firstRun) {
+inline void createKubejsImageBrowser(KubeJSImageBrowser& browser, bool& firstRun, float deltaTime, GLFWwindow* window)
+{   
+    if(firstRun && !client.needs_manual)
+    {
         browser.loadAssets();
         auto image = client.getPreview("minecraft:written_book", 128, TypeElement::ITEM, false);
-        window.setIcon(image);
+        GLFWimage icon[1];
+        icon[0].width = image.getSize().x;
+        icon[0].height = image.getSize().y;
+        icon[0].pixels = const_cast<unsigned char*>(image.getPixelsPtr());
+        
+        if(icon[0].pixels != nullptr)
+        {
+            glfwSetWindowIcon(window, 1, icon);
+        }
+        
         firstRun = false;
     }
 
