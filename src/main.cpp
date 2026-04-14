@@ -60,7 +60,7 @@ int main(int argc, char* argv[])
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
-    TextEditorState editorState;
+    TextField editorState;
     std::string inputText2 = "";
     
     int selected_option = 0;
@@ -80,7 +80,7 @@ int main(int argc, char* argv[])
 
     double lastTime = glfwGetTime();
 
-    std::vector<FormatButtonData> basicFormats = {
+    std::vector<Button> basicFormats = {
         {"Bold", "&l", "Bold text (&l)"},
         {"Italic", "&o", "Italic text (&o)"},
         {"Underline", "&n", "Underlined text (&n)"},
@@ -89,7 +89,7 @@ int main(int argc, char* argv[])
         {"Obfuscated", "&k", "Obfuscated text (&k)"}
     };
     
-    std::vector<FormatButtonData> basicColors = {
+    std::vector<Button> basicColors = {
         {"Black (&0)", "&0", "Black color (&0)"},
         {"Dark Blue (&1)", "&1", "Dark blue color (&1)"},
         {"Dark Green (&2)", "&2", "Dark green color (&2)"},
@@ -108,7 +108,7 @@ int main(int argc, char* argv[])
         {"White (&f)", "&f", "White color (&f)"}
     };
 
-    std::vector<FormatButtonData> specialActions = {
+    std::vector<Button> specialActions = {
         {"Insert URL", "&@url:\"", "Insert URL: &@url:\"url\"", "\""},
         {"Insert Text", "&@in:\"", "Insert chat text: &@in:\"text\"", "\""},
         {"Open File", "&@file:\"", "Open file: &@file:\"path\"", "\""},
@@ -118,13 +118,13 @@ int main(int argc, char* argv[])
         {"New Page", "&@page", "New page: &@page", ""}
     };
 
-    std::vector<FormatButtonData> hoverEffects = {
+    std::vector<Button> hoverEffects = {
         {"Show Text Hover", "&&text:\"", "Show text on hover: &&text:\"text\"", "\""},
         {"Show Item Hover", "&&item:\"", "Show item on hover: &&item:\"item\"", "\""},
         {"Shadow Text", "&&shadow:\"", "Put a shadow on the text (Not working) (#AARRGGBB)", "\""}
     };
 
-    std::vector<FormatButtonData> modEffects = {
+    std::vector<Button> modEffects = {
         //row 1
         {"Typewriter", "<typewriter>", "Typewriter effect", "</typewriter>"},
         {"Bounce", "<bounce a=1.0 f=1.0 w=1.0>", "Vertical bounce effect", "</bounce>"},
@@ -146,7 +146,7 @@ int main(int argc, char* argv[])
         {"Wiggle", "<wiggle a=1.0 f=1.0 w=1.0>", "Per-character random movement", "</wiggle>"}
     };
 
-    std::vector<FormatButtonData> actionButtons = {
+    std::vector<Button> actionButtons = {
         {"Convert", "", "Convert text to JSON format and copy to clipboard"}, 
         {"Copy Text Output", "", "Copy converted text to clipboard"}, 
         {"Reload Minecraft (Not yet)", "", "Reload Minecraft scripts (requires KubeJS)"},
@@ -191,20 +191,27 @@ int main(int argc, char* argv[])
             }
         }
         ImGui::NewLine();
+        ImGui::NewLine();
 
         ImGui::Text("Basic Colors:");
-        for (size_t i = 0; i < basicColors.size(); ++i) {
+        for(size_t i = 0; i < basicColors.size(); ++i)
+        {
             auto& data = basicColors[i];
             
             generateSlowedButton(editorState, data);
             
-            if ((i + 1) % 6 != 0 && i < basicColors.size() - 1) {
+            if ((i + 1) % 3 != 0 && i < basicColors.size() - 1)
+            {
                 ImGui::SameLine();
-            } else if (i < basicColors.size() - 1) {
+            }
+            else if(i < basicColors.size() - 1)
+            {
+                ImGui::NewLine();
                 ImGui::NewLine();
             }
         }
         
+        ImGui::NewLine();
         ImGui::NewLine();
 
         ImGui::Text("Special Actions:");
@@ -218,6 +225,7 @@ int main(int argc, char* argv[])
             }
         }
         ImGui::NewLine();
+        ImGui::NewLine();
 
         ImGui::Text("Hover Effects:");
         for (size_t i = 0; i < hoverEffects.size(); ++i) {
@@ -230,17 +238,26 @@ int main(int argc, char* argv[])
             }
         }
         ImGui::NewLine();
+        ImGui::NewLine();
 
         ImGui::Text("Mod Effects:");
-        for (size_t i = 0; i < modEffects.size(); ++i) {
+        for(size_t i = 0; i < modEffects.size(); i++)
+        {
             auto& data = modEffects[i];
             
             generateSlowedButton(editorState, data);
 
-            if ((i + 1) % 9 != 0 && i < modEffects.size() - 1) {
+            if ((i + 1) % 5 != 0 && i < modEffects.size() - 1)
+            {
                 ImGui::SameLine();
             }
+            else if(i < basicColors.size() - 1)
+            {
+                ImGui::NewLine();
+                ImGui::NewLine();
+            }
         }
+        ImGui::NewLine();
         ImGui::NewLine();
         ImGui::Separator();
 
@@ -260,7 +277,7 @@ int main(int argc, char* argv[])
         // First textfield with callback to capture selection
         ImVec2 size(width, ImGui::GetTextLineHeight() * 8);
         ImGui::InputTextMultiline("##input1", &editorState.text, size, 
-            ImGuiInputTextFlags_AllowTabInput | ImGuiInputTextFlags_CallbackAlways,
+            ImGuiInputTextFlags_AllowTabInput | ImGuiInputTextFlags_CallbackAlways | ImGuiInputTextFlags_WordWrap,
             InputTextCallback, &editorState);
 
         // Second textfield
@@ -295,19 +312,13 @@ int main(int argc, char* argv[])
         ImGui::SameLine();
 
         generateSlowedButton(actionButtons[action_idx++], [&](){
-            zoom_factor += 1.0f;
-            if(zoom_factor >= 4.0f)
-            {
-                zoom_factor = 1.0f;
-            }
-            ImGuiIO& io = ImGui::GetIO();
-            io.FontGlobalScale = zoom_factor;
-        });
-        ImGui::SameLine();
-
-        generateSlowedButton(actionButtons[action_idx++], [&](){
             glfwSetWindowShouldClose(window, GLFW_TRUE);
         });
+        ImGui::NewLine();
+        ImGui::NewLine();
+        ImGui::Separator();
+        
+        ImGui::SliderFloat("Zoom level", &io.FontGlobalScale, 1, 4);
         ImGui::SameLine();
 
 

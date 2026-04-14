@@ -5,7 +5,7 @@
 #include <imgui.h>
 
 //Internal use
-struct TooltipState
+struct Tooltip
 {
     float hoverTime = 0.0f;
     bool isHovering = false;
@@ -28,18 +28,36 @@ struct Position
     }
 };
 
-struct FormatButtonData
+//in pixels
+struct Size
+{
+    float x = 0;
+    float y = 0;
+
+    ImVec2 vector() const
+    {
+        return {x, y};
+    }
+
+    void fill()
+    {
+        x = -1;
+    }
+};
+
+struct Button
 {
     const char* label;
     const char* prefix; //prefix
     const char* tooltip;
     const char* ending = "\"";
     Position pos = {};
-    TooltipState state = {};
+    Size size = {};
+    Tooltip state = {};
 };
 
-bool ShowDelayedTooltip(TooltipState& state, const char* desc);
+bool ShowDelayedTooltip(Tooltip& state, const char* desc);
 
-bool generateSlowedButton(TextEditorState& editorState, FormatButtonData& data);
+bool generateSlowedButton(TextField& editorState, Button& data);
 
-bool generateSlowedButton(FormatButtonData& data, std::function<void()> function = nullptr);
+bool generateSlowedButton(Button& data, std::function<void()> function = nullptr);

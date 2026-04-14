@@ -66,7 +66,7 @@ void KubeJSImageBrowser::render()
     if(client.needs_manual)
     {
         ImGui::Text("Not connect to KubeJS\nNeeds to be loaded on port localhost:61423\n");
-        FormatButtonData a = {
+        Button a = {
             "Connect to KubeJS",
             "",
             "Try to connect to KubeJS localhost server",

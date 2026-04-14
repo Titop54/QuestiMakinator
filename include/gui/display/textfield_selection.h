@@ -3,26 +3,33 @@
 #include <imgui.h>
 #include <string>
 
-struct TextEditorState {
+struct TextField
+{
     std::string text;
     bool hasSelection = false;
     int selectionStart = 0;
     int selectionEnd = 0;
     std::string selectedText;
     
-    void updateSelection() {
-        if (hasSelection && selectionStart != selectionEnd) {
+    void updateSelection()
+    {
+        if(hasSelection && selectionStart != selectionEnd)
+        {
             int start = std::min(selectionStart, selectionEnd);
             int end = std::max(selectionStart, selectionEnd);
             selectedText = text.substr(start, end - start);
-        } else {
+        }
+        else
+        {
             selectedText.clear();
             hasSelection = false;
         }
     }
     
-    std::string wrapSelection(const std::string& prefix, const std::string& suffix = "") {
-        if (hasSelection && selectionStart != selectionEnd) {
+    std::string wrapSelection(const std::string& prefix, const std::string& suffix = "")
+    {
+        if(hasSelection && selectionStart != selectionEnd)
+        {
             int start = std::min(selectionStart, selectionEnd);
             int end = std::max(selectionStart, selectionEnd);
             
@@ -34,7 +41,9 @@ struct TextEditorState {
             selectionEnd = selectionStart + selectedText.length();
             
             return result;
-        } else {
+        }
+        else
+        {
             // If no selection, add at the end
             return text + prefix + suffix;
         }

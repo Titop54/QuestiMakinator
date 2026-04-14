@@ -2,7 +2,7 @@
 #include <functional>
 #include <imgui.h>
 
-bool ShowDelayedTooltip(TooltipState& state, const char* desc)
+bool ShowDelayedTooltip(Tooltip& state, const char* desc)
 {
     bool showTooltip = false;
     if(ImGui::IsItemHovered())
@@ -33,7 +33,7 @@ bool ShowDelayedTooltip(TooltipState& state, const char* desc)
     return showTooltip;
 }
 
-bool generateSlowedButton(TextEditorState& editorState, FormatButtonData& data)
+bool generateSlowedButton(TextField& editorState, Button& data)
 {
     bool clicked = false;
     ImVec2 original_position = ImGui::GetCursorPos();
@@ -42,7 +42,7 @@ bool generateSlowedButton(TextEditorState& editorState, FormatButtonData& data)
         ImGui::SetCursorPos(data.pos.vector());
     }
     
-    if(ImGui::Button(data.label))
+    if(ImGui::Button(data.label, data.size.vector()))
     {
         editorState.text = editorState.wrapSelection(data.prefix, data.ending);
         clicked = true;
@@ -53,7 +53,7 @@ bool generateSlowedButton(TextEditorState& editorState, FormatButtonData& data)
     return clicked;
 }
 
-bool generateSlowedButton(FormatButtonData& data, std::function<void()> onClickAction)
+bool generateSlowedButton(Button& data, std::function<void()> onClickAction)
 {
     bool clicked = false;
     ImVec2 original_position = ImGui::GetCursorPos();
@@ -62,7 +62,7 @@ bool generateSlowedButton(FormatButtonData& data, std::function<void()> onClickA
         ImGui::SetCursorPos(data.pos.vector());
     }
 
-    if(ImGui::Button(data.label))
+    if(ImGui::Button(data.label, data.size.vector()))
     {
         if(onClickAction)
         {
