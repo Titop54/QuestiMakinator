@@ -83,7 +83,7 @@ else()
     message(STATUS "Linux configuration detected")
     
     if(NOT U_BUILD_TYPE MATCHES "RELEASE|MINSIZEREL")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -gsplit-dwarf")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -gsplit-dwarf -fsanitize=address -fno-omit-frame-pointer")
     endif()
 endif()
 
