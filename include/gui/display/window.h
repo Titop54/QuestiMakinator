@@ -1,10 +1,11 @@
 #pragma once
 
-#include <SFML/Graphics/RenderWindow.hpp>
-#include <SFML/Window/Window.hpp>
-namespace WindowUtils {
-    void maximize(sf::Window& window);
+#include <GLFW/glfw3.h>
 
-    sf::RenderWindow createWindow();
+namespace WindowUtils
+{
+    void maximize(GLFWwindow* window);
+
+    GLFWwindow* createWindow();
 }
 

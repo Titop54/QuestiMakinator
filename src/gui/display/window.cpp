@@ -1,64 +1,47 @@
 #include "gui/display/window.h"
+#include <GLFW/glfw3.h>
+#include <cstdlib>
+#include <iostream>
 
-#include <SFML/System/Err.hpp>
-#include <SFML/Window/VideoMode.hpp>
-#include <SFML/Window/Window.hpp>
-
-#ifdef _WIN32
-    #include <windows.h> //https://stackoverflow.com/questions/12061401/how-to-make-a-c-program-run-maximized-automatically
-#elif defined(__linux__) //https://stackoverflow.com/questions/4530786/xlib-create-window-in-mimized-or-maximized-state
-    #include <X11/Xlib.h>
-#endif
-
-namespace WindowUtils {
-    void maximize(sf::Window& window) {
-        auto handle = window.getNativeHandle();
-
-        #ifdef _WIN32
-            ShowWindow(handle, SW_MAXIMIZE);
-        #elif defined(__linux__)
-            Display* display = XOpenDisplay(nullptr);
-            if (display) {
-                ::Window win = static_cast<::Window>(handle);
-
-                Atom wmState = XInternAtom(display, "_NET_WM_STATE", False);
-                Atom maxH = XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
-                Atom maxV = XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_VERT", False);
-
-                XEvent xev;
-                xev.type = ClientMessage;
-                xev.xclient.window = win;
-                xev.xclient.message_type = wmState;
-                xev.xclient.format = 32;
-                xev.xclient.data.l[0] = 1; // _NET_WM_STATE_ADD
-                xev.xclient.data.l[1] = maxV;
-                xev.xclient.data.l[2] = maxH;
-
-                XSendEvent(display, DefaultRootWindow(display), False,
-                           SubstructureRedirectMask | SubstructureNotifyMask, &xev);
-                
-                XFlush(display);
-                XCloseDisplay(display);
-            }
-        #endif
+namespace WindowUtils
+{
+    void glfw_error_callback(int error, const char* description)
+    {
+        std::cerr << "GLFW Error (" << error << "): " << description << std::endl;
+    }
+    
+    void maximize(GLFWwindow* window)
+    {
+        if(window)
+        {
+            glfwMaximizeWindow(window);
+        }
     }
 
-    sf::RenderWindow createWindow()
+    GLFWwindow* createWindow()
     {
-        auto previous = sf::err().rdbuf();
-        sf::err().rdbuf(nullptr); // Nuke that no sync
-        sf::RenderWindow window(
-                        sf::VideoMode(sf::Vector2u(800, 600)),
-                        "QuestiMakinator",
-                        sf::Style::Default,
-                        sf::State::Windowed,
-                        {}
-        );
-        sf::err().rdbuf(previous);
+        glfwSetErrorCallback(glfw_error_callback);
+        if(!glfwInit())
+        {
+            std::cerr << "Failed to initialize GLFW\n";
+            exit(-1);
+        }
+        // Configuración para OpenGL moderno
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+        GLFWwindow* window = glfwCreateWindow(800, 600, "QuestiMakinator", NULL, NULL);
+        if(!window)
+        {
+            glfwTerminate();
+            return nullptr;
+        }
+
+        glfwMakeContextCurrent(window);
+        glfwSwapInterval(1); // Enable vsync
         
-        window.setFramerateLimit(60);
-        window.setTitle("QuestiMakinator");
-        WindowUtils::maximize(window);
+        maximize(window);
         return window;
     }
 }

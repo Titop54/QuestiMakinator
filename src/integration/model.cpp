@@ -1,3 +1,4 @@
+#include <SFML/Graphics/Color.hpp>
 #define _USE_MATH_DEFINES
 #define TINYOBJLOADER_IMPLEMENTATION
 
@@ -5,7 +6,7 @@
 #include <SFML/Graphics/Image.hpp>
 #include <SFML/Graphics/Vertex.hpp>
 #include <cstddef>
-#include <integration/model.h>
+#include "integration/model.h"
 #include <iostream>
 #include <cmath>
 #include <numeric>
@@ -13,8 +14,23 @@
 #include <fstream>
 #include <webp/encode.h>
 #include <webp/mux.h>
+#include <numbers>
 
 namespace fs = std::filesystem;
+
+struct CustomVertex
+{
+    sf::Vector2f position;
+    sf::Color color;
+    sf::Vector2f texCoords;
+};
+
+struct RenderQuad
+{
+    std::vector<CustomVertex> vertices;
+    const Texture* texture;
+    float depth;
+};
 
 
 ModelGenerator::ModelGenerator(const std::string& rawJson, KubeJSClient& client, const std::string& id) {
@@ -108,8 +124,8 @@ ModelGenerator::ModelGenerator(const std::string& rawJson, KubeJSClient& client,
                 
                 if (client.sendHttpRequest("GET", pngUrl, "", imgData)) {
                     sf::Image img;
-                    if (img.loadFromMemory(imgData.data(), imgData.size())) {
-                        
+                    if(img.loadFromMemory(imgData.data(), imgData.size()))
+                    {
                         unsigned int w = img.getSize().x;
                         unsigned int h = img.getSize().y;
                         animData.frameHeight = w; 
@@ -134,7 +150,7 @@ ModelGenerator::ModelGenerator(const std::string& rawJson, KubeJSClient& client,
                                                     frameInfo.index = frameElement.value("index", 0);
                                                     frameInfo.time = frameElement.value("time", animData.defaultFrameTime);
                                                 }
-                                                animData.sequence.push_back(frameInfo);
+                                                animData.sequence.emplace_back(frameInfo);
                                             }
                                         }
                                         animData.isAnimated = true;
@@ -143,10 +159,14 @@ ModelGenerator::ModelGenerator(const std::string& rawJson, KubeJSClient& client,
                             }
                         }
                         
-                        if(!animData.texture.loadFromImage(img)) {
-                            std::cout << "Error to load image\n" << std::endl; 
-                        }
-                        animData.texture.setSmooth(false); 
+                        animData.texture.size.x = w;
+                        animData.texture.size.y = h;
+                        const unsigned char* rawPixels = img.getPixelsPtr();
+                        size_t totalBytes = w * h * 4;
+                        if(rawPixels && totalBytes > 0)
+                        {
+                            animData.texture.pixels.assign(rawPixels, rawPixels + totalBytes);
+                        } 
                     }
                 }
                 textures[texturePath] = animData;
@@ -171,7 +191,8 @@ ModelGenerator::ModelGenerator(const std::string& objData, const std::string& mt
                         std::map<std::string, int>* matMap, std::string* warn, std::string* err) override {
             std::istringstream mtlStream(mtlData);
             tinyobj::LoadMtl(matMap, materials, &mtlStream, warn, err);
-            matId.size();// Just to delete the warning
+            int a = matId.size()+1;// Just to delete the warning
+            if(a) return true;
             return true;
         }
     };
@@ -203,14 +224,14 @@ ModelGenerator::ModelGenerator(const std::string& objData, const std::string& mt
         std::vector<std::string> pathsToTry;
 
         if (path.find("textures/") == 0) {
-            pathsToTry.push_back("/api/client/assets/get/" + ns + "/" + path + ".png");
+            pathsToTry.emplace_back("/api/client/assets/get/" + ns + "/" + path + ".png");
         } 
         else {
-            pathsToTry.push_back("/api/client/assets/get/" + ns + "/textures/" + path + ".png");
-            pathsToTry.push_back("/api/client/assets/get/" + ns + "/textures/block/" + path + ".png");
-            pathsToTry.push_back("/api/client/assets/get/" + ns + "/textures/item/" + path + ".png");
+            pathsToTry.emplace_back("/api/client/assets/get/" + ns + "/textures/" + path + ".png");
+            pathsToTry.emplace_back("/api/client/assets/get/" + ns + "/textures/block/" + path + ".png");
+            pathsToTry.emplace_back("/api/client/assets/get/" + ns + "/textures/item/" + path + ".png");
             if (ns != "minecraft") {
-                pathsToTry.push_back("/api/client/assets/get/minecraft/textures/block/" + path + ".png");
+                pathsToTry.emplace_back("/api/client/assets/get/minecraft/textures/block/" + path + ".png");
             }
         }
 
@@ -225,13 +246,15 @@ ModelGenerator::ModelGenerator(const std::string& objData, const std::string& mt
                 sf::Image img;
                 if (img.loadFromMemory(imgData.data(), imgData.size())) {
                     TextureAnimation animData;
-                    if(!animData.texture.loadFromImage(img)) {
-                        std::cerr << "Error converting image to texture: " << texName << std::endl;
-                        continue;
+                    animData.texture.size.x = img.getSize().x;
+                    animData.texture.size.y = img.getSize().y;
+                    const unsigned char* rawPixels = img.getPixelsPtr();
+                    size_t totalBytes = img.getSize().x * img.getSize().y * 4;
+                    if(rawPixels && totalBytes > 0)
+                    {
+                        animData.texture.pixels.assign(rawPixels, rawPixels + totalBytes);
                     }
                     
-                    animData.texture.setSmooth(false);
-                    animData.texture.setRepeated(true); 
                     animData.frameHeight = img.getSize().y;
                     textures[texName] = animData;
                     
@@ -260,7 +283,7 @@ int ModelGenerator::calculateTotalLoopTicks() {
 
 inline sf::Vector3f rotatePoint(sf::Vector3f point, sf::Vector3f origin, std::string axis, float angle) {
     if (angle == 0.0f) return point;
-    float rad = angle * (M_PI / 180.0f);
+    float rad = angle * (std::numbers::pi_v<float> / 180.0f);
     float c = cos(rad);
     float s = sin(rad);
     
@@ -284,6 +307,64 @@ inline sf::Vector3f rotatePoint(sf::Vector3f point, sf::Vector3f origin, std::st
     return {nx + origin.x, ny + origin.y, nz + origin.z};
 }
 
+void drawTriangle(sf::Image& target, const CustomVertex& v0, const CustomVertex& v1, const CustomVertex& v2, const Texture* tex) {
+    unsigned int minX = std::max(0, (int)std::min({v0.position.x, v1.position.x, v2.position.x}));
+    unsigned int maxX = std::min((int)target.getSize().x - 1, (int)std::max({v0.position.x, v1.position.x, v2.position.x}));
+    unsigned int minY = std::max(0, (int)std::min({v0.position.y, v1.position.y, v2.position.y}));
+    unsigned int maxY = std::min((int)target.getSize().y - 1, (int)std::max({v0.position.y, v1.position.y, v2.position.y}));
+
+    auto edgeFunction = [](const sf::Vector2f& a, const sf::Vector2f& b, const sf::Vector2f& c) {
+        return (c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x);
+    };
+
+    float area = edgeFunction(v0.position, v1.position, v2.position);
+    if (std::abs(area) < 0.00001f) return; // Evitar división por 0
+
+    for (unsigned int y = minY; y <= maxY; ++y) {
+        for (unsigned int x = minX; x <= maxX; ++x) {
+            sf::Vector2f p(x + 0.5f, y + 0.5f);
+            float w0 = edgeFunction(v1.position, v2.position, p);
+            float w1 = edgeFunction(v2.position, v0.position, p);
+            float w2 = edgeFunction(v0.position, v1.position, p);
+
+            // Si el pixel está dentro del triángulo
+            if ((w0 >= 0 && w1 >= 0 && w2 >= 0) || (w0 <= 0 && w1 <= 0 && w2 <= 0)) {
+                w0 /= area; w1 /= area; w2 /= area;
+                
+                // Interpolar Coordenadas UV y Color
+                float u = w0 * v0.texCoords.x + w1 * v1.texCoords.x + w2 * v2.texCoords.x;
+                float v = w0 * v0.texCoords.y + w1 * v1.texCoords.y + w2 * v2.texCoords.y;
+                float r = w0 * v0.color.r + w1 * v1.color.r + w2 * v2.color.r;
+                float g = w0 * v0.color.g + w1 * v1.color.g + w2 * v2.color.g;
+                float b = w0 * v0.color.b + w1 * v1.color.b + w2 * v2.color.b;
+                
+                if (tex && !tex->pixels.empty()) {
+                    int texX = (int)u % tex->size.x; if (texX < 0) texX += tex->size.x;
+                    int texY = (int)v % tex->size.y; if (texY < 0) texY += tex->size.y;
+                    
+                    int texIndex = (texY * tex->size.x + texX) * 4;
+                    uint8_t texR = tex->pixels[texIndex];
+                    uint8_t texG = tex->pixels[texIndex + 1];
+                    uint8_t texB = tex->pixels[texIndex + 2];
+                    uint8_t texA = tex->pixels[texIndex + 3];
+                    
+                    if (texA > 0) { // Alpha blending simple
+                        sf::Color bg = target.getPixel({x, y});
+                        float alpha = texA / 255.0f;
+                        uint8_t finalR = (texR * r / 255.0f) * alpha + bg.r * (1.0f - alpha);
+                        uint8_t finalG = (texG * g / 255.0f) * alpha + bg.g * (1.0f - alpha);
+                        uint8_t finalB = (texB * b / 255.0f) * alpha + bg.b * (1.0f - alpha);
+                        uint8_t finalA = std::max((uint8_t)bg.a, texA);
+                        target.setPixel({x, y}, sf::Color(finalR, finalG, finalB, finalA));
+                    }
+                } else {
+                    target.setPixel({x, y}, sf::Color(r, g, b, 255));
+                }
+            }
+        }
+    }
+}
+
 inline sf::Vector2f toIso(float x, float y, float z, float scale, float centerx, float centery) {
     const float cos30 = 0.866025f;
     const float sin30 = 0.5f;
@@ -293,12 +374,6 @@ inline sf::Vector2f toIso(float x, float y, float z, float scale, float centerx,
     
     return {centerx + isoX, centery + isoY};
 }
-
-struct RenderQuad {
-    std::vector<sf::Vertex> vertices;
-    const sf::Texture* texture;
-    float depth;
-};
 
 std::vector<sf::Image> ModelGenerator::generateIsometricSequence(unsigned int outputSize) {
     //We need to find out if its an item or not first
@@ -359,7 +434,7 @@ std::vector<sf::Image> ModelGenerator::generateIsometricSequence(unsigned int ou
     std::vector<sf::Image> resultFrames;
     int totalTicks = calculateTotalLoopTicks();
     
-    sf::RenderTexture renderTex({outputSize, outputSize});
+    sf::Image renderTarget({outputSize, outputSize}, sf::Color::Transparent);
 
     float scale, centerX, centerY;
     if (isFlatItem) {
@@ -376,7 +451,7 @@ std::vector<sf::Image> ModelGenerator::generateIsometricSequence(unsigned int ou
     };
 
     for (int tick = 0; tick < totalTicks; ++tick) {
-        renderTex.clear(sf::Color::Transparent);
+        renderTarget = sf::Image({outputSize, outputSize}, sf::Color::Transparent);
         std::vector<RenderQuad> renderQueue;
 
         if (modelJson.contains("elements")) {
@@ -504,13 +579,13 @@ std::vector<sf::Image> ModelGenerator::generateIsometricSequence(unsigned int ou
 
                     RenderQuad q;
                     q.vertices = {
-                        sf::Vertex{p[0], color, uv[0]}, sf::Vertex{p[1], color, uv[1]},
-                        sf::Vertex{p[2], color, uv[2]}, sf::Vertex{p[2], color, uv[2]},
-                        sf::Vertex{p[3], color, uv[3]}, sf::Vertex{p[0], color, uv[0]}
+                        CustomVertex{p[0], color, uv[0]}, CustomVertex{p[1], color, uv[1]},
+                        CustomVertex{p[2], color, uv[2]}, CustomVertex{p[2], color, uv[2]},
+                        CustomVertex{p[3], color, uv[3]}, CustomVertex{p[0], color, uv[0]}
                     };
                     q.texture = &anim.texture;
                     q.depth = avgZ;
-                    renderQueue.push_back(q);
+                    renderQueue.emplace_back(q);
                 }
             }
         }
@@ -522,11 +597,14 @@ std::vector<sf::Image> ModelGenerator::generateIsometricSequence(unsigned int ou
         }
 
         for (const auto& q : renderQueue) {
-            renderTex.draw(&q.vertices[0], q.vertices.size(), sf::PrimitiveType::Triangles, q.texture);
+            for (size_t i = 0; i < q.vertices.size(); i += 3) { // Procesamos 2 triángulos por Face
+                drawTriangle(renderTarget, q.vertices[i], q.vertices[i+1], q.vertices[i+2], q.texture);
+            }
         }
         
-        renderTex.display();
-        resultFrames.push_back(renderTex.getTexture().copyToImage());
+        sf::Image frameImg = renderTarget;
+        frameImg.flipHorizontally(); 
+        resultFrames.emplace_back(frameImg);
 
         bool anyAnimated = false;
         for(auto& [k, v] : textures) if(v.isAnimated) anyAnimated = true;
@@ -600,8 +678,7 @@ std::vector<sf::Image> ModelGenerator::generateIsometricSequenceOBJ(unsigned int
         };
     };
 
-    sf::RenderTexture renderTex({outputSize, outputSize});
-    renderTex.clear(sf::Color::Transparent);
+    sf::Image renderTarget({outputSize, outputSize}, sf::Color::Transparent);
 
     std::vector<RenderQuad> renderQueue;
 
@@ -622,17 +699,17 @@ std::vector<sf::Image> ModelGenerator::generateIsometricSequenceOBJ(unsigned int
                 sf::Vector2f isoPos = projectIso(vx, vy, vz);
                 avgDepth += (vx + vy + vz); 
 
-                sf::Vertex vert;
+                CustomVertex vert;
                 vert.position = isoPos;
                 vert.color = sf::Color::White;
-                poly.vertices.push_back(vert);
+                poly.vertices.emplace_back(vert);
             }
             poly.depth = avgDepth / fv;
 
             int matId = shape.mesh.material_ids[f];
             if (matId >= 0 && static_cast<size_t>(matId) < materials.size()) {
                 std::string rawTexName = materials[matId].diffuse_texname;
-                sf::Texture* foundTex = nullptr;
+                Texture* foundTex = nullptr;
 
                 if (textures.count(rawTexName)) {
                     foundTex = &textures[rawTexName].texture;
@@ -665,7 +742,7 @@ std::vector<sf::Image> ModelGenerator::generateIsometricSequenceOBJ(unsigned int
                 }
             }
 
-            if (poly.vertices.size() >= 3) renderQueue.push_back(poly);
+            if (poly.vertices.size() >= 3) renderQueue.emplace_back(poly);
             index_offset += fv;
         }
     }
@@ -675,11 +752,14 @@ std::vector<sf::Image> ModelGenerator::generateIsometricSequenceOBJ(unsigned int
     });
 
     for (const auto& q : renderQueue) {
-        renderTex.draw(&q.vertices[0], q.vertices.size(), sf::PrimitiveType::TriangleFan, q.texture);
+        // Simular un TriangleFan
+        for (size_t i = 1; i + 1 < q.vertices.size(); i++) {
+            drawTriangle(renderTarget, q.vertices[0], q.vertices[i], q.vertices[i+1], q.texture);
+        }
     }
 
-    renderTex.display();
-    return { renderTex.getTexture().copyToImage() };
+    //sf::Image finalImg = renderTarget;
+    return { renderTarget };
 }
 
 void ModelGenerator::saveAssets(const std::string& itemId) {
@@ -716,7 +796,7 @@ void ModelGenerator::saveAssets(const std::string& itemId) {
 }
 
 void ModelGenerator::saveAnimationWebP(const std::string& itemId, const std::string& outputDir, const std::vector<sf::Image>& frames) {
-    if (frames.empty()) return;
+    if(frames.empty()) return;
 
     std::string baseName = changeFilename(itemId);
     std::string filename = baseName + ".webp";
@@ -729,7 +809,8 @@ void ModelGenerator::saveAnimationWebP(const std::string& itemId, const std::str
     WebPAnimEncoderOptionsInit(&enc_options);
     
     WebPAnimEncoder* enc = WebPAnimEncoderNew(width, height, &enc_options);
-    if (!enc) {
+    if(!enc)
+    {
         std::cerr << "WebP: Failed to create encoder" << std::endl;
         return;
     }
@@ -737,7 +818,8 @@ void ModelGenerator::saveAnimationWebP(const std::string& itemId, const std::str
     int timestamp_ms = 0;
     int frame_duration = 50; // 1 tick (0.05s)
 
-    for (const auto& img : frames) {
+    for(const auto& img : frames)
+    {
         WebPConfig config;
         WebPConfigInit(&config);
         config.lossless = 1;
@@ -748,7 +830,8 @@ void ModelGenerator::saveAnimationWebP(const std::string& itemId, const std::str
         pic.height = height;
         pic.use_argb = 1;
         
-        if (!WebPPictureAlloc(&pic)) {
+        if(!WebPPictureAlloc(&pic))
+        {
             WebPAnimEncoderDelete(enc);
             return;
         }
@@ -756,7 +839,8 @@ void ModelGenerator::saveAnimationWebP(const std::string& itemId, const std::str
         const uint8_t* pixels = img.getPixelsPtr();
         WebPPictureImportRGBA(&pic, pixels, width * 4);
 
-        if (!WebPAnimEncoderAdd(enc, &pic, timestamp_ms, &config)) {
+        if(!WebPAnimEncoderAdd(enc, &pic, timestamp_ms, &config))
+        {
             std::cerr << "WebP: Error adding frame" << std::endl;
             WebPPictureFree(&pic);
             WebPAnimEncoderDelete(enc);
@@ -773,11 +857,14 @@ void ModelGenerator::saveAnimationWebP(const std::string& itemId, const std::str
     WebPDataInit(&webp_data);
     WebPAnimEncoderAssemble(enc, &webp_data);
 
-    if (!fs::exists(outputDir)) {
+    if(!fs::exists(outputDir))
+    {
         fs::create_directories(outputDir);
     }
+
     std::ofstream file(fullPath, std::ios::binary);
-    if (file.is_open()) {
+    if(file.is_open())
+    {
         file.write(reinterpret_cast<const char*>(webp_data.bytes), webp_data.size);
         file.close();
     }

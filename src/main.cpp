@@ -1,11 +1,17 @@
-#include <SFML/System/Err.hpp>
-#include <imgui.h>
-#include <imgui-SFML.h>
-#include <imgui_stdlib.h>
+#include "parser/arguments.h"
+#include "parser/splitter.h"
+#include "parser/merger.h"
+#include <cstddef>
+#include <cstdio>
+#include <cstdlib>
+#include <string>
+#include <fstream>
 
-#include <SFML/System/Vector2.hpp>
-#include <SFML/Window/Event.hpp>
-#include <SFML/Window/WindowEnums.hpp>
+#include <imgui.h>
+#include <imgui_stdlib.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
+#include <GLFW/glfw3.h> 
 
 #include <backward.hpp>
 
@@ -16,11 +22,15 @@
 #include <gui/display/button_slow_tooltip.h>
 #include <gui/display/textfield_selection.h>
 
-#include <string>
-#include <fstream>
-
-int main()
+int main(int argc, char* argv[])
 {
+    backward::SignalHandling sh;
+    args::parser args;
+    args.parse_data(argc, argv);
+
+    if(args.result.contains("--splitter")) ftb_splitter::split(args);
+    else if(args.result.contains("--merge")) ftb_merger::merge(args);
+
     std::ofstream crashFile("errors.txt");
     std::ofstream logFile("logs.txt");
 
@@ -30,11 +40,26 @@ int main()
     std::cerr.rdbuf(crashFile.rdbuf());
     std::cout.rdbuf(logFile.rdbuf());
 
-    backward::SignalHandling sh;
+    const char* glsl_version = "#version 330 core";
+    GLFWwindow* window = WindowUtils::createWindow(); 
+    if(!window)
+    {
+        std::cerr << "Failed to initialize GLFW or create window\n";
+        std::cerr.rdbuf(originalCerr);
+        std::cout.rdbuf(originalCout);
 
-    auto window = WindowUtils::createWindow();
-    if(!ImGui::SFML::Init(window)) return -1;
+        logFile.close();
+        crashFile.close();
+        return -1;
+    }
+
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
     
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplOpenGL3_Init(glsl_version);
+
     TextEditorState editorState;
     std::string inputText2 = "";
     
@@ -51,9 +76,9 @@ int main()
     style.FrameRounding = 0.0f;
 
     float zoom_factor = 1.0f;
-    ImGuiIO& io = ImGui::GetIO();
     io.FontGlobalScale = zoom_factor;
-    sf::Clock deltaClock;
+
+    double lastTime = glfwGetTime();
 
     std::vector<FormatButtonData> basicFormats = {
         {"Bold", "&l", "Bold text (&l)"},
@@ -129,21 +154,27 @@ int main()
         {"Exit", "", "Close the application"}
     };
 
-    ImVec2 center = ImVec2(window.getSize().x / 2.0f, window.getSize().y / 2.0f);
+    int win_w, win_h;
+    glfwGetWindowSize(window, &win_w, &win_h);
+    ImVec2 center = ImVec2(win_w / 2.0f, win_h / 2.0f);
     ImGui::SetNextWindowPos(center, ImGuiCond_FirstUseEver, ImVec2(0.5f, 0.5f));
-
-    while(window.isOpen())
     {
-        while(std::optional<sf::Event> event = window.pollEvent())
-        {
-            ImGui::SFML::ProcessEvent(window, *event);
-            if(event->is<sf::Event::Closed>())
-            {
-                window.close();
-            }
-        }
-        sf::Time dt = deltaClock.restart();
-        ImGui::SFML::Update(window, dt);
+    KubeJSImageBrowser browser;
+    bool browserFirstRun = true;
+    while (!glfwWindowShouldClose(window))
+    {
+        // Procesar eventos
+        glfwPollEvents();
+
+        // Calcular Delta Time
+        double currentTime = glfwGetTime();
+        float dt = static_cast<float>(currentTime - lastTime);
+        lastTime = currentTime;
+
+        // Iniciar nuevo frame de ImGui
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
 
         ImGui::Begin("Text Formatter");
         float width = ImGui::GetContentRegionAvail().x;
@@ -170,9 +201,10 @@ int main()
             if ((i + 1) % 6 != 0 && i < basicColors.size() - 1) {
                 ImGui::SameLine();
             } else if (i < basicColors.size() - 1) {
-                 ImGui::NewLine();
+                ImGui::NewLine();
             }
         }
+        
         ImGui::NewLine();
 
         ImGui::Text("Special Actions:");
@@ -213,12 +245,15 @@ int main()
         ImGui::Separator();
 
         // Show selection information (debug)
-        if (editorState.hasSelection) {
+        if(editorState.hasSelection)
+        {
             ImGui::Text("Selection: '%s' (%d-%d)", 
                        editorState.selectedText.c_str(), 
                        editorState.selectionStart, 
                        editorState.selectionEnd);
-        } else {
+        }
+        else
+        {
             ImGui::Text("No selection");
         }
 
@@ -271,19 +306,34 @@ int main()
         ImGui::SameLine();
 
         generateSlowedButton(actionButtons[action_idx++], [&](){
-            window.close();
+            glfwSetWindowShouldClose(window, GLFW_TRUE);
         });
         ImGui::SameLine();
 
 
         ImGui::End();
-        createKubejsImageBrowser(dt.asSeconds(), window);
 
-        window.clear();
-        ImGui::SFML::Render(window);
-        window.display();
+        createKubejsImageBrowser(browser, browserFirstRun, dt, window);
+
+        ImGui::Render();
+        int display_w, display_h;
+        glfwGetFramebufferSize(window, &display_w, &display_h);
+        glViewport(0, 0, display_w, display_h);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        
+        glfwSwapBuffers(window);
     }
-    ImGui::SFML::Shutdown();
+    }
+
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+
+    glfwDestroyWindow(window);
+    glfwTerminate();
 
     std::cerr.rdbuf(originalCerr);
     std::cout.rdbuf(originalCout);

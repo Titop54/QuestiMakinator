@@ -1,8 +1,9 @@
-#ifndef MODEL_GENERATOR_H
-#define MODEL_GENERATOR_H
+#pragma once
 
 #include "kubejs.h"
 #include <SFML/Graphics.hpp>
+#include <SFML/Graphics/Image.hpp>
+#include <cstdint>
 #include <nlohmann/json.hpp>
 #include "tiny_obj_loader.h"
 #include <string>
@@ -10,31 +11,61 @@
 #include <map>
 #include <set>
 
-struct AnimationFrame {
+struct AnimationFrame
+{
     int index;
     int time;
 };
 
-struct TextureAnimation {
-    sf::Texture texture;
+struct Texture
+{
+    struct Size
+    {
+        unsigned int x = 0;
+        unsigned int y = 0;
+    };
+
+    Size size = {};
+    std::vector<uint8_t> pixels;
+
+    Size getSize() const
+    {
+        return size;
+    }
+
+    sf::Image copyToImage() const
+    {
+        if(pixels.empty()) return {};
+        sf::Image img({size.x, size.y}, pixels.data());
+        return img;
+    }
+};
+
+struct TextureAnimation
+{
+    Texture texture;
     bool isAnimated = false;
     unsigned int frameHeight;
     
     int defaultFrameTime = 1; 
     std::vector<AnimationFrame> sequence; 
 
-    int getTotalDuration() const {
-        if (!sequence.empty()) {
+    int getTotalDuration() const
+    {
+        if(!sequence.empty())
+        {
             int total = 0;
             for(const auto& f : sequence) total += f.time;
             return total;
         }
+        if(frameHeight == 0) return 0;
         int physicalFrames = texture.getSize().y / frameHeight;
         return physicalFrames * defaultFrameTime;
     }
 };
 
-inline std::string changeFilename(const std::string& input) {
+inline std::string changeFilename(const std::string& input)
+{
     std::string output = input;
     std::replace(output.begin(), output.end(), ':', '_');
     std::replace(output.begin(), output.end(), '/', '_');
@@ -47,7 +78,8 @@ inline std::string changeFilename(const std::string& input) {
  * url: https://stackoverflow.com/questions/14179931/sfml-generate-isometric-tile
  * url: https://stackoverflow.com/questions/33906516/2d-isometric-sfml-right-formulas-wrong-coordinate-range
  */
-class ModelGenerator {
+class ModelGenerator
+{
 private:
     std::string id;
     nlohmann::json modelJson;
@@ -98,5 +130,3 @@ public:
     void exportToObj(const std::string& itemId, const std::string& outputdir);
 
 };
-
-#endif

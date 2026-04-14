@@ -2,16 +2,20 @@
 #include <functional>
 #include <imgui.h>
 
-bool ShowDelayedTooltip(TooltipState& state, const char* desc) {
+bool ShowDelayedTooltip(TooltipState& state, const char* desc)
+{
     bool showTooltip = false;
-    if (ImGui::IsItemHovered()) {
-        if (!state.isHovering) {
+    if(ImGui::IsItemHovered())
+    {
+        if(!state.isHovering)
+        {
             state.isHovering = true;
             state.hoverTime = 0.0f;
         }
         state.hoverTime += ImGui::GetIO().DeltaTime;
         
-        if (state.hoverTime >= 1.0f) {
+        if(state.hoverTime >= 1.0f)
+        {
             ImGui::BeginTooltip();
             ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
             ImGui::TextUnformatted(desc);
@@ -19,7 +23,9 @@ bool ShowDelayedTooltip(TooltipState& state, const char* desc) {
             ImGui::EndTooltip();
             showTooltip = true;
         }
-    } else {
+    }
+    else
+    {
         state.isHovering = false;
         state.hoverTime = 0.0f;
     }
@@ -27,9 +33,11 @@ bool ShowDelayedTooltip(TooltipState& state, const char* desc) {
     return showTooltip;
 }
 
-bool generateSlowedButton(TextEditorState& editorState, FormatButtonData& data) {
+bool generateSlowedButton(TextEditorState& editorState, FormatButtonData& data)
+{
     bool clicked = false;
-    if (ImGui::Button(data.label)) {
+    if(ImGui::Button(data.label))
+    {
         editorState.text = editorState.wrapSelection(data.prefix, data.ending);
         clicked = true;
     }
@@ -38,11 +46,13 @@ bool generateSlowedButton(TextEditorState& editorState, FormatButtonData& data) 
     return clicked;
 }
 
-bool generateSlowedButton(FormatButtonData& data, std::function<void()> onClickAction) {
+bool generateSlowedButton(FormatButtonData& data, std::function<void()> onClickAction)
+{
     bool clicked = false;
-    
-    if (ImGui::Button(data.label)) {
-        if (onClickAction) {
+    if(ImGui::Button(data.label))
+    {
+        if(onClickAction)
+        {
             onClickAction();
         }
         clicked = true;
