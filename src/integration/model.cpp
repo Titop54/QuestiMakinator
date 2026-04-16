@@ -1303,7 +1303,7 @@ std::vector<sf::Image> ModelGenerator::generateIsometricSequenceOBJ(unsigned int
     return resultFrames;
 }
 
-void ModelGenerator::saveAssets(const std::string &itemId, bool customRotation, float pitch, float yaw)
+void ModelGenerator::saveAssets(const std::string &itemId, bool customRotation, int customSize, float pitch, float yaw)
 {
     std::string safeName = changeFilename(itemId);
     std::string targetDir = "img/" + safeName;
@@ -1332,11 +1332,11 @@ void ModelGenerator::saveAssets(const std::string &itemId, bool customRotation, 
     if(!isItem) exportToObj(itemId, targetDir);
     if(isObjModel)
     {
-        saveAnimationWebP(itemId, targetDir, generateIsometricSequenceOBJ(128, customRotation, pitch, yaw));
+        saveAnimationWebP(itemId, targetDir, generateIsometricSequenceOBJ(customSize, customRotation, pitch, yaw));
     }
     else
     {
-        saveAnimationWebP(itemId, targetDir, generateIsometricSequence(128, customRotation, pitch, yaw));
+        saveAnimationWebP(itemId, targetDir, generateIsometricSequence(customSize, customRotation, pitch, yaw));
     }
 }
 

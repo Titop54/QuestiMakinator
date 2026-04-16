@@ -123,7 +123,7 @@ public:
     /**
      * @brief Downloads JSON and all textures to a folder named "mod_itemid_assets"
      */
-    void saveAssets(const std::string& itemId, bool customRotation = false, float pitch = 30.0f, float yaw = 45.0f);
+    void saveAssets(const std::string& itemId, bool customRotation = false, int customSize = 128, float pitch = 30.0f, float yaw = 45.0f);
 
     /**
      * @brief Generates an animated .webp file from the generated sequence

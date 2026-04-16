@@ -201,12 +201,17 @@ void KubeJSImageBrowser::render()
         if(ImGui::SliderInt("Resolution", &currentOutputSize, 32, 512))
         {
             viewChanged = true;
+            need_first_refresh = true;
         }
 
         if(ImGui::Checkbox("Flip Horizontal", &flip_horizontal))
+        {
             viewChanged = true;
+        }
         if(ImGui::Checkbox("Flip Vertical", &flip_vertical))
+        {
             viewChanged = true;
+        }
 
         if(ImGui::SliderFloat("Yaw (Rotation)", &viewYaw, -180.0f, 180.0f))
         {
@@ -270,7 +275,7 @@ void KubeJSImageBrowser::render()
         {
             if(currentGenerator)
             {
-                currentGenerator->saveAssets(currentId, useCustomView, viewPitch, viewYaw);
+                currentGenerator->saveAssets(currentId, useCustomView, currentOutputSize, viewPitch, viewYaw);
             }
         }
         if(ImGui::IsItemHovered())
@@ -321,7 +326,8 @@ void KubeJSImageBrowser::loadImage(const std::string &id)
     {
         return;
     }
-    useCustomView = false;
+
+    useCustomView = true;
     viewYaw = 45.0f;
     viewPitch = 30.0f;
     currentId = id;
@@ -414,11 +420,11 @@ void KubeJSImageBrowser::loadImage(const std::string &id)
         std::vector<sf::Image> frames;
         if(currentGenerator->isObjModel)
         {
-            frames = currentGenerator->generateIsometricSequenceOBJ(128, true, 30.0f, 45.1f);
+            frames = currentGenerator->generateIsometricSequenceOBJ(currentOutputSize, useCustomView, viewPitch, viewYaw);
         }
         else
         {
-            frames = currentGenerator->generateIsometricSequence(128, true, 30.0f, 45.1f);
+            frames = currentGenerator->generateIsometricSequence(currentOutputSize, useCustomView, viewPitch, viewYaw);
         }
 
         for(auto& img : frames)
