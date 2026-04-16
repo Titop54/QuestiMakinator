@@ -92,7 +92,7 @@ namespace snbt
                     for(const auto& [key, tag] : map)
                     {
                         os << pad << key << ": ";
-                        tag.print(os, indent + 1, insertComma);
+                        tag.print(os, indent, insertComma);
                         counter++;
                         if(insertComma)
                         {
@@ -110,12 +110,22 @@ namespace snbt
                 case Type::List:
                 {
                     const auto& list = std::get<List>(value);
-                    os << "[\n";
+                    os << "[";
                     size_t counter = 0;
+
+                    if(list.size() > 1)
+                    {
+                        os << "\n";
+                    }
+
                     for(const auto& tag : list)
                     {
-                        os << pad << pad << "";
-                        tag.print(os, indent + 1);
+                        if(list.size() > 1)
+                        {
+                            os << pad << pad;
+                        }
+
+                        tag.print(os, indent);
                         if(insertComma) 
                         {
                             if(counter < list.size())
@@ -123,9 +133,18 @@ namespace snbt
                                 os << ",";
                             }
                         }
-                        os << "\n";
+
+                        if(list.size() > 1)
+                        {
+                            os << "\n";
+                        }
+                        os.flush();
                     }
-                    os << pad << "]";
+                    if(list.size() > 1)
+                    {
+                        os << pad;
+                    }
+                    os << "]";
                     break;
                 }
 
@@ -133,14 +152,22 @@ namespace snbt
                 {
                     os << "\"";
                     std::string raw = std::get<String>(value);
-                    for (char c : raw) {
-                        if (c == '"') {
+                    for(char c : raw)
+                    {
+                        if(c == '"')
+                        {
                             os << "\\\"";
-                        } else if (c == '\\') {
+                        }
+                        else if(c == '\\')
+                        {
                             os << "\\\\";
-                        } else if (c == '\n') {
-                            os << "\\n";  // Escapar saltos de línea
-                        } else {
+                        }
+                        else if(c == '\n')
+                        {
+                            os << "\\n";
+                        }
+                        else
+                        {
                             os << c;
                         }
                     }
@@ -169,7 +196,14 @@ namespace snbt
         template<typename T>
         T cast()
         {
-            return std::get<T>(value);
+            try
+            {
+                return std::get<T>(value);
+            }
+            catch(...)
+            {
+                return {};
+            }
         }
     };
 
@@ -190,9 +224,9 @@ namespace snbt
         {
         }
 
-        SnbtParser(const std::filesystem::directory_entry entry, bool isFile = false)
+        SnbtParser(const std::filesystem::directory_entry entry)
         {
-            tag = parse(entry.path().string(), isFile);
+            tag = parse(entry.path().string(), true);
         }
 
         Tag parse(const std::string& input, bool isFile = false)

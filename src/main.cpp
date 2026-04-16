@@ -29,7 +29,7 @@ int main(int argc, char* argv[])
     args.parse_data(argc, argv);
 
     if(args.result.contains("--splitter")) ftb_splitter::split(args);
-    else if(args.result.contains("--merge")) ftb_merger::merge(args);
+    if(args.result.contains("--merge")) ftb_merger::merge(args);
 
     std::ofstream crashFile("errors.txt");
     std::ofstream logFile("logs.txt");
