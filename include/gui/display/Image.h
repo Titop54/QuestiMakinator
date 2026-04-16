@@ -49,10 +49,15 @@ private:
     float viewPitch = 30.0f;
     bool useCustomView = false;
     int currentOutputSize = 128;
+    bool need_first_refresh = false;
+    bool flip_vertical = false;
+    bool flip_horizontal = false;
 
 public:
-    KubeJSImageBrowser() {
-        if (!client.isConnected()) {
+    KubeJSImageBrowser()
+    {
+        if(!client.isConnected())
+        {
             client.connect();
         }
     }
@@ -74,36 +79,9 @@ public:
   private:
     void loadImage(const std::string &id);
 
-    inline void updateDisplayTexture() {
-        if(currentAnimation && !currentAnimation->frames.empty())
-        {
-            const auto& img = currentAnimation->frames[currentAnimation->currentFrame];
-            if(currentTexture != 0)
-            {
-                glDeleteTextures(1, &currentTexture);
-                currentTexture = 0;
-            }
+    void updateDisplayTexture();
 
-            glGenTextures(1, &currentTexture);
-            glBindTexture(GL_TEXTURE_2D, currentTexture);
-
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, img.getSize().x, img.getSize().y, 
-                         0, GL_RGBA, GL_UNSIGNED_BYTE, img.getPixelsPtr());
-
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-            glBindTexture(GL_TEXTURE_2D, 0);
-        }
-        else
-        {
-            if(currentTexture != 0)
-            {
-                glDeleteTextures(1, &currentTexture);
-                currentTexture = 0;
-            }
-        }
-    }
+    void regenerateFrames();
 };
 
 inline void createKubejsImageBrowser(KubeJSImageBrowser& browser, bool& firstRun, float deltaTime, GLFWwindow* window)

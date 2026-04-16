@@ -31,7 +31,7 @@ void KubeJSImageBrowser::loadAssets()
     allItems = client.searchItems();
 
     validIds.reserve(allBlocks.size() + allItems.size());
-    
+
     validIds.insert(validIds.end(), allBlocks.begin(), allBlocks.end());
     validIds.insert(validIds.end(), allItems.begin(), allItems.end());
 
@@ -42,7 +42,7 @@ void KubeJSImageBrowser::loadAssets()
 void KubeJSImageBrowser::update(float deltaTime)
 {
     if(currentAnimation && currentAnimation->isPlaying &&
-        currentAnimation->totalFrames > 1)
+       currentAnimation->totalFrames > 1)
     {
         currentAnimation->accumulatedTime += deltaTime;
 
@@ -101,13 +101,13 @@ void KubeJSImageBrowser::render()
                                 ImGuiInputTextFlags_CallbackHistory;
 
     bool enterPressed = ImGui::InputText("ID (Enter to load)", &idInputBuffer,
-                                        flags, InputCallback, &cbData);
+                                         flags, InputCallback, &cbData);
     bool isInputActive = ImGui::IsItemActive();
 
     if(isInputActive && !filteredCandidates.empty() && !idInputBuffer.empty())
     {
         acState.isPopupOpen = true;
-    } 
+    }
     else if(filteredCandidates.empty() || idInputBuffer.empty())
     {
         if(acState.activeIdx == -1)
@@ -116,15 +116,19 @@ void KubeJSImageBrowser::render()
         }
     }
 
-    if(enterPressed && !acState.isPopupOpen) {
+    if(enterPressed && !acState.isPopupOpen)
+    {
         loadImage(idInputBuffer);
     }
 
-    if(enterPressed && acState.isPopupOpen) {
-        if (acState.activeIdx >= 0 && static_cast<size_t>(acState.activeIdx) < filteredCandidates.size()) {
+    if(enterPressed && acState.isPopupOpen)
+    {
+        if(acState.activeIdx >= 0 && static_cast<size_t>(acState.activeIdx) < filteredCandidates.size())
+        {
             idInputBuffer = filteredCandidates[acState.activeIdx];
-        } 
-        else if (!filteredCandidates.empty()) {
+        }
+        else if(!filteredCandidates.empty())
+        {
             idInputBuffer = filteredCandidates[0];
         }
         acState.isPopupOpen = false;
@@ -143,23 +147,23 @@ void KubeJSImageBrowser::render()
     if(currentTexture != 0 && currentAnimation && !currentAnimation->frames.empty())
     {
         float scale = 2.0f;
-        auto imgSize = currentAnimation->frames[currentAnimation->currentFrame].getSize();
-        ImVec2 textureSize(imgSize.x * scale, imgSize.y * scale);
+
+        ImVec2 textureSize(currentOutputSize * scale, currentOutputSize * scale);
 
         float windowWidth = ImGui::GetWindowSize().x;
         ImGui::SetCursorPosX((windowWidth - textureSize.x) * 0.5f);
 
-        ImGui::Image((ImTextureID)(intptr_t)currentTexture, textureSize, 
-                     ImVec2(0, 0), ImVec2(1, 1), 
-                     ImVec4(1.0f, 1.0f, 1.0f, 1.0f),  // Color (Blanco)
-                     ImVec4(0.0f, 0.0f, 0.0f, 0.0f)); // Borde (Transparente)
+        ImGui::Image((ImTextureID)(intptr_t)currentTexture, textureSize,
+                     ImVec2(0, 0), ImVec2(1, 1),
+                     ImVec4(1.0f, 1.0f, 1.0f, 1.0f),
+                     ImVec4(0.5f, 0.5f, 0.5f, 0.2f));
     }
     else if(!isLoading && !currentId.empty() && !currentAnimation)
     {
         ImGui::TextColored(ImVec4(1, 0, 0, 1), "Failed to load model or texture.");
     }
 
-    if (currentAnimation)
+    if(currentAnimation)
     {
         ImGui::Separator();
 
@@ -193,31 +197,44 @@ void KubeJSImageBrowser::render()
         ImGui::Separator();
         ImGui::Text("3D View Controls");
         bool viewChanged = false;
-        ImGui::SliderInt("Resolution", &currentOutputSize, 32, 512);
-        if(ImGui::IsItemDeactivatedAfterEdit())
+
+        if(ImGui::SliderInt("Resolution", &currentOutputSize, 32, 512))
         {
             viewChanged = true;
         }
-        ImGui::SliderFloat("Yaw (Rotation)", &viewYaw, -180.0f, 180.0f);
-        if(ImGui::IsItemDeactivatedAfterEdit())
+
+        if(ImGui::Checkbox("Flip Horizontal", &flip_horizontal))
+            viewChanged = true;
+        if(ImGui::Checkbox("Flip Vertical", &flip_vertical))
+            viewChanged = true;
+
+        if(ImGui::SliderFloat("Yaw (Rotation)", &viewYaw, -180.0f, 180.0f))
         {
             viewChanged = true;
             useCustomView = true;
         }
-        ImGui::SliderFloat("Pitch (Tilt)", &viewPitch, -90.0f, 90.0f);
-        if(ImGui::IsItemDeactivatedAfterEdit())
+
+        if(ImGui::SliderFloat("Pitch (Tilt)", &viewPitch, -90.0f, 90.0f))
         {
             viewChanged = true;
             useCustomView = true;
         }
-        
+
         ImGui::SameLine();
-        if (ImGui::Button("Reset View"))
+        if(ImGui::Button("Reset View"))
         {
             viewYaw = 45.0f;
             viewPitch = 30.0f;
             useCustomView = false;
             viewChanged = true;
+            currentOutputSize = 128;
+            need_first_refresh = true;
+        }
+
+        if(need_first_refresh)
+        {
+            need_first_refresh = false;
+            updateDisplayTexture();
         }
 
         if(viewChanged && currentGenerator)
@@ -231,10 +248,17 @@ void KubeJSImageBrowser::render()
             {
                 frames = currentGenerator->generateIsometricSequence(currentOutputSize, useCustomView, viewPitch, viewYaw);
             }
-            
+
+            for(auto& img : frames)
+            {
+                if(flip_horizontal) img.flipHorizontally();
+                if(flip_vertical) img.flipVertically();
+            }
+
             if(!frames.empty())
             {
                 currentAnimation->frames = frames;
+                updateDisplayTexture();
                 updateDisplayTexture();
             }
         }
@@ -249,14 +273,13 @@ void KubeJSImageBrowser::render()
                 currentGenerator->saveAssets(currentId, useCustomView, viewPitch, viewYaw);
             }
         }
-        if (ImGui::IsItemHovered())
+        if(ImGui::IsItemHovered())
         {
             ImGui::SetTooltip("Saves model.json and all textures to folder img/mod_id_assets and Blender .obj");
         }
-        
 
         ImGui::SameLine();
-        if (ImGui::Button("Download Animation"))
+        if(ImGui::Button("Download Animation"))
         {
             if(currentGenerator)
             {
@@ -274,7 +297,7 @@ void KubeJSImageBrowser::render()
             idInputBuffer[0] = '\0';
             currentAnimation = nullptr;
             currentGenerator.reset();
-            
+
             if(currentTexture != 0)
             {
                 glDeleteTextures(1, &currentTexture);
@@ -294,7 +317,7 @@ void KubeJSImageBrowser::render()
 
 void KubeJSImageBrowser::loadImage(const std::string &id)
 {
-    if(id.empty()) 
+    if(id.empty())
     {
         return;
     }
@@ -303,6 +326,7 @@ void KubeJSImageBrowser::loadImage(const std::string &id)
     viewPitch = 30.0f;
     currentId = id;
     currentOutputSize = 128;
+    need_first_refresh = true;
 
     isLoading = true;
     currentAnimation = nullptr;
@@ -323,14 +347,15 @@ void KubeJSImageBrowser::loadImage(const std::string &id)
         modelFound = true;
     }
 
-    if (!modelFound)
+    if(!modelFound)
     {
-        auto objList = client.listAssetsByPrefix(".obj"); 
-        
+        auto objList = client.listAssetsByPrefix(".obj");
+
         std::string foundObjPath = "";
-        for(const auto& asset : objList) {
+        for(const auto &asset : objList)
+        {
             std::string p = asset.path;
-            if(p.find("/" + path + ".obj") != std::string::npos || 
+            if(p.find("/" + path + ".obj") != std::string::npos ||
                p.find("/" + path + ".obj.ie") != std::string::npos ||
                p == path + ".obj")
             {
@@ -339,19 +364,22 @@ void KubeJSImageBrowser::loadImage(const std::string &id)
             }
         }
 
-        if (!foundObjPath.empty()) 
+        if(!foundObjPath.empty())
         {
             std::string objData, mtlData;
-            std::string objUrl = "/api/client/assets/get/" + ns + "/models/" + foundObjPath; 
+            std::string objUrl = "/api/client/assets/get/" + ns + "/models/" + foundObjPath;
             client.sendHttpRequest("GET", objUrl, "", objData);
-            if (!objData.empty() && objData.find("error") == std::string::npos) 
+            if(!objData.empty() && objData.find("error") == std::string::npos)
             {
                 std::string mtlPath = foundObjPath;
-                size_t extPos = mtlPath.rfind(".obj"); 
+                size_t extPos = mtlPath.rfind(".obj");
 
-                if (extPos != std::string::npos) {
+                if(extPos != std::string::npos)
+                {
                     mtlPath = mtlPath.substr(0, extPos) + ".mtl";
-                } else {
+                }
+                else
+                {
                     mtlPath += ".mtl";
                 }
 
@@ -363,7 +391,7 @@ void KubeJSImageBrowser::loadImage(const std::string &id)
         }
     }
 
-    if (!modelFound)
+    if(!modelFound)
     {
         std::string urlItem = "/api/client/assets/get/" + ns + "/models/item/" + path + ".json";
         jsonBody.clear();
@@ -375,17 +403,35 @@ void KubeJSImageBrowser::loadImage(const std::string &id)
             modelFound = true;
         }
     }
+
     if(modelFound && currentGenerator)
     {
+        GLboolean scissorEnabled = glIsEnabled(GL_SCISSOR_TEST);
+        GLint prevViewport[4];
+        glGetIntegerv(GL_VIEWPORT, prevViewport);
+        glDisable(GL_SCISSOR_TEST);
+
         std::vector<sf::Image> frames;
         if(currentGenerator->isObjModel)
         {
-            frames = currentGenerator->generateIsometricSequenceOBJ(128);
+            frames = currentGenerator->generateIsometricSequenceOBJ(128, true, 30.0f, 45.1f);
         }
         else
         {
-            frames = currentGenerator->generateIsometricSequence(128);
+            frames = currentGenerator->generateIsometricSequence(128, true, 30.0f, 45.1f);
         }
+
+        for(auto& img : frames)
+        {
+            if(flip_horizontal) img.flipHorizontally();
+            if(flip_vertical) img.flipVertically();
+        }
+
+        if(scissorEnabled)
+        {
+            glEnable(GL_SCISSOR_TEST);
+        }
+        glViewport(prevViewport[0], prevViewport[1], prevViewport[2], prevViewport[3]);
 
         if(!frames.empty())
         {
@@ -409,4 +455,42 @@ void KubeJSImageBrowser::loadImage(const std::string &id)
     }
 
     isLoading = false;
+}
+
+void KubeJSImageBrowser::updateDisplayTexture()
+{
+    if(currentAnimation && !currentAnimation->frames.empty())
+    {
+        const auto &img = currentAnimation->frames[currentAnimation->currentFrame];
+        if(img.getSize().x == 0 || img.getSize().y == 0) return;
+
+        GLboolean scissorWasEnabled = glIsEnabled(GL_SCISSOR_TEST);
+        glDisable(GL_SCISSOR_TEST);
+
+        if(currentTexture == 0)
+        {
+            glGenTextures(1, &currentTexture);
+        }
+
+        glBindTexture(GL_TEXTURE_2D, currentTexture);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, img.getSize().x, img.getSize().y,
+                     0, GL_RGBA, GL_UNSIGNED_BYTE, img.getPixelsPtr());
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glBindTexture(GL_TEXTURE_2D, 0);
+
+        if(scissorWasEnabled)
+        {
+            glEnable(GL_SCISSOR_TEST);
+        }
+    }
+    else
+    {
+        if(currentTexture != 0)
+        {
+            glDeleteTextures(1, &currentTexture);
+            currentTexture = 0;
+        }
+    }
 }

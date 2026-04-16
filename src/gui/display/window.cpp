@@ -1,7 +1,8 @@
+#include <glad/glad.h>
 #include "gui/display/window.h"
-#include <GLFW/glfw3.h>
 #include <cstdlib>
 #include <iostream>
+#include <GLFW/glfw3.h>
 
 namespace WindowUtils
 {
@@ -39,6 +40,13 @@ namespace WindowUtils
         }
 
         glfwMakeContextCurrent(window);
+
+        if(!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+        {
+            std::cerr << "Failed to initialize GLAD" << std::endl;
+            return nullptr;
+        }
+        
         glfwSwapInterval(1); // Enable vsync
         
         maximize(window);
