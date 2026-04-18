@@ -11,6 +11,12 @@
 #include <map>
 #include <set>
 
+struct RenderedFrame
+{
+    sf::Image image;
+    int timeInTicks = 1;
+};
+
 struct AnimationFrame
 {
     int index;
@@ -38,6 +44,32 @@ struct Texture
         if(pixels.empty()) return {};
         sf::Image img({size.x, size.y}, pixels.data());
         return img;
+    }
+
+    void rotate90Clockwise()
+    {
+        if(pixels.empty() || size.x == 0 || size.y == 0) return;
+        
+        std::vector<uint8_t> newPixels;
+        newPixels.reserve(pixels.size());
+        for(unsigned int y = 0; y < size.y; ++y)
+        {
+            for(unsigned int x = 0; x < size.x; ++x)
+            {
+                unsigned int newX = size.y - 1 - y;
+                unsigned int newY = x;
+                
+                unsigned int oldIdx = (y * size.x + x) * 4;
+                unsigned int newIdx = (newY * size.y + newX) * 4; 
+                
+                newPixels[newIdx] = pixels[oldIdx];
+                newPixels[newIdx + 1] = pixels[oldIdx + 1];
+                newPixels[newIdx + 2] = pixels[oldIdx + 2];
+                newPixels[newIdx + 3] = pixels[oldIdx + 3];
+            }
+        }
+        pixels = std::move(newPixels);
+        std::swap(size.x, size.y);
     }
 };
 
@@ -108,7 +140,7 @@ public:
      * @param yaw Y-axis rotation
      * @return vector containing 1 or more images to display
      */
-    std::vector<sf::Image> generateIsometricSequence(unsigned int outputSize = 64, bool customRotation = false, float pitch = 30.0f, float yaw = 45.0f);
+    std::vector<RenderedFrame> generateIsometricSequence(unsigned int outputSize = 128, bool customRotation = false, float pitch = 30.0f, float yaw = 45.0f);
 
     /**
      * @brief Generate a sequence of images to display
@@ -118,7 +150,7 @@ public:
      * @param yaw Y-axis rotation
      * @return vector containing 1 or more images to display
      */
-    std::vector<sf::Image> generateIsometricSequenceOBJ(unsigned int outputSize = 128, bool customRotation = false, float pitch = 30.0f, float yaw = 45.0f);
+    std::vector<RenderedFrame> generateIsometricSequenceOBJ(unsigned int outputSize = 128, bool customRotation = false, float pitch = 30.0f, float yaw = 45.0f);
 
     /**
      * @brief Downloads JSON and all textures to a folder named "mod_itemid_assets"
@@ -128,7 +160,7 @@ public:
     /**
      * @brief Generates an animated .webp file from the generated sequence
      */
-    void saveAnimationWebP(const std::string& itemId, const std::string& outputDir, const std::vector<sf::Image>& frames);
+    void saveAnimationWebP(const std::string& itemId, const std::string& outputDir, const std::vector<RenderedFrame>& frames);
 
     /**
      * @brief Exports the 3D model to .obj and .mtl for Blender

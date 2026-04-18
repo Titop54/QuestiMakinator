@@ -42,18 +42,20 @@ void KubeJSImageBrowser::loadAssets()
 void KubeJSImageBrowser::update(float deltaTime)
 {
     if(currentAnimation && currentAnimation->isPlaying &&
-       currentAnimation->totalFrames > 1)
+       currentAnimation->totalTicks > 1)
     {
         currentAnimation->accumulatedTime += deltaTime;
+        bool tickChanged = false;
 
-        if(currentAnimation->accumulatedTime >= currentAnimation->SECONDS_PER_TICK)
+        while(currentAnimation->accumulatedTime >= AnimationData::SECONDS_PER_TICK)
         {
-            while(currentAnimation->accumulatedTime >= currentAnimation->SECONDS_PER_TICK)
-            {
-                currentAnimation->accumulatedTime -= currentAnimation->SECONDS_PER_TICK;
-                currentAnimation->currentFrame = (currentAnimation->currentFrame + 1) %
-                                                  currentAnimation->totalFrames;
-            }
+            currentAnimation->accumulatedTime -= AnimationData::SECONDS_PER_TICK;
+            currentAnimation->currentTick = (currentAnimation->currentTick + 1) % currentAnimation->totalTicks;
+            tickChanged = true;
+        }
+
+        if(tickChanged)
+        {
             updateDisplayTexture();
         }
     }
@@ -89,55 +91,8 @@ void KubeJSImageBrowser::render()
         return;
     }
 
-    filteredCandidates = filterResults(idInputBuffer, validIds, 50, acState);
-
-    CallbackData cbData;
-    cbData.state = &acState;
-    cbData.candidates = &filteredCandidates;
-
-    ImGuiInputTextFlags flags = ImGuiInputTextFlags_EnterReturnsTrue |
-                                ImGuiInputTextFlags_CallbackAlways |
-                                ImGuiInputTextFlags_CallbackCompletion |
-                                ImGuiInputTextFlags_CallbackHistory;
-
-    bool enterPressed = ImGui::InputText("ID (Enter to load)", &idInputBuffer,
-                                         flags, InputCallback, &cbData);
-    bool isInputActive = ImGui::IsItemActive();
-
-    if(isInputActive && !filteredCandidates.empty() && !idInputBuffer.empty())
-    {
-        acState.isPopupOpen = true;
-    }
-    else if(filteredCandidates.empty() || idInputBuffer.empty())
-    {
-        if(acState.activeIdx == -1)
-        {
-            acState.isPopupOpen = false;
-        }
-    }
-
-    if(enterPressed && !acState.isPopupOpen)
-    {
-        loadImage(idInputBuffer);
-    }
-
-    if(enterPressed && acState.isPopupOpen)
-    {
-        if(acState.activeIdx >= 0 && static_cast<size_t>(acState.activeIdx) < filteredCandidates.size())
-        {
-            idInputBuffer = filteredCandidates[acState.activeIdx];
-        }
-        else if(!filteredCandidates.empty())
-        {
-            idInputBuffer = filteredCandidates[0];
-        }
-        acState.isPopupOpen = false;
-        acState.activeIdx = -1;
-        loadImage(idInputBuffer);
-    }
-
-    drawMenu(acState, "##autocomplete", filteredCandidates, idInputBuffer,
-            isInputActive, [this](std::string s) { this->loadImage(s); });
+    drawMenu("Item / Block ID", validIds, idInputBuffer,
+             [this](std::string s) { this->loadImage(s); });
 
     ImGui::Separator();
     ImGui::Text("Current amount of items: %zu", allItems.size());
@@ -167,7 +122,7 @@ void KubeJSImageBrowser::render()
     {
         ImGui::Separator();
 
-        if(currentAnimation->totalFrames > 1)
+        if(currentAnimation->totalTicks > 1)
         {
             float width = ImGui::GetWindowWidth();
             ImGui::SetCursorPosX(width * 0.5f - 80);
@@ -179,16 +134,16 @@ void KubeJSImageBrowser::render()
             ImGui::SameLine();
             if(ImGui::Button("Reset"))
             {
-                currentAnimation->currentFrame = 0;
+                currentAnimation->currentTick = 0;
                 currentAnimation->accumulatedTime = 0.0f;
                 updateDisplayTexture();
             }
 
-            int frame = currentAnimation->currentFrame;
-            if(ImGui::SliderInt("Timeline (Ticks)", &frame, 0,
-                                currentAnimation->totalFrames - 1))
+            int tick = currentAnimation->currentTick;
+            if(ImGui::SliderInt("Timeline (Ticks)", &tick, 0,
+                                currentAnimation->totalTicks - 1))
             {
-                currentAnimation->currentFrame = frame;
+                currentAnimation->currentTick = tick;
                 currentAnimation->isPlaying = false;
                 updateDisplayTexture();
             }
@@ -244,7 +199,7 @@ void KubeJSImageBrowser::render()
 
         if(viewChanged && currentGenerator)
         {
-            std::vector<sf::Image> frames;
+            std::vector<RenderedFrame> frames;
             if(currentGenerator->isObjModel)
             {
                 frames = currentGenerator->generateIsometricSequenceOBJ(currentOutputSize, useCustomView, viewPitch, viewYaw);
@@ -256,8 +211,8 @@ void KubeJSImageBrowser::render()
 
             for(auto& img : frames)
             {
-                if(flip_horizontal) img.flipHorizontally();
-                if(flip_vertical) img.flipVertically();
+                if(flip_horizontal) img.image.flipHorizontally();
+                if(flip_vertical) img.image.flipVertically();
             }
 
             if(!frames.empty())
@@ -302,6 +257,7 @@ void KubeJSImageBrowser::render()
             idInputBuffer[0] = '\0';
             currentAnimation = nullptr;
             currentGenerator.reset();
+            animations.clear();
 
             if(currentTexture != 0)
             {
@@ -417,7 +373,7 @@ void KubeJSImageBrowser::loadImage(const std::string &id)
         glGetIntegerv(GL_VIEWPORT, prevViewport);
         glDisable(GL_SCISSOR_TEST);
 
-        std::vector<sf::Image> frames;
+        std::vector<RenderedFrame> frames;
         if(currentGenerator->isObjModel)
         {
             frames = currentGenerator->generateIsometricSequenceOBJ(currentOutputSize, useCustomView, viewPitch, viewYaw);
@@ -429,8 +385,8 @@ void KubeJSImageBrowser::loadImage(const std::string &id)
 
         for(auto& img : frames)
         {
-            if(flip_horizontal) img.flipHorizontally();
-            if(flip_vertical) img.flipVertically();
+            if(flip_horizontal) img.image.flipHorizontally();
+            if(flip_vertical) img.image.flipVertically();
         }
 
         if(scissorEnabled)
@@ -443,8 +399,11 @@ void KubeJSImageBrowser::loadImage(const std::string &id)
         {
             AnimationData anim;
             anim.frames = frames;
-            anim.totalFrames = frames.size();
-            anim.currentFrame = 0;
+            
+            int tTicks = 0;
+            for(const auto& f : frames) tTicks += f.timeInTicks;
+            anim.totalTicks = std::max(1, tTicks);
+            anim.currentTick = 0;
 
             animations[id] = anim;
             currentAnimation = &animations[id];
@@ -467,23 +426,41 @@ void KubeJSImageBrowser::updateDisplayTexture()
 {
     if(currentAnimation && !currentAnimation->frames.empty())
     {
-        const auto &img = currentAnimation->frames[currentAnimation->currentFrame];
-        if(img.getSize().x == 0 || img.getSize().y == 0) return;
+        const auto &img = currentAnimation->getCurrentImage();
+        unsigned int width = img.getSize().x;
+        unsigned int height = img.getSize().y;
+
+        if(width == 0 || height == 0) return;
 
         GLboolean scissorWasEnabled = glIsEnabled(GL_SCISSOR_TEST);
         glDisable(GL_SCISSOR_TEST);
 
-        if(currentTexture == 0)
+        if(currentTexture == 0 || lastTexWidth != width || lastTexHeight != height)
         {
+            if(currentTexture != 0)
+            {
+                glDeleteTextures(1, &currentTexture);
+            }
+
             glGenTextures(1, &currentTexture);
+            glBindTexture(GL_TEXTURE_2D, currentTexture);
+            
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height,
+                         0, GL_RGBA, GL_UNSIGNED_BYTE, img.getPixelsPtr());
+
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            
+            lastTexWidth = width;
+            lastTexHeight = height;
+        }
+        else
+        {
+            glBindTexture(GL_TEXTURE_2D, currentTexture);
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height,
+                            GL_RGBA, GL_UNSIGNED_BYTE, img.getPixelsPtr());
         }
 
-        glBindTexture(GL_TEXTURE_2D, currentTexture);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, img.getSize().x, img.getSize().y,
-                     0, GL_RGBA, GL_UNSIGNED_BYTE, img.getPixelsPtr());
-
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glBindTexture(GL_TEXTURE_2D, 0);
 
         if(scissorWasEnabled)

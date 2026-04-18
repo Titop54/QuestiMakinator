@@ -12,13 +12,34 @@ using json = nlohmann::json;
 
 struct AnimationData
 {
-    std::vector<sf::Image> frames;
-    int totalFrames = 0;
-    int currentFrame = 0;
+    std::vector<RenderedFrame> frames;
+    int totalTicks = 0;
+    int currentTick = 0;
     bool isPlaying = true;
     float accumulatedTime = 0.0f;
     
     static constexpr float SECONDS_PER_TICK = 0.05f;
+
+    const sf::Image& getCurrentImage() const
+    {
+        if(frames.empty())
+        {
+            static sf::Image empty;
+            return empty;
+        }
+
+        int accumulatedTicks = 0;
+        for(const auto& frame : frames)
+        {
+            accumulatedTicks += frame.timeInTicks;
+            if(currentTick < accumulatedTicks)
+            {
+                return frame.image;
+            }
+        }
+        return frames.back().image;
+    }
+
 };
 
 void parseId(const std::string& fullId, std::string& ns, std::string& path);
@@ -33,7 +54,6 @@ private:
 
     //Autocomplete
     std::vector<std::string> filteredCandidates;
-    AutoCompleteState acState;
 
     //Textures display
     std::string currentId;
@@ -52,6 +72,9 @@ private:
     bool need_first_refresh = false;
     bool flip_vertical = false;
     bool flip_horizontal = false;
+
+    unsigned int lastTexWidth = 0;
+    unsigned int lastTexHeight = 0;
 
 public:
     KubeJSImageBrowser()

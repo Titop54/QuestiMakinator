@@ -24,20 +24,6 @@
 
 namespace fs = std::filesystem;
 
-struct CustomVertex
-{
-    sf::Vector2f position;
-    sf::Color color;
-    sf::Vector2f texCoords;
-};
-
-struct RenderQuad
-{
-    std::vector<CustomVertex> vertices;
-    const Texture* texture;
-    float depth;
-};
-
 struct GpuVertex
 {
     float x, y, z;
@@ -243,6 +229,17 @@ ModelGenerator::ModelGenerator(const std::string &rawJson, KubeJSClient &client,
     int recursionDepth = 0;
     nlohmann::json currentLevel = modelJson;
 
+    if(modelJson.contains("loader") && modelJson["loader"] == "neoforge:fluid_container")
+    {
+        if(modelJson.contains("fluid"))
+        {
+            std::string fluidId = modelJson["fluid"];
+            modelJson["textures"]["layer1"] = fluidId; 
+            modelJson["parent"] = "minecraft:item/generated";
+            modelJson["textures"]["layer0"] = "minecraft:item/bucket";
+        }
+    }
+
     //we want all layers, but up to a limit
     while(currentLevel.contains("parent") && recursionDepth < 10)
     {
@@ -350,6 +347,25 @@ ModelGenerator::ModelGenerator(const std::string &rawJson, KubeJSClient &client,
                     {
                         unsigned int w = img.getSize().x;
                         unsigned int h = img.getSize().y;
+
+                        animData.texture.size.x = w;
+                        animData.texture.size.y = h;
+                        const unsigned char *rawPixels = img.getPixelsPtr();
+                        size_t totalBytes = w * h * 4;
+
+                        if(rawPixels && totalBytes > 0)
+                        {
+                            animData.texture.pixels.assign(rawPixels, rawPixels + totalBytes);
+                        }
+
+
+                        if(animData.texture.size.x > animData.texture.size.y)
+                        {
+                            animData.texture.rotate90Clockwise();
+                            w = animData.texture.size.x;
+                            h = animData.texture.size.y;
+                        }
+
                         animData.frameHeight = w;
 
                         if(h > w)
@@ -391,15 +407,6 @@ ModelGenerator::ModelGenerator(const std::string &rawJson, KubeJSClient &client,
                                 {
                                 }
                             }
-                        }
-
-                        animData.texture.size.x = w;
-                        animData.texture.size.y = h;
-                        const unsigned char *rawPixels = img.getPixelsPtr();
-                        size_t totalBytes = w * h * 4;
-                        if(rawPixels && totalBytes > 0)
-                        {
-                            animData.texture.pixels.assign(rawPixels, rawPixels + totalBytes);
                         }
                     }
                 }
@@ -533,7 +540,7 @@ int ModelGenerator::calculateTotalLoopTicks()
     return totalTicks;
 }
 
-std::vector<sf::Image> ModelGenerator::generateIsometricSequence(unsigned int outputSize, bool customRotation, float pitch, float yaw)
+std::vector<RenderedFrame> ModelGenerator::generateIsometricSequence(unsigned int outputSize, bool customRotation, float pitch, float yaw)
 {
     bool isFlatItem = false;
     if(modelJson.contains("parent") && modelJson["parent"].get<std::string>().find("item/generated") != std::string::npos) isFlatItem = true;
@@ -554,14 +561,21 @@ std::vector<sf::Image> ModelGenerator::generateIsometricSequence(unsigned int ou
             nlohmann::json defaultCube;
             defaultCube["from"] = {0, 0, 0};
             defaultCube["to"] = {16, 16, 16};
+
             auto findTexture = [&](const std::string &dir, const std::vector<std::string> &fb) -> std::string
             {
                 if(modelJson["textures"].contains(dir)) return "#" + dir;
                 for(auto &k : fb)
                     if(modelJson["textures"].contains(k)) return "#" + k;
                 if(modelJson["textures"].contains("all")) return "#all";
+                
+                if(modelJson["textures"].contains("particle")) return "#particle";
+                
+                if(!modelJson["textures"].empty()) return "#" + modelJson["textures"].begin().key();
+                
                 return "";
             };
+
             std::string t_up = findTexture("up", {"top"}), t_down = findTexture("down", {"bottom"}),
                         t_north = findTexture("north", {"front", "side"}), t_south = findTexture("south", {"back", "side"}),
                         t_east = findTexture("east", {"side"}), t_west = findTexture("west", {"side"});
@@ -727,12 +741,11 @@ std::vector<sf::Image> ModelGenerator::generateIsometricSequence(unsigned int ou
                 tri1.v[i].b = shade.b / 255.0f;
                 tri1.v[i].a = 1.0f;
                 tri1.v[i].u = uv[idx].x / texW;
-                tri1.v[i].v = 1.0f - (uv[idx].y / texH);
+                tri1.v[i].v = uv[idx].y / texH;
             }
             for(int i = 0; i < 3; i++)
             {
-                int idx = (i == 0) ? 2 : (i == 1) ? 3
-                                                  : 0;
+                int idx = (i == 0) ? 2 : (i == 1) ? 3 : 0;
                 tri2.v[i].x = screenPos[idx].x;
                 tri2.v[i].y = screenPos[idx].y;
                 tri2.v[i].z = screenPos[idx].z;
@@ -741,7 +754,7 @@ std::vector<sf::Image> ModelGenerator::generateIsometricSequence(unsigned int ou
                 tri2.v[i].b = shade.b / 255.0f;
                 tri2.v[i].a = 1.0f;
                 tri2.v[i].u = uv[idx].x / texW;
-                tri2.v[i].v = 1.0f - (uv[idx].y / texH);
+                tri2.v[i].v = uv[idx].y / texH;
             }
             triangles.push_back(tri1);
             triangles.push_back(tri2);
@@ -786,7 +799,7 @@ std::vector<sf::Image> ModelGenerator::generateIsometricSequence(unsigned int ou
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, outputSize, outputSize);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
     if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-    { /* error */
+    {
         return {};
     }
 
@@ -840,7 +853,7 @@ std::vector<sf::Image> ModelGenerator::generateIsometricSequence(unsigned int ou
     glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "uProjection"), 1, GL_FALSE, glm::value_ptr(proj));
     GLint texOffsetLoc = glGetUniformLocation(shaderProgram, "uTexOffset");
 
-    std::vector<sf::Image> resultFrames;
+    std::vector<RenderedFrame> resultFrames;
     int totalTicks = calculateTotalLoopTicks();
     bool anyAnimated = false;
     for(auto &[k, v] : textures)
@@ -848,8 +861,51 @@ std::vector<sf::Image> ModelGenerator::generateIsometricSequence(unsigned int ou
         if(v.isAnimated) anyAnimated = true;
     }
 
+    std::vector<int> prevFrameIndices;
+
     for(int tick = 0; tick < totalTicks; ++tick)
     {
+        std::vector<int> currentFrameIndices;
+        
+        if(anyAnimated)
+        {
+            for(auto &[path, anim] : textures)
+            {
+                if(anim.isAnimated)
+                {
+                    int duration = anim.getTotalDuration();
+                    int frameIndex = 0;
+                    if(duration > 0)
+                    {
+                        int localTick = tick % duration;
+                        if(anim.sequence.empty())
+                            frameIndex = (localTick / anim.defaultFrameTime) % (anim.texture.size.y / anim.frameHeight);
+                        else
+                        {
+                            int acc = 0;
+                            for(auto &fr : anim.sequence)
+                            {
+                                acc += fr.time;
+                                if(localTick < acc)
+                                {
+                                    frameIndex = fr.index;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    currentFrameIndices.push_back(frameIndex);
+                }
+            }
+
+            if(tick > 0 && currentFrameIndices == prevFrameIndices)
+            {
+                resultFrames.back().timeInTicks++;
+                continue; 
+            }
+            prevFrameIndices = currentFrameIndices;
+        }
+
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
         glClearColor(0, 0, 0, 0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -961,8 +1017,9 @@ std::vector<sf::Image> ModelGenerator::generateIsometricSequence(unsigned int ou
         glReadPixels(0, 0, outputSize, outputSize, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
         sf::Image img({outputSize, outputSize}, pixels.data());
         img.flipHorizontally();
-        if(isFlatItem) img.flipVertically();
-        resultFrames.push_back(img);
+        
+        resultFrames.push_back({img, 1});
+        
         if(!anyAnimated) break;
     }
     glEnable(GL_CULL_FACE);
@@ -989,7 +1046,7 @@ std::vector<sf::Image> ModelGenerator::generateIsometricSequence(unsigned int ou
     return resultFrames;
 }
 
-std::vector<sf::Image> ModelGenerator::generateIsometricSequenceOBJ(unsigned int outputSize, bool customRotation, float pitch, float yaw)
+std::vector<RenderedFrame> ModelGenerator::generateIsometricSequenceOBJ(unsigned int outputSize, bool customRotation, float pitch, float yaw)
 {
     float minIsoX = 1e9, maxIsoX = -1e9;
     float minIsoY = 1e9, maxIsoY = -1e9;
@@ -1180,6 +1237,7 @@ std::vector<sf::Image> ModelGenerator::generateIsometricSequenceOBJ(unsigned int
         GLuint texID = CreateGLTextureFromPixels(anim.texture.pixels, anim.texture.size.x, anim.texture.size.y);
         glTextures[&anim.texture] = texID;
     }
+
     GLuint vao, vbo;
     glGenVertexArrays(1, &vao);
     glGenBuffers(1, &vbo);
@@ -1224,11 +1282,11 @@ std::vector<sf::Image> ModelGenerator::generateIsometricSequenceOBJ(unsigned int
     glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "uProjection"), 1, GL_FALSE, glm::value_ptr(proj));
     GLint texOffsetLoc = glGetUniformLocation(shaderProgram, "uTexOffset");
 
-    std::vector<sf::Image> resultFrames;
+    std::vector<RenderedFrame> resultFrames;
 
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glBindVertexArray(vao);
 
@@ -1276,7 +1334,7 @@ std::vector<sf::Image> ModelGenerator::generateIsometricSequenceOBJ(unsigned int
     sf::Image img({outputSize, outputSize}, pixels.data());
 
     img.flipHorizontally();
-    resultFrames.push_back(img);
+    resultFrames.push_back({img, 1});
 
     if(depthTest) glEnable(GL_DEPTH_TEST);
     if(!blend)
@@ -1340,7 +1398,7 @@ void ModelGenerator::saveAssets(const std::string &itemId, bool customRotation, 
     }
 }
 
-void ModelGenerator::saveAnimationWebP(const std::string &itemId, const std::string &outputDir, const std::vector<sf::Image> &frames)
+void ModelGenerator::saveAnimationWebP(const std::string &itemId, const std::string &outputDir, const std::vector<RenderedFrame>& frames)
 {
     if(frames.empty()) return;
 
@@ -1348,8 +1406,8 @@ void ModelGenerator::saveAnimationWebP(const std::string &itemId, const std::str
     std::string filename = baseName + ".webp";
     std::string fullPath = outputDir + "/" + filename;
 
-    int width = frames[0].getSize().x;
-    int height = frames[0].getSize().y;
+    int width = frames[0].image.getSize().x;
+    int height = frames[0].image.getSize().y;
 
     WebPAnimEncoderOptions enc_options;
     WebPAnimEncoderOptionsInit(&enc_options);
@@ -1362,7 +1420,6 @@ void ModelGenerator::saveAnimationWebP(const std::string &itemId, const std::str
     }
 
     int timestamp_ms = 0;
-    int frame_duration = 50; // 1 tick (0.05s)
 
     for(const auto &img : frames)
     {
@@ -1382,7 +1439,7 @@ void ModelGenerator::saveAnimationWebP(const std::string &itemId, const std::str
             return;
         }
 
-        const uint8_t *pixels = img.getPixelsPtr();
+        const uint8_t *pixels = img.image.getPixelsPtr();
         WebPPictureImportRGBA(&pic, pixels, width * 4);
 
         if(!WebPAnimEncoderAdd(enc, &pic, timestamp_ms, &config))
@@ -1394,7 +1451,7 @@ void ModelGenerator::saveAnimationWebP(const std::string &itemId, const std::str
         }
 
         WebPPictureFree(&pic);
-        timestamp_ms += frame_duration;
+        timestamp_ms += img.timeInTicks * 50; 
     }
 
     WebPAnimEncoderAdd(enc, nullptr, timestamp_ms, nullptr);
@@ -1476,7 +1533,7 @@ void ModelGenerator::exportToObj(const std::string &itemId, const std::string &o
 
             for(const auto &f : faces)
             {
-                if(!element["faces"].contains(f.dir)) continue;
+                if(!element.contains("faces") || !element["faces"].contains(f.dir)) continue;
                 auto faceJson = element["faces"][f.dir];
 
                 std::string texRef = faceJson.value("texture", "");
