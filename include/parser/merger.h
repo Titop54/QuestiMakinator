@@ -14,7 +14,7 @@ namespace ftb_merger
     inline void read_and_split(const fs::path& path)
     {
         snbt::Compound merge;
-        std::string lang_name = path.stem();
+        std::string lang_name = path.stem().string();
         //files to check
 
         std::vector<std::string> names = { //different type
