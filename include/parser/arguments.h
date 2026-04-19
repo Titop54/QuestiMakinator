@@ -47,9 +47,9 @@ namespace args
                     result["--splitter"] = {};
                 }
 
-                if(v == "--merge" || v == "-m")
+                if(v == "--merger" || v == "-m")
                 {
-                    result["--merge"] = {};
+                    result["--merger"] = {};
                 }
 
                 if(v == "--pack" || v == "-p")
@@ -98,7 +98,7 @@ namespace args
                     printf("  -s, --splitter         Splits the files into multiple smaller files.\n"); 
                     printf("                         It deletes unnecesary entries, for example, from deleting a quest.\n");
                     printf("                         This option is done before merge.\n\n");
-                    printf("  -m, --merge            Merges files from the previous split. Fails if split wasn't done before\n\n");
+                    printf("  -m, --merger           Merges files from the previous split. Fails if split wasn't done before\n\n");
                     printf("  -l, --lang [Files]     Just split those langs instead of everything, can have .snbt on the end or not\n");
                     printf("                         For example, --lang en_us.snbt es_es pt_br\n\n");
                     printf("  -p, --pack             Pack the modpack into a distribution format that Curseforge can use. Also generate the server file if --mods it's present\n\n");

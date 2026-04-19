@@ -33,11 +33,11 @@ int main(int argc, char* argv[])
 
     if(args.result.contains("--generate")) gen::generate(args);
     if(args.result.contains("--splitter")) splitter::split(args);
-    if(args.result.contains("--merge")) merger::merge(args);
+    if(args.result.contains("--merger")) merger::merge(args);
     if(args.result.contains("--pack")) pack::pack(args);
 
     if(args.result.contains("--pack") || args.result.contains("--generate")||
-       args.result.contains("--merge") || args.result.contains("--splitter"))
+       args.result.contains("--merger") || args.result.contains("--splitter"))
     {
         return 0; //if we are using these, well, exit
     }
