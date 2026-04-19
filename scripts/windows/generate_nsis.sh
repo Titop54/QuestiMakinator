@@ -4,7 +4,11 @@ export PROJECT_NAME=$1
 export TARGET_DIST=$2
 export BUILD_TYPE=$3 # 'static' or 'dynamic'
 
-export OUTPUT_EXE="${PROJECT_NAME}-${BUILD_TYPE}-setup.exe"
+if [ "$BUILD_TYPE" = "dynamic" ]; then
+    export OUTPUT_EXE="${PROJECT_NAME}-installer-setup.exe"
+else
+    export OUTPUT_EXE="${PROJECT_NAME}-${BUILD_TYPE}-setup.exe"
+fi
 
 printf "  [NSIS] Generating Windows installer for %s build...\n" "$BUILD_TYPE"
 
