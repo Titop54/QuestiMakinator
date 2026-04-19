@@ -1,6 +1,9 @@
+#include "args/generate.h"
+#include "args/merger.h"
+#include "args/splitter.h"
+#include "args/pack.h"
 #include "parser/arguments.h"
-#include "parser/splitter.h"
-#include "parser/merger.h"
+
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
@@ -28,8 +31,16 @@ int main(int argc, char* argv[])
     args::parser args;
     args.parse_data(argc, argv);
 
-    if(args.result.contains("--splitter")) ftb_splitter::split(args);
-    if(args.result.contains("--merge")) ftb_merger::merge(args);
+    if(args.result.contains("--generate")) gen::generate(args);
+    if(args.result.contains("--splitter")) splitter::split(args);
+    if(args.result.contains("--merge")) merger::merge(args);
+    if(args.result.contains("--pack")) pack::pack(args);
+
+    if(args.result.contains("--pack") || args.result.contains("--generate")||
+       args.result.contains("--merge") || args.result.contains("--splitter"))
+    {
+        return 0; //if we are using these, well, exit
+    }
 
     std::ofstream crashFile("errors.txt");
     std::ofstream logFile("logs.txt");

@@ -13,7 +13,7 @@
 #include <vector>
 
 
-namespace ftb_splitter
+namespace splitter
 {
     namespace fs = std::filesystem;
 

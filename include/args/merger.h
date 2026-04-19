@@ -7,7 +7,7 @@
 #include <iostream>
 #include <ostream>
 
-namespace ftb_merger
+namespace merger
 {
     namespace fs = std::filesystem;
 

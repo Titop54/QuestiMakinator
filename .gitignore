@@ -11,3 +11,4 @@ img/**
 errors.txt
 logs.txt
 config/**
+output/**

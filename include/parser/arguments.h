@@ -71,6 +71,23 @@ namespace args
                     i++;
                 }
 
+                if(v == "--curseforge" || v == "-cf")
+                {
+                    result["--curseforge"] = {};
+                }
+
+                if(v == "--generate" || v == "-g")
+                {
+                    result["--generate"] = {};
+                }
+
+                if(v == "--mods" || v == "-md")
+                {
+                    if(argc <= i + 1) throw std::runtime_error("--mods needs a path to the mods");
+                    result["--mods"] = {argv[i + 1]};
+                    i++;
+                }
+
                 if(v == "--help" || v == "-h")
                 {
                     printf("Usage: %s [OPTIONS]\n\n", argv[0]);
@@ -84,7 +101,8 @@ namespace args
                     printf("  -m, --merge            Merges files from the previous split. Fails if split wasn't done before\n\n");
                     printf("  -l, --lang [Files]     Just split those langs instead of everything, can have .snbt on the end or not\n");
                     printf("                         For example, --lang en_us.snbt es_es pt_br\n\n");
-                    printf("  -p, --pack             Unused for now\n");
+                    printf("  -p, --pack             Pack the modpack into a distribution format that Curseforge can use\n\n");
+                    printf("  -cf, --curseforge      Instead of using mods.json, an JSON export from Prism Launcher, uses manisfest.json from CurseForge Launcher\n");
                     exit(0);
                 }
                 

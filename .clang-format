@@ -5,6 +5,8 @@ IndentWidth: 4
 UseTab: Never
 TabWidth: 4
 BreakBeforeBraces: Allman
+NamespaceIndentation: All
+IndentPPDirectives: BeforeHash
 SpaceAfterCStyleCast: false
 SpaceAfterLogicalNot: false
 SpaceBeforeAssignmentOperators: true
