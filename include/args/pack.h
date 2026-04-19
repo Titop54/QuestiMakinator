@@ -196,12 +196,36 @@ goto loop
 
     inline void generate_server_from_client(const std::string &name, const std::string &version, const std::string &loader_version, const fs::path &client_base_path)
     {
-        std::cout << "\nGenerating Server from Local Clientn";
-        std::string server_dir_name = name + "_Server_" + version;
-        fs::path server_dir = server_dir_name;
+        std::cout << "\nGenerating Server from Local Client\n";
+
+        std::string safe_name = name;
+        std::string safe_version = version;
+        std::replace(safe_name.begin(), safe_name.end(), '/', '_');
+        std::replace(safe_name.begin(), safe_name.end(), '\\', '_');
+        std::replace(safe_version.begin(), safe_version.end(), '/', '_');
+        std::replace(safe_version.begin(), safe_version.end(), '\\', '_');
+
+        std::string server_dir_name = safe_name + "_Server_" + safe_version;
+        fs::path server_dir = fs::absolute(server_dir_name).lexically_normal();
+
+        if(server_dir == server_dir.root_path())
+        {
+            std::cerr << "[FATAL] Root not allowed.\n";
+            return;
+        }
+
         fs::path server_mods_dir = server_dir / "mods";
 
-        fs::create_directories(server_mods_dir);
+        try
+        {
+            fs::create_directories(server_mods_dir);
+        }
+        catch(const fs::filesystem_error &e)
+        {
+            std::cerr << "[ERROR] Error while creating folder:\n"
+                      << e.what() << "\n";
+            return;
+        }
 
         std::cout << "Copying configurations (config, kubejs, defaultconfigs)...\n";
         std::vector<std::string> folders = {"config", "kubejs", "defaultconfigs"};
@@ -209,7 +233,14 @@ goto loop
         {
             if(fs::exists(folder))
             {
-                fs::copy(folder, server_dir / folder, fs::copy_options::recursive | fs::copy_options::overwrite_existing);
+                try
+                {
+                    fs::copy(folder, server_dir / folder, fs::copy_options::recursive | fs::copy_options::overwrite_existing);
+                }
+                catch(const std::exception &e)
+                {
+                    std::cerr << "[WARN] Error copying " << folder << ": " << e.what() << "\n";
+                }
             }
         }
 
@@ -264,9 +295,15 @@ goto loop
 
             if(is_client)
             {
-                fs::remove(entry.path());
-                std::cout << "    - Removed (Client-side): " << filename << "\n";
-                removed_count++;
+                try
+                {
+                    fs::remove(entry.path());
+                    std::cout << "    - Removed (Client-side): " << filename << "\n";
+                    removed_count++;
+                }
+                catch(...)
+                {
+                }
             }
         }
         std::cout << " -> " << removed_count << " client mods removed.\n";
@@ -311,19 +348,34 @@ goto loop
         std::system(zip_cmd.c_str());
 
         std::cout << "Cleaning up temporary server folder...\n";
-        fs::remove_all(server_dir);
+        try
+        {
+            fs::remove_all(server_dir);
+        }
+        catch(const fs::filesystem_error &e)
+        {
+            std::cerr << "[WARN] Couldn't clean up temp folder: " << e.what() << "\n";
+        }
         std::cout << "\n -> Server pack successfully created as '" << server_dir_name << ".zip'!\n";
     }
 
     inline void pack(args::parser args)
     {
         bool has_cf = args.result.contains("--curseforge");
-        fs::path base_path = args.result.contains("--path") ? args.result["--path"][0] : ".";
+
+        fs::path raw_path = args.result.contains("--path") ? args.result["--path"][0] : ".";
+        fs::path base_path = fs::absolute(raw_path).lexically_normal();
+
+        if(base_path == base_path.root_path())
+        {
+            std::cerr << "[FATAL] Root path not allowed (" << base_path << ")\n";
+            return;
+        }
 
         std::ifstream info_file(base_path / "info.json");
         if(!info_file.is_open())
         {
-            std::cerr << "[ERROR] info.json not found.\n";
+            std::cerr << "[ERROR] info.json not found in " << base_path << ".\n";
             return;
         }
 
@@ -347,15 +399,23 @@ goto loop
         #endif
 
         auto old_path = fs::current_path();
-        fs::current_path(base_path);
+
+        try
+        {
+            fs::current_path(base_path);
+        }
+        catch(const fs::filesystem_error &e)
+        {
+            std::cerr << "[ERROR] Couldn't access the folder (" << base_path << "):\n"
+                      << e.what() << "\n";
+            return;
+        }
 
         std::cout << "\nStarting Packwiz\n";
         std::string author = ij.value("author", "Auto-Generator");
 
         if(!fs::exists("pack.toml"))
         {
-            std::string author = ij.value("author", "Auto-Generator");
-
             std::string init = pw + " init" +
                                " --name \"" + pack_info.name + "\"" +
                                " --version \"" + pack_info.version + "\"" +
@@ -370,14 +430,14 @@ goto loop
         else
         {
             std::cout << "\nPackwiz already started, deleting cache files!\n";
-            if(fs::exists("index.toml"))
+            try
             {
-                fs::remove("index.toml");
+                if(fs::exists("index.toml")) fs::remove("index.toml");
                 std::ofstream("index.toml", std::ios::out);
             }
-            else
+            catch(const fs::filesystem_error &e)
             {
-                std::ofstream("index.toml", std::ios::out);
+                std::cerr << "[WARN] Error creating index.toml: " << e.what() << "\n";
             }
         }
 
@@ -479,8 +539,9 @@ goto loop
 
         if(args.result.contains("--mods") && !args.result["--mods"].empty())
         {
-            std::string mods_path = args.result["--mods"][0];
-            generate_server_from_client(pack_info.name, pack_info.version, pack_info.loader_version, mods_path);
+            std::string mods_path_raw = args.result["--mods"][0];
+            fs::path safe_mods_path = fs::absolute(mods_path_raw).lexically_normal();
+            generate_server_from_client(pack_info.name, pack_info.version, pack_info.loader_version, safe_mods_path);
         }
         else
         {

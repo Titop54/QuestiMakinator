@@ -168,8 +168,16 @@ namespace gen
 
     inline void generate(args::parser args)
     {
-        fs::path base_path = args.result.contains("--path") ? args.result["--path"][0] : ".";
+        fs::path raw_path = args.result.contains("--path") ? args.result["--path"][0] : ".";
+        fs::path base_path = fs::absolute(raw_path).lexically_normal();
+        
         bool has_cf = args.result.contains("--curseforge");
+
+        if (base_path == base_path.root_path())
+        {
+            std::cout << "[FATAL] You can't use root path (" << base_path << ")\n";
+            return;
+        }
 
         handle_git_clone(base_path);
 
@@ -179,13 +187,21 @@ namespace gen
         for(const auto &dir : volatile_dirs)
         {
             fs::path p = base_path / dir;
-            if(fs::exists(p))
+            try 
             {
-                fs::remove_all(p);
-                std::cout << "[INFO] Folder deleted: " << dir << "\n";
+                if(fs::exists(p))
+                {
+                    fs::remove_all(p);
+                    std::cout << "[INFO] Folder deleted: " << dir << "\n";
+                }
+                fs::create_directories(p);
+                std::cout << "[INFO] Folder created: " << dir << "\n";
             }
-            fs::create_directories(p);
-            std::cout << "[INFO] Folder created: " << dir << "\n";
+            catch (const fs::filesystem_error& e)
+            {
+                std::cout << "[ERROR] Problems deleting folder '" << dir << "':\n" << e.what() << "\n";
+                return;
+            }
         }
 
         std::vector<std::string> persistent_dirs = {"config", "defaultconfigs", "changelogs", "kubejs"};
