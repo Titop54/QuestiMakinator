@@ -101,8 +101,11 @@ namespace args
                     printf("  -m, --merge            Merges files from the previous split. Fails if split wasn't done before\n\n");
                     printf("  -l, --lang [Files]     Just split those langs instead of everything, can have .snbt on the end or not\n");
                     printf("                         For example, --lang en_us.snbt es_es pt_br\n\n");
-                    printf("  -p, --pack             Pack the modpack into a distribution format that Curseforge can use\n\n");
+                    printf("  -p, --pack             Pack the modpack into a distribution format that Curseforge can use. Also generate the server file if --mods it's present\n\n");
                     printf("  -cf, --curseforge      Instead of using mods.json, an JSON export from Prism Launcher, uses manisfest.json from CurseForge Launcher\n");
+                    printf("  -g,  --generate        Generates the server environment and startup scripts.\n\n");
+                    printf("  -md, --mods [Path]     Path to the client instance base folder to generate the server from.\n");
+                    printf("                         It will automatically look for the 'mods' subfolder inside this path.\n\n");
                     exit(0);
                 }
                 
