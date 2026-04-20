@@ -4,15 +4,15 @@
 #include <string>
 #include <vector>
 
-//Based on https://github.com/ocornut/imgui/issues/718
+// Based on https://github.com/ocornut/imgui/issues/718
 
-inline void drawMenu(const std::string &label,
-                     const std::vector<std::string> &candidates,
-                     std::string &current_value,
-                     std::function<void(std::string)> on_select)
+inline void draw_search_bar(const std::string& label,
+    const std::vector<std::string>& candidates,
+    std::string& current_value,
+    std::function<void(std::string)> on_select)
 {
     bool is_empty = current_value.empty();
-    const char *preview = is_empty ? "Select an ID to display..." : current_value.c_str();
+    const char* preview = is_empty ? "Select an element..." : current_value.c_str();
 
     if(is_empty)
     {
@@ -41,7 +41,7 @@ inline void drawMenu(const std::string &label,
             ImGui::SetKeyboardFocusHere(-1);
 
         int displayed_count = 0;
-        for(const std::string &candidate : candidates)
+        for(const std::string& candidate : candidates)
         {
             if(displayed_count >= 50)
                 break;
