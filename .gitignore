@@ -12,3 +12,5 @@ errors.txt
 logs.txt
 config/**
 output/**
+settings.json
+colors.json
