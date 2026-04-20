@@ -2,6 +2,7 @@
 #include "args/merger.h"
 #include "args/splitter.h"
 #include "args/pack.h"
+#include "gui/display/settings.h"
 #include "parser/arguments.h"
 
 #include <cstddef>
@@ -65,8 +66,6 @@ int main(int argc, char* argv[])
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
-    (void)io;
 
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
@@ -76,18 +75,19 @@ int main(int argc, char* argv[])
 
     int selected_option = 0;
 
-    ImGuiStyle& style = ImGui::GetStyle();
-    style.Colors[ImGuiCol_WindowBg] = ImVec4(0.0f, 0.0f, 0.1f, 0.9f);
-    style.Colors[ImGuiCol_TitleBg] = ImVec4(0.0f, 0.5f, 0.8f, 1.0f);
-    style.Colors[ImGuiCol_Button] = ImVec4(0.0f, 0.6f, 0.8f, 1.0f);
-    style.Colors[ImGuiCol_ButtonHovered] = ImVec4(0.0f, 0.7f, 1.0f, 1.0f);
-    style.Colors[ImGuiCol_Text] = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
-    style.WindowRounding = 0.0f;
-    style.FrameBorderSize = 1.0f;
-    style.FrameRounding = 0.0f;
+    settings::load();
 
-    float zoom_factor = 1.0f;
-    io.FontGlobalScale = zoom_factor;
+    ImGuiIO& io = ImGui::GetIO();
+    if(!settings::current.font_path.empty())
+    {
+        io.Fonts->AddFontFromFileTTF(settings::current.font_path.c_str(), 18.0f);
+    }
+    else
+    {
+        io.Fonts->AddFontDefault(); 
+    }
+
+    settings::apply_to_imgui(settings::saved);
 
     double lastTime = glfwGetTime();
 
@@ -97,26 +97,8 @@ int main(int argc, char* argv[])
         { "Underline", "&n", "Underlined text (&n)", "&r" },
         { "Strikethrough", "&m", "Strikethrough text (&m)", "&r" },
         { "Reset", "&r", "Reset formatting (&r)" },
-        { "Obfuscated", "&k", "Obfuscated text (&k)", "&r" }
-    };
-
-    std::vector<Button> basicColors = {
-        { "Black (&0)", "&0", "Black color (&0)", "&r" },
-        { "Dark Blue (&1)", "&1", "Dark blue color (&1)", "&r" },
-        { "Dark Green (&2)", "&2", "Dark green color (&2)", "&r" },
-        { "Light Blue (&3)", "&3", "Light blue color (&3)", "&r" },
-        { "Red (&4)", "&4", "Red color (&4)", "&r" },
-        { "Purple (&5)", "&5", "Purple color (&5)", "&r" },
-        { "Orange (&6)", "&6", "Orange color (&6)", "&r" },
-        { "Light Gray (&7)", "&7", "Light gray color (&7)", "&r" },
-        { "Gray (&8)", "&8", "Gray color (&8)", "&r" },
-        { "Blue (&9)", "&9", "Blue color (&9)", "&r" },
-        { "Light Green (&a)", "&a", "Light green color (&a)", "&r" },
-        { "Aqua (&b)", "&b", "Aqua color (&b)", "&r" },
-        { "Light Red (&c)", "&c", "Light red color (&c)", "&r" },
-        { "Pink (&d)", "&d", "Pink color (&d)", "&r" },
-        { "Yellow (&e)", "&e", "Yellow color (&e)", "&r" },
-        { "White (&f)", "&f", "White color (&f)", "&r" }
+        { "Obfuscated", "&k", "Obfuscated text (&k)", "&r" },
+        { "Rainbow", "&z", "Gradient using the rainbow (1.21.1+ only) (&z)", "&r" }
     };
 
     std::vector<Button> specialActions = {
@@ -161,6 +143,7 @@ int main(int argc, char* argv[])
         { "Convert", "", "Convert text to JSON format and copy to clipboard" },
         { "Copy Text Output", "", "Copy converted text to clipboard" },
         { "Reload Minecraft (Not yet)", "", "Reload Minecraft scripts (requires KubeJS)" },
+        { "Settings", "", "Open appearance settings" },
         { "Exit", "", "Close the application" }
     };
 
@@ -203,28 +186,6 @@ int main(int argc, char* argv[])
                 }
             }
             ImGui::NewLine();
-            ImGui::NewLine();
-
-            ImGui::Text("Basic Colors:");
-            for(size_t i = 0; i < basicColors.size(); ++i)
-            {
-                auto& data = basicColors[i];
-
-                generateSlowedButton(field, data);
-
-                if((i + 1) % 3 != 0 && i < basicColors.size() - 1)
-                {
-                    ImGui::SameLine();
-                }
-                else if(i < basicColors.size() - 1)
-                {
-                    ImGui::NewLine();
-                    ImGui::NewLine();
-                }
-            }
-
-            ImGui::NewLine();
-            ImGui::NewLine();
 
             ImGui::Text("Special Actions:");
             for(size_t i = 0; i < specialActions.size(); ++i)
@@ -238,7 +199,6 @@ int main(int argc, char* argv[])
                     ImGui::SameLine();
                 }
             }
-            ImGui::NewLine();
             ImGui::NewLine();
 
             ImGui::Text("Hover Effects:");
@@ -254,7 +214,6 @@ int main(int argc, char* argv[])
                 }
             }
             ImGui::NewLine();
-            ImGui::NewLine();
 
             ImGui::Text("Mod Effects:");
             for(size_t i = 0; i < modEffects.size(); i++)
@@ -267,13 +226,11 @@ int main(int argc, char* argv[])
                 {
                     ImGui::SameLine();
                 }
-                else if(i < basicColors.size() - 1)
+                else if(i < modEffects.size() - 1)
                 {
-                    ImGui::NewLine();
                     ImGui::NewLine();
                 }
             }
-            ImGui::NewLine();
             ImGui::NewLine();
             ImGui::Separator();
 
@@ -328,13 +285,18 @@ int main(int argc, char* argv[])
             ImGui::SameLine();
 
             generateSlowedButton(actionButtons[action_idx++], [&]() {
+                settings::show_menu = !settings::show_menu;
+            });
+            ImGui::SameLine();
+
+            generateSlowedButton(actionButtons[action_idx++], [&]() {
                 glfwSetWindowShouldClose(window, GLFW_TRUE);
             });
-            ImGui::NewLine();
+
             ImGui::NewLine();
             ImGui::Separator();
 
-            ImGui::SliderFloat("Zoom level", &io.FontGlobalScale, 1, 4);
+            settings::draw_menu();
             ImGui::SameLine();
 
             ImGui::End();
