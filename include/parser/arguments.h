@@ -88,24 +88,58 @@ namespace args
                     i++;
                 }
 
+                if(v == "--json" || v == "-j")
+                {
+                    result["--json"] = {};
+                }
+
+                if(v == "--convert" || v == "-c")
+                {
+                    result["--convert"] = {};
+                }
+
                 if(v == "--help" || v == "-h")
                 {
                     printf("Usage: %s [OPTIONS]\n\n", argv[0]);
                     printf("Options:\n");
-                    printf("  -h, --help             Show this help message and exits.\n\n");
-                    printf("  -pt, --path            Path to the root folder, where config folder is located.\n\n");
-                    printf("                         If no path it's selected, it will search in this folder\n\n");
-                    printf("  -s, --splitter         Splits the files into multiple smaller files.\n"); 
-                    printf("                         It deletes unnecesary entries, for example, from deleting a quest.\n");
-                    printf("                         This option is done before merge.\n\n");
-                    printf("  -m, --merger           Merges files from the previous split. Fails if split wasn't done before\n\n");
-                    printf("  -l, --lang [Files]     Just split those langs instead of everything, can have .snbt on the end or not\n");
-                    printf("                         For example, --lang en_us.snbt es_es pt_br\n\n");
-                    printf("  -p, --pack             Pack the modpack into a distribution format that Curseforge can use. Also generate the server file if --mods it's present\n\n");
-                    printf("  -cf, --curseforge      Instead of using mods.json, an JSON export from Prism Launcher, uses manisfest.json from CurseForge Launcher\n");
-                    printf("  -g,  --generate        Generates the server environment and startup scripts.\n\n");
-                    printf("  -md, --mods [Path]     Path to the client instance base folder to generate the server from.\n");
-                    printf("                         It will automatically look for the 'mods' subfolder inside this path.\n\n");
+                    printf("  -h,  --help             Show this help message and exit.\n\n");
+
+                    printf("  -pt, --path [Path]      Path to the root folder where the 'config' folder is located.\n");
+                    printf("                          Defaults to the current directory if not specified.\n\n");
+
+                    printf("  -s,  --splitter         Splits large quest lang files into multiple smaller files.\n"); 
+                    printf("                          Cleans up obsolete entries (e.g., from deleted quests).\n");
+                    printf("                          Should be executed before merging.\n\n");
+
+                    printf("  -m,  --merger           Merges previously split files back into a single lang file.\n");
+                    printf("                          Requires a valid 'split' directory structure.\n\n");
+
+                    printf("  -l,  --lang [Files]     Filter specific languages to process instead of all.\n");
+                    printf("                          Example: --lang en_us.snbt es_es pt_br\n\n");
+
+                    printf("  -j,  --json             Output/Export mode: Generates .json files instead of .snbt.\n");
+                    printf("                          When splitting: Saves the chunks as JSON.\n");
+                    printf("                          When merging: Generates the final lang file as JSON.\n\n");
+
+                    printf("  -c,  --convert          Input/Source mode: Reads .json files instead of .snbt.\n");
+                    printf("                          When splitting: Looks for .json sources in the lang/chapters folders.\n");
+                    printf("                          When merging: Looks for .json chunks in the split folder.\n\n");
+
+                    printf("  -p,  --pack             Pack the modpack into a CurseForge-ready distribution format.\n");
+                    printf("                          Generates server files if --mods is also present.\n\n");
+
+                    printf("  -cf, --curseforge       Use 'manifest.json' (CurseForge) instead of 'mods.json' (Prism Launcher).\n\n");
+
+                    printf("  -g,  --generate         Generates the server environment and startup scripts.\n\n");
+
+                    printf("  -md, --mods [Path]      Path to the client instance base folder for server generation.\n");
+                    printf("                          The tool will automatically locate the 'mods' subfolder.\n\n");
+                    
+                    printf("Order of execution, regardless of order:\n");
+                    printf("  1. --generate   (Set up the environment)\n");
+                    printf("  2. --splitter   (Extract and clean data)\n");
+                    printf("  3. --merger     (Reassemble modified data)\n");
+                    printf("  4. --pack       (Finalize for distribution)\n\n");
                     exit(0);
                 }
                 

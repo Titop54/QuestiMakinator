@@ -12,12 +12,11 @@
 #include <string>
 #include <vector>
 
-
 namespace splitter
 {
     namespace fs = std::filesystem;
 
-    inline void construct_folder_and_files(const fs::path& path, std::vector<std::string>& paths)
+    inline void construct_folder_and_files(const fs::path& path, std::vector<std::string>& paths, bool use_json)
     {
         std::string destination = path.parent_path().parent_path().string() + "/split/" + path.stem().string();
         if(fs::exists(destination)) //clean
@@ -36,9 +35,11 @@ namespace splitter
             "task"
         };
 
+        std::string ext = use_json ? ".json" : ".snbt";
+
         for(auto& relative : names)
         {
-            std::string file_path = destination + "/misc/" + relative + ".snbt";
+            std::string file_path = destination + "/misc/" + relative + ext;
             std::ofstream file;
             file.open(file_path, std::ios::out);
             file.close();
@@ -52,10 +53,15 @@ namespace splitter
         std::cout << message << std::endl;
     }
 
-    inline void read_and_split(const fs::path& path)
+    inline void close(std::string message)
     {
-        // std::cout << path.has_extension() << "\n" << std::endl;
-        if(!path.has_extension() || !path.extension().string().ends_with(".snbt"))
+        std::cout << message << std::endl;
+    }
+
+    inline void read_and_split(const fs::path& path, bool use_json, bool convert)
+    {
+        std::string expected_ext = convert ? ".json" : ".snbt";
+        if(!path.has_extension() || !path.extension().string().ends_with(expected_ext))
         {
             std::cout << "Not a valid file\n" << std::endl;
             return;
@@ -65,28 +71,43 @@ namespace splitter
         snbt::Tag tag;
         snbt::Compound comp;
 
-        tag = parser.parse(path.string(), true);
+        if(convert)
+        {
+            std::ifstream ifs(path);
+            nlohmann::json j = nlohmann::json::parse(ifs);
+            tag = snbt::json_to_tag(j);
+        }
+        else
+        {
+            tag = parser.parse(path.string(), true);
+        }
 
         if(tag.type != snbt::Tag::Type::Compound)
         {
-            close("No a valid quest file lang\n", parser);
+            if(convert) close("No a valid quest file lang\n");
+            else close("No a valid quest file lang\n", parser);
             return;
         }
 
         comp = std::get<snbt::Compound>(tag.value);
 
-        if(!parser.has_content()) //we are cooking
+        if(!convert && !parser.has_content())
         {
             close("Empty file with quests\n", parser);
         }
+        else if(convert && comp.empty())
+        {
+            close("Empty file with quests\n");
+        }
 
         std::vector<std::string> paths;
-        construct_folder_and_files(path,paths);
+        construct_folder_and_files(path, paths, use_json);
         std::string quests = path.parent_path().parent_path().string() + "/chapters";
 
         if(!fs::exists(quests))
         {
-            close("No quests to examine\n", parser);
+            if(convert) close("No quests to examine\n");
+            else close("No quests to examine\n", parser);
             return;
         }
 
@@ -107,31 +128,46 @@ namespace splitter
                 continue;
             }
 
-            if(file.path().extension().string() != ".snbt")
+            if(file.path().extension().string() != expected_ext)
             {
                 continue;
             }
 
-            snbt::SnbtParser p(file);
-            auto quest = p.get_tag();
+            snbt::SnbtParser p;
+            snbt::Tag quest;
+
+            if(convert)
+            {
+                std::ifstream ifs(file.path());
+                nlohmann::json j = nlohmann::json::parse(ifs);
+                quest = snbt::json_to_tag(j);
+            }
+            else
+            {
+                p = snbt::SnbtParser(file);
+                quest = p.get_tag();
+            }
 
             if(quest.type != snbt::Tag::Type::Compound)
             {
-                close("Not a valid quest\n", p);
+                if(convert) close("Not a valid quest\n");
+                else close("Not a valid quest\n", p);
                 continue;
             }
 
             snbt::Compound q = std::get<snbt::Compound>(quest.value);
             if(!q.contains("quests"))
             {
-                close("There is no quests\n", p);
+                if(convert) close("There is no quests\n");
+                else close("There is no quests\n", p);
                 continue;
             }
 
             auto qs = q["quests"];
             if(qs.type != snbt::Tag::Type::List)
             {
-                close("Not a list\n", p);
+                if(convert) close("Not a list\n");
+                else close("Not a list\n", p);
                 continue;
             }
 
@@ -144,10 +180,12 @@ namespace splitter
             {
                 fs::create_directories(output_dir);
             }
+            
             std::ofstream of;
-            of.open((output_dir + file.path().stem().string() + file.path().extension().string()), std::ios::out);
+            std::string out_ext = use_json ? ".json" : file.path().extension().string();
+            of.open((output_dir + file.path().stem().string() + out_ext), std::ios::out);
 
-            for(auto& individial : list) //get each individial quest
+            for(auto& individial : list)
             {
                 if(individial.type != snbt::Tag::Type::Compound)
                 {
@@ -178,14 +216,23 @@ namespace splitter
                 {
                     text_to_write[description] = comp[description];
                 }
-
             }
 
             snbt::Tag tag_to_write(text_to_write);
-            tag_to_write.print(of, 4);
+            if(use_json)
+            {
+                tag_to_write.to_json(of, 0, 4);
+            }
+            else
+            {
+                tag_to_write.print(of, 4);
+            }
             of.close();
 
-            p.close();
+            if(!convert)
+            {
+                p.close();
+            }
         }
 
         std::vector<snbt::Compound> files_to_handle = {
@@ -242,19 +289,33 @@ namespace splitter
             f.open(pth, std::ios::out);
             snbt::Tag tag(files_to_handle[counter]);
             counter++;
-            tag.print(f, 4);
+            if(use_json)
+            {
+                tag.to_json(f, 0, 4);
+            }
+            else
+            {
+                tag.print(f, 4);
+            }
             f.close();
         }
 
-        parser.close();
-        
+        if(!convert)
+        {
+            parser.close();
+        }
     }
 
     inline void split(args::parser args)
     {
+        bool use_json = args.result.contains("--json");
+        bool convert = args.result.contains("--convert");
+
         std::string path = args.result.contains("--path") ? args.result["--path"][0] : ".";
         path += "/config/ftbquests/quests/lang";
+        
         if(!fs::exists(path)) return;
+        
         for(auto& file : fs::directory_iterator(path))
         {
             if(file.is_regular_file())
@@ -265,13 +326,13 @@ namespace splitter
                     {
                         if(file.path().stem().string().contains(lang))
                         {
-                            read_and_split(file.path());
+                            read_and_split(file.path(), use_json, convert);
                         }
                     }
                     continue;
                 }
                 //We dont have the --lang flag, so we dont care 
-                read_and_split(file.path());
+                read_and_split(file.path(), use_json, convert);
             }
         }
     }

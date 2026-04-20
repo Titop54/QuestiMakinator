@@ -188,6 +188,168 @@ namespace snbt
             }
         }
 
+        void to_json(std::ostream& os = std::cout, int indent_level = 0, int indent_spaces = 4) const
+        {
+            std::string indent(indent_level * indent_spaces, ' ');
+            std::string next_indent((indent_level + 1) * indent_spaces, ' ');
+
+            switch (type)
+            {
+                case Type::End:
+                    os << "null";
+                    break;
+
+                case Type::Byte:
+                    os << static_cast<int>(std::get<Byte>(value));
+                    break;
+                case Type::Short:
+                    os << std::get<Short>(value);
+                    break;
+                case Type::Int:
+                    os << std::get<Int>(value);
+                    break;
+                case Type::Long:
+                    os << std::get<Long>(value);
+                    break;
+                case Type::Float:
+                    os << std::get<Float>(value);
+                    break;
+                case Type::Double:
+                    os << std::get<Double>(value);
+                    break;
+                case Type::Boolean:
+                    os << (std::get<Boolean>(value) ? "true" : "false");
+                    break;
+
+                case Type::String:
+                {
+                    os << "\"";
+                    const std::string& str = std::get<String>(value);
+                    for (char c : str)
+                    {
+                        switch (c)
+                        {
+                        case '"':  os << "\\\""; break;
+                        case '\\': os << "\\\\"; break;
+                        case '\b': os << "\\b";  break;
+                        case '\f': os << "\\f";  break;
+                        case '\n': os << "\\n";  break;
+                        case '\r': os << "\\r";  break;
+                        case '\t': os << "\\t";  break;
+                        default:   os << c;      break;
+                        }
+                    }
+                    os << "\"";
+                    break;
+                }
+
+                case Type::List:
+                {
+                    const auto& list = std::get<List>(value);
+                    if (list.empty())
+                    {
+                        os << "[]";
+                        return;
+                    }
+                    os << "[\n";
+                    for (size_t i = 0; i < list.size(); ++i)
+                    {
+                        os << next_indent;
+                        list[i].to_json(os, indent_level + 1, indent_spaces);
+                        if (i != list.size() - 1)
+                            os << ",";
+                        os << "\n";
+                    }
+                    os << indent << "]";
+                    break;
+                }
+
+                case Type::Compound:
+                {
+                    const auto& comp = std::get<Compound>(value);
+                    if (comp.empty())
+                    {
+                        os << "{}";
+                        return;
+                    }
+                    os << "{\n";
+                    size_t count = 0;
+                    for (const auto& [key, tag] : comp)
+                    {
+                        os << next_indent << "\"" << key << "\": ";
+                        tag.to_json(os, indent_level + 1, indent_spaces);
+                        if (++count < comp.size())
+                            os << ",";
+                        os << "\n";
+                    }
+                    os << indent << "}";
+                    break;
+                }
+
+                case Type::ByteArray:
+                {
+                    const auto& arr = std::get<ByteArray>(value);
+                    if (arr.empty())
+                    {
+                        os << "[]";
+                        return;
+                    }
+                    os << "[\n";
+                    for (size_t i = 0; i < arr.size(); ++i)
+                    {
+                        os << next_indent << static_cast<int>(arr[i]);
+                        if (i != arr.size() - 1)
+                            os << ",";
+                        os << "\n";
+                    }
+                    os << indent << "]";
+                    break;
+                }
+                case Type::IntArray:
+                {
+                    const auto& arr = std::get<IntArray>(value);
+                    if (arr.empty())
+                    {
+                        os << "[]";
+                        return;
+                    }
+                    os << "[\n";
+                    for (size_t i = 0; i < arr.size(); ++i)
+                    {
+                        os << next_indent << arr[i];
+                        if (i != arr.size() - 1)
+                            os << ",";
+                        os << "\n";
+                    }
+                    os << indent << "]";
+                    break;
+                }
+                case Type::LongArray:
+                {
+                    const auto& arr = std::get<LongArray>(value);
+                    if (arr.empty())
+                    {
+                        os << "[]";
+                        return;
+                    }
+                    os << "[\n";
+                    for (size_t i = 0; i < arr.size(); ++i)
+                    {
+                        os << next_indent << arr[i];
+                        if (i != arr.size() - 1)
+                            os << ",";
+                        os << "\n";
+                    }
+                    os << indent << "]";
+                    break;
+                }
+
+                default:
+                    os << "null";
+                    break;
+            }
+        }
+
         bool empty() const
         {
             return type == Type::End;
@@ -597,4 +759,74 @@ namespace snbt
         }
     };
 
+    inline Tag json_to_tag(const nlohmann::json& j)
+    {
+        switch(j.type())
+        {
+            case nlohmann::json::value_t::null:
+                return Tag();
+
+            case nlohmann::json::value_t::boolean:
+                return Tag(j.get<bool>());
+
+            case nlohmann::json::value_t::number_integer:
+            case nlohmann::json::value_t::number_unsigned:
+            {
+                    
+                int64_t val = j.get<int64_t>();
+                if(val >= std::numeric_limits<Int>::min() && val <= std::numeric_limits<Int>::max())
+                {
+                    return Tag(static_cast<Int>(val));
+                }     
+                else
+                {
+                    return Tag(static_cast<Long>(val));
+                }
+            }
+
+            case nlohmann::json::value_t::number_float:
+                return Tag(j.get<double>());
+
+            case nlohmann::json::value_t::string:
+                return Tag(j.get<std::string>());
+
+            case nlohmann::json::value_t::array:
+            {
+                List list;
+                for(const auto& elem : j)
+                {
+                    list.emplace_back(json_to_tag(elem));
+                }
+                        
+                return Tag(list);
+            }
+
+            case nlohmann::json::value_t::object:
+            {
+                Compound compound;
+                for(auto it = j.begin(); it != j.end(); it++)
+                {
+                    Tag valueTag = json_to_tag(it.value());
+                    if(!valueTag.empty())
+                    {
+                        compound[it.key()] = std::move(valueTag);
+                    }
+                }
+                return Tag(compound);
+            }
+
+            default:
+                return Tag();
+        }
+    }
+
+    inline std::string json_to_tag(const std::string& jsonString)
+    {
+        nlohmann::json jsonObj = nlohmann::json::parse(jsonString);
+        Tag root = json_to_tag(jsonObj);
+
+        std::ostringstream oss;
+        root.print(oss, 4, false);
+        return oss.str();
+    }
 }

@@ -3,6 +3,7 @@
 #include "parser/snbt.h"
 #include <cstddef>
 #include <filesystem>
+#include <fstream>
 #include <ios>
 #include <iostream>
 #include <ostream>
@@ -11,13 +12,12 @@ namespace merger
 {
     namespace fs = std::filesystem;
 
-    inline void read_and_split(const fs::path& path)
+    inline void read_and_split(const fs::path& path, bool use_json, bool convert)
     {
         snbt::Compound merge;
         std::string lang_name = path.stem().string();
-        //files to check
 
-        std::vector<std::string> names = { //different type
+        std::vector<std::string> names = {
             "file",
             "chapter",
             "chapter_group",
@@ -31,6 +31,9 @@ namespace merger
             if(file.is_directory()) continue;
             if(!file.path().has_stem()) continue;
 
+            std::string expected_ext = convert ? ".json" : ".snbt";
+            if(!file.path().has_extension() || file.path().extension().string() != expected_ext) continue;
+
             for(size_t i = 0; i < names.size(); i++)
             {
                 if(names[i] == file.path().stem().string())
@@ -40,14 +43,25 @@ namespace merger
                 }
             }
 
-            snbt::SnbtParser parser(file);
-            snbt::Compound parsed_elements = parser.get_tag().cast<snbt::Compound>();
+            snbt::Compound parsed_elements;
+
+            if(convert)
+            {
+                std::ifstream ifs(file.path());
+                nlohmann::json j = nlohmann::json::parse(ifs);
+                parsed_elements = snbt::json_to_tag(j).cast<snbt::Compound>();
+            }
+            else
+            {
+                snbt::SnbtParser parser(file);
+                parsed_elements = parser.get_tag().cast<snbt::Compound>();
+                parser.close();
+            }
 
             for(auto& element : parsed_elements)
             {
                 merge[element.first] = element.second;
             }
-            parser.close();
         }
 
         for(size_t i = 0; i < names.size(); i++)
@@ -65,16 +79,25 @@ namespace merger
             fs::create_directory(parent);
         }
 
-        std::ofstream file;
-        std::string file_name = parent + lang_name + ".snbt";
+        std::string out_ext = use_json ? ".json" : ".snbt";
+        std::string file_name = parent + lang_name + out_ext;
         
         if(fs::exists(file_name))
         {
             fs::remove(file_name);
         }
 
+        std::ofstream file;
         file.open(file_name, std::ios::out);
-        snbt::Tag(merge).print(file, 4, false);
+        
+        if(use_json)
+        {
+            snbt::Tag(merge).to_json(file, 0, 4);
+        }
+        else
+        {
+            snbt::Tag(merge).print(file, 4, false);
+        }
         
         file.close();
         merge.clear();
@@ -82,6 +105,9 @@ namespace merger
 
     inline void merge(args::parser args)
     {
+        bool use_json = args.result.contains("--json");
+        bool convert = args.result.contains("--convert");
+
         std::string path = args.result.contains("--path") ? args.result["--path"][0] : ".";
         path += "/config/ftbquests/quests/split";
         
@@ -93,7 +119,7 @@ namespace merger
 
         for(auto& file : fs::directory_iterator(path))
         {
-            read_and_split(file.path());
+            read_and_split(file.path(), use_json, convert);
         }
     }
 }
