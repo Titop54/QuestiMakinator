@@ -92,7 +92,7 @@ void KubeJSImageBrowser::render()
         return;
     }
 
-    drawMenu("Item / Block ID", validIds, idInputBuffer, [this](std::string s) {
+    draw_search_bar("Item / Block ID", validIds, idInputBuffer, [this](std::string s) {
         try
         {
             loadImage(s);
@@ -138,7 +138,7 @@ void KubeJSImageBrowser::render()
             {
                 currentAnimation->isPlaying = !currentAnimation->isPlaying;
             }
-            ImGui::SameLine();
+            ImGui::NewLine();
             if(ImGui::Button("Reset"))
             {
                 currentAnimation->currentTick = 0;
