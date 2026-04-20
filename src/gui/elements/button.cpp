@@ -1,4 +1,4 @@
-#include "gui/display/button_slow_tooltip.h"
+#include "gui/elements/button.h"
 #include <functional>
 #include <imgui.h>
 
@@ -33,36 +33,36 @@ bool ShowDelayedTooltip(Tooltip& state, std::string desc)
     return showTooltip;
 }
 
-bool generateSlowedButton(TextField& editorState, Button& data)
+bool generateSlowedButton(TextField& field, Button& button)
 {
     bool clicked = false;
     ImVec2 original_position = ImGui::GetCursorPos();
-    if(data.pos.does_work())
+    if(button.pos.does_work())
     {
-        ImGui::SetCursorPos(data.pos.vector());
+        ImGui::SetCursorPos(button.pos.vector());
     }
     
-    if(ImGui::Button(data.label.data(), data.size.vector()))
+    if(ImGui::Button(button.label.data(), button.size.vector()))
     {
-        editorState.text = editorState.wrapSelection(data.prefix, data.ending);
+        field.wrapSelection(button.prefix, button.ending);
         clicked = true;
     }
-    ShowDelayedTooltip(data.state, data.tooltip);
+    ShowDelayedTooltip(button.state, button.tooltip);
     ImGui::SetCursorPos(original_position);
 
     return clicked;
 }
 
-bool generateSlowedButton(Button& data, std::function<void()> onClickAction)
+bool generateSlowedButton(Button& button, std::function<void()> onClickAction)
 {
     bool clicked = false;
     ImVec2 original_position = ImGui::GetCursorPos();
-    if(data.pos.does_work())
+    if(button.pos.does_work())
     {
-        ImGui::SetCursorPos(data.pos.vector());
+        ImGui::SetCursorPos(button.pos.vector());
     }
 
-    if(ImGui::Button(data.label.data(), data.size.vector()))
+    if(ImGui::Button(button.label.data(), button.size.vector()))
     {
         if(onClickAction)
         {
@@ -70,7 +70,7 @@ bool generateSlowedButton(Button& data, std::function<void()> onClickAction)
         }
         clicked = true;
     }
-    ShowDelayedTooltip(data.state, data.tooltip);
+    ShowDelayedTooltip(button.state, button.tooltip);
     ImGui::SetCursorPos(original_position);
     
     return clicked;

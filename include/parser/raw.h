@@ -9,33 +9,17 @@
 #include <cctype>
 #include <iomanip>
 #include <sstream>
+
+#include <gui/display/colors.h>
+
 namespace raw
 {
-
-    // Tabla de códigos de color hexadecimales
-    static const std::string COLOR_CODES[16] = {
-            "#000000", "#0000AA", "#00AA00", "#00AAAA", "#AA0000", "#AA00AA", 
-            "#FFAA00", "#AAAAAA", "#555555", "#5555FF", "#55FF55", "#55FFFF", 
-            "#FF5555", "#FF55FF", "#FFFF55", "#FFFFFF"
-    };
 
     static const std::vector<std::string> IGNORED_COMMANDS = {
         "l", "o", "n", "m", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", 
         "a", "b", "c", "d", "e", "f", "r", "k", "@url:\"", "@in:\"", "@file:\"", 
         "@command:\"", "@copy:\"", "@change:\"", "@page", "&text:\"", "&item:\"", "&shadow:\""
     };
-
-    inline unsigned int argb_hex_to_decimal(const std::string& argb_hex) {
-        if (argb_hex.length() != 8) {
-            return 0;
-        }
-        
-        try {
-            return std::stoul(argb_hex, nullptr, 16);
-        } catch (...) {
-            return 0;
-        }
-    }
 
     inline std::string get_color(std::string hex)
     {

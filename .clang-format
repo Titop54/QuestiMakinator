@@ -2,9 +2,27 @@
 BasedOnStyle: LLVM
 Language: Cpp
 IndentWidth: 4
+ContinuationIndentWidth: 4
 UseTab: Never
 TabWidth: 4
-BreakBeforeBraces: Allman
+PointerAlignment: Left
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterClass: true
+  AfterControlStatement: Always
+  AfterEnum: true
+  AfterFunction: true
+  AfterNamespace: true
+  AfterStruct: true
+  AfterUnion: true
+  AfterExternBlock: true
+  BeforeCatch: true
+  BeforeElse: true
+  BeforeLambdaBody: false
+  SplitEmptyFunction: false
+Cpp11BracedListStyle: false
+AllowShortLambdasOnASingleLine: None
+SpaceBeforeCpp11BracedList: false
 NamespaceIndentation: All
 IndentPPDirectives: BeforeHash
 SpaceAfterCStyleCast: false
@@ -16,7 +34,7 @@ SpacesInAngles: false
 SpacesInContainerLiterals: false
 SpacesInParentheses: false
 SpacesInSquareBrackets: false
-AlignAfterOpenBracket: Align
+AlignAfterOpenBracket: DontAlign
 AlignConsecutiveAssignments: false
 AlignConsecutiveDeclarations: false
 AlignOperands: Align

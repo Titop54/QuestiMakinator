@@ -1,6 +1,6 @@
 #pragma once
 
-#include "gui/display/textfield_selection.h"
+#include "gui/elements/textfield.h"
 #include <functional>
 #include <imgui.h>
 

@@ -1,4 +1,5 @@
-#include "gui/display/button_slow_tooltip.h"
+#include "gui/elements/button.h"
+#include "gui/elements/menu.h"
 #include "integration/kubejs.h"
 #include <cstddef>
 #include <gui/display/Image.h>
@@ -42,7 +43,7 @@ void KubeJSImageBrowser::loadAssets()
 void KubeJSImageBrowser::update(float deltaTime)
 {
     if(currentAnimation && currentAnimation->isPlaying &&
-       currentAnimation->totalTicks > 1)
+        currentAnimation->totalTicks > 1)
     {
         currentAnimation->accumulatedTime += deltaTime;
         bool tickChanged = false;
@@ -91,8 +92,14 @@ void KubeJSImageBrowser::render()
         return;
     }
 
-    drawMenu("Item / Block ID", validIds, idInputBuffer,
-             [this](std::string s) { this->loadImage(s); });
+    drawMenu("Item / Block ID", validIds, idInputBuffer, [this](std::string s) {
+        try
+        {
+            loadImage(s);
+        }
+        catch(...)
+        {}
+    });
 
     ImGui::Separator();
     ImGui::Text("Current amount of items: %zu", allItems.size());
@@ -109,9 +116,9 @@ void KubeJSImageBrowser::render()
         ImGui::SetCursorPosX((windowWidth - textureSize.x) * 0.5f);
 
         ImGui::Image((ImTextureID)(intptr_t)currentTexture, textureSize,
-                     ImVec2(0, 0), ImVec2(1, 1),
-                     ImVec4(1.0f, 1.0f, 1.0f, 1.0f),
-                     ImVec4(0.5f, 0.5f, 0.5f, 0.2f));
+            ImVec2(0, 0), ImVec2(1, 1),
+            ImVec4(1.0f, 1.0f, 1.0f, 1.0f),
+            ImVec4(0.5f, 0.5f, 0.5f, 0.2f));
     }
     else if(!isLoading && !currentId.empty() && !currentAnimation)
     {
@@ -141,7 +148,7 @@ void KubeJSImageBrowser::render()
 
             int tick = currentAnimation->currentTick;
             if(ImGui::SliderInt("Timeline (Ticks)", &tick, 0,
-                                currentAnimation->totalTicks - 1))
+                   currentAnimation->totalTicks - 1))
             {
                 currentAnimation->currentTick = tick;
                 currentAnimation->isPlaying = false;
@@ -200,13 +207,19 @@ void KubeJSImageBrowser::render()
         if(viewChanged && currentGenerator)
         {
             std::vector<RenderedFrame> frames;
-            if(currentGenerator->isObjModel)
+            try
             {
-                frames = currentGenerator->generateIsometricSequenceOBJ(currentOutputSize, useCustomView, viewPitch, viewYaw);
+                if(currentGenerator->isObjModel)
+                {
+                    frames = currentGenerator->generateIsometricSequenceOBJ(currentOutputSize, useCustomView, viewPitch, viewYaw);
+                }
+                else
+                {
+                    frames = currentGenerator->generateIsometricSequence(currentOutputSize, useCustomView, viewPitch, viewYaw);
+                }
             }
-            else
+            catch(...)
             {
-                frames = currentGenerator->generateIsometricSequence(currentOutputSize, useCustomView, viewPitch, viewYaw);
             }
 
             for(auto& img : frames)
@@ -276,7 +289,7 @@ void KubeJSImageBrowser::render()
     ImGui::End();
 }
 
-void KubeJSImageBrowser::loadImage(const std::string &id)
+void KubeJSImageBrowser::loadImage(const std::string& id)
 {
     if(id.empty())
     {
@@ -314,12 +327,12 @@ void KubeJSImageBrowser::loadImage(const std::string &id)
         auto objList = client.listAssetsByPrefix(".obj");
 
         std::string foundObjPath = "";
-        for(const auto &asset : objList)
+        for(const auto& asset : objList)
         {
             std::string p = asset.path;
             if(p.find("/" + path + ".obj") != std::string::npos ||
-               p.find("/" + path + ".obj.ie") != std::string::npos ||
-               p == path + ".obj")
+                p.find("/" + path + ".obj.ie") != std::string::npos ||
+                p == path + ".obj")
             {
                 foundObjPath = p;
                 break;
@@ -374,13 +387,19 @@ void KubeJSImageBrowser::loadImage(const std::string &id)
         glDisable(GL_SCISSOR_TEST);
 
         std::vector<RenderedFrame> frames;
-        if(currentGenerator->isObjModel)
+        try
         {
-            frames = currentGenerator->generateIsometricSequenceOBJ(currentOutputSize, useCustomView, viewPitch, viewYaw);
+            if(currentGenerator->isObjModel)
+            {
+                frames = currentGenerator->generateIsometricSequenceOBJ(currentOutputSize, useCustomView, viewPitch, viewYaw);
+            }
+            else
+            {
+                frames = currentGenerator->generateIsometricSequence(currentOutputSize, useCustomView, viewPitch, viewYaw);
+            }
         }
-        else
+        catch(...)
         {
-            frames = currentGenerator->generateIsometricSequence(currentOutputSize, useCustomView, viewPitch, viewYaw);
         }
 
         for(auto& img : frames)
@@ -399,7 +418,7 @@ void KubeJSImageBrowser::loadImage(const std::string &id)
         {
             AnimationData anim;
             anim.frames = frames;
-            
+
             int tTicks = 0;
             for(const auto& f : frames) tTicks += f.timeInTicks;
             anim.totalTicks = std::max(1, tTicks);
@@ -426,7 +445,7 @@ void KubeJSImageBrowser::updateDisplayTexture()
 {
     if(currentAnimation && !currentAnimation->frames.empty())
     {
-        const auto &img = currentAnimation->getCurrentImage();
+        const auto& img = currentAnimation->getCurrentImage();
         unsigned int width = img.getSize().x;
         unsigned int height = img.getSize().y;
 
@@ -444,13 +463,13 @@ void KubeJSImageBrowser::updateDisplayTexture()
 
             glGenTextures(1, &currentTexture);
             glBindTexture(GL_TEXTURE_2D, currentTexture);
-            
+
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height,
-                         0, GL_RGBA, GL_UNSIGNED_BYTE, img.getPixelsPtr());
+                0, GL_RGBA, GL_UNSIGNED_BYTE, img.getPixelsPtr());
 
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-            
+
             lastTexWidth = width;
             lastTexHeight = height;
         }
@@ -458,7 +477,7 @@ void KubeJSImageBrowser::updateDisplayTexture()
         {
             glBindTexture(GL_TEXTURE_2D, currentTexture);
             glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height,
-                            GL_RGBA, GL_UNSIGNED_BYTE, img.getPixelsPtr());
+                GL_RGBA, GL_UNSIGNED_BYTE, img.getPixelsPtr());
         }
 
         glBindTexture(GL_TEXTURE_2D, 0);
