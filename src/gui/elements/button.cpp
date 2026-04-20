@@ -48,7 +48,10 @@ bool generateSlowedButton(TextField& field, Button& button)
         clicked = true;
     }
     ShowDelayedTooltip(button.state, button.tooltip);
-    ImGui::SetCursorPos(original_position);
+    if(button.pos.does_work()) 
+    {
+        ImGui::SetCursorPos(original_position);
+    }
 
     return clicked;
 }
@@ -71,7 +74,10 @@ bool generateSlowedButton(Button& button, std::function<void()> onClickAction)
         clicked = true;
     }
     ShowDelayedTooltip(button.state, button.tooltip);
-    ImGui::SetCursorPos(original_position);
+    if(button.pos.does_work()) 
+    {
+        ImGui::SetCursorPos(original_position);
+    }
     
     return clicked;
 }
