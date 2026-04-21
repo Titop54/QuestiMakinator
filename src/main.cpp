@@ -3,6 +3,7 @@
 #include "args/splitter.h"
 #include "args/pack.h"
 #include "gui/display/settings.h"
+#include "gui/elements/button.h"
 #include "parser/arguments.h"
 
 #include <cstddef>
@@ -18,6 +19,7 @@
 #include <GLFW/glfw3.h>
 
 #include <backward.hpp>
+#include <tinyfiledialogs/tinyfiledialogs.h>
 
 #include <parser/raw.h>
 #include <integration/kubejs.h>
@@ -80,11 +82,13 @@ int main(int argc, char* argv[])
     ImGuiIO& io = ImGui::GetIO();
     if(!settings::current.font_path.empty())
     {
-        io.Fonts->AddFontFromFileTTF(settings::current.font_path.c_str(), 18.0f);
+        io.Fonts->AddFontFromFileTTF(settings::current.font_path.c_str(), settings::current.font_size);
     }
     else
     {
-        io.Fonts->AddFontDefault(); 
+        ImFontConfig config;
+        config.SizePixels = settings::current.font_size;
+        io.Fonts->AddFontDefault(&config);
     }
 
     settings::apply_to_imgui(settings::saved);
@@ -98,7 +102,7 @@ int main(int argc, char* argv[])
         { "Strikethrough", "&m", "Strikethrough text (&m)", "&r" },
         { "Reset", "&r", "Reset formatting (&r)" },
         { "Obfuscated", "&k", "Obfuscated text (&k)", "&r" },
-        { "Rainbow", "&z", "Gradient using the rainbow (1.21.1+ only) (&z)", "&r" }
+        { "Rainbows", "&z", "Gradient using the rainbow (1.21.1+ only) (&z)", "&r" }
     };
 
     std::vector<Button> specialActions = {
@@ -142,9 +146,18 @@ int main(int argc, char* argv[])
     std::vector<Button> actionButtons = {
         { "Convert", "", "Convert text to JSON format and copy to clipboard" },
         { "Copy Text Output", "", "Copy converted text to clipboard" },
-        { "Reload Minecraft (Not yet)", "", "Reload Minecraft scripts (requires KubeJS)" },
+        { "Reload Minecraft (1.21.1+)", "", "Reload Minecraft scripts (requires KubeJS)" },
         { "Settings", "", "Open appearance settings" },
         { "Exit", "", "Close the application" }
+    };
+
+    std::vector<Button> argsButtons = {
+        { "Deconstruct", "", "Breaks down large .lang files into modular chunks.\nIdeal for localized editing and clean Git version control." },
+        { "Rebuild", "", "Reassembles modular chunks back into a single .lang file.\nSynchronizes all your translations into the final game format." },
+        { "Setup Project", "", "Initializes a fresh workspace with folders and base scripts.\nRun this when starting a new modpack development." },
+        { "Ship Modpack", "", "Compiles the project into final distribution ZIPs.\nCreates separate Client and Server packages for your players." },
+        { "Set Client Root", "", "Points to your Minecraft instance folder.\nUsed to extract mod metadata for the server-side generation." },
+        { "Set Project Path", "", "Defines the working directory of your quest project.\nWhere the 'config/ftbquests' folder is located." }
     };
 
     int win_w, win_h;
@@ -154,6 +167,15 @@ int main(int argc, char* argv[])
     {
         KubeJSImageBrowser browser;
         bool browserFirstRun = true;
+
+        bool is_new = true;
+
+        bool convert = false;
+        bool json = false;
+        bool cf = false;
+        std::string mod_path = "";
+        std::string path = "";
+
         while(!glfwWindowShouldClose(window))
         {
             // Procesar eventos
@@ -174,16 +196,23 @@ int main(int argc, char* argv[])
 
             ImGui::Text("Basic Formats:");
 
+            int drawn_basic = 0;
             for(size_t i = 0; i < basicFormats.size(); ++i)
             {
                 auto& data = basicFormats[i];
 
-                generateSlowedButton(field, data);
+                if(!is_new && data.label == "Rainbows")
+                {
+                    continue;
+                }
 
-                if(i < basicFormats.size() - 1)
+                if(drawn_basic > 0)
                 {
                     ImGui::SameLine();
                 }
+
+                generateSlowedButton(field, data);
+                drawn_basic++;
             }
             ImGui::NewLine();
 
@@ -215,10 +244,19 @@ int main(int argc, char* argv[])
             }
             ImGui::NewLine();
 
-            ImGui::Text("Mod Effects:");
             for(size_t i = 0; i < modEffects.size(); i++)
             {
-                auto& data = modEffects[i];
+                Button data = modEffects[i];
+
+                if(!is_new)
+                {
+                    size_t space_pos = data.prefix.find(' ');
+
+                    if(space_pos != std::string::npos && data.prefix.front() == '<')
+                    {
+                        data.prefix = data.prefix.substr(0, space_pos) + ">";
+                    }
+                }
 
                 generateSlowedButton(field, data);
 
@@ -260,8 +298,16 @@ int main(int argc, char* argv[])
             // Radio buttons (only one selected)
             ImGui::Text("Options:");
             ImGui::RadioButton("Array", &selected_option, 0);
+            if(ImGui::IsItemHovered())
+            {
+                ImGui::SetTooltip("Uses an array of JSON objects, it can be more readable (1.21.1+)");
+            }
             ImGui::SameLine();
             ImGui::RadioButton("Extra", &selected_option, 1);
+            if(ImGui::IsItemHovered())
+            {
+                ImGui::SetTooltip("Uses only an JSON object with extra field (1.19.2+)");
+            }
             ImGui::SameLine();
 
             // Action buttons
@@ -295,6 +341,104 @@ int main(int argc, char* argv[])
 
             ImGui::NewLine();
             ImGui::Separator();
+            ImGui::Text("Global Settings:");
+
+            ImGui::Checkbox("Input Format", &json);
+            if(ImGui::IsItemHovered())
+            {
+                ImGui::SetTooltip(
+                    "Target Output Format (--json):\n\n"
+                    "- Enabled: Outputs generated files as .json. Ideal for translation websites and similar\n"
+                    "- Disabled: Outputs generated files as .snbt .\n\n"
+                    "Note: FTBQ only reads the final assembled file if it is in .snbt.");
+            }
+
+            ImGui::SameLine();
+            ImGui::Checkbox("Output Format", &convert);
+            if(ImGui::IsItemHovered())
+            {
+                ImGui::SetTooltip(
+                    "Target Input Format (--convert ):\n"
+                    "- If splitting: It will look for .json in the lang folder if enabled, or .snbt if disabled.\n"
+                    "- If merging: It will look for chunks in .json to convert to .snbt.\n"
+                    "Note: FTBQ only reads the final assembled file if it's a .snbt.");
+            }
+
+            ImGui::SameLine();
+            ImGui::Checkbox("Manifest", &cf);
+            if(ImGui::IsItemHovered())
+            {
+                ImGui::SetTooltip("Use manifest.json instead of mods.json (Prism): \n"
+                                  "- manifest.json comes from the CF launcher\n"
+                                  "- mods.json comes from the Prism Launcher using the export command on JSON\n"
+                                  "Note: manifest.json has the exact file you download, leading to better results");
+            }
+            ImGui::SameLine();
+
+            ImGui::Checkbox("1.21.1+ format", &is_new);
+            if(ImGui::IsItemHovered())
+            {
+                ImGui::SetTooltip("Toggles more effects details (1.21.1+).\n"
+                                  "- Enabled: Shows '&z' and uses detailed modEffects (e.g., <pulse base=...>).\n"
+                                  "- Disabled: Hides '&z' and uses simple tags (e.g., <pulse>).");
+            }
+
+            ImGui::Spacing();
+
+            generateSlowedButton(argsButtons[5], [&]() {
+                const char* selected = tinyfd_selectFolderDialog("Select Working Directory", path.c_str());
+                if(selected) path = selected;
+            });
+            ImGui::SameLine();
+            ImGui::TextColored(ImGui::GetStyle().Colors[ImGuiCol_TextDisabled],
+                " [%s]", path.empty() ? "Default: Current" : path.c_str());
+
+            generateSlowedButton(argsButtons[4], [&]() {
+                const char* selected = tinyfd_selectFolderDialog("Select Minecraft Instance Folder", mod_path.c_str());
+                if(selected) mod_path = selected;
+            });
+            ImGui::SameLine();
+            ImGui::TextColored(ImGui::GetStyle().Colors[ImGuiCol_TextDisabled],
+                " [%s]", mod_path.empty() ? "Not set" : mod_path.c_str());
+
+            ImGui::Spacing();
+
+            ImGui::Separator();
+            ImGui::Text("Execute Operations:");
+
+            generateSlowedButton(argsButtons[0], [&]() {
+                args::parser temp_args;
+                if(json) temp_args.result["--json"] = {};
+                if(convert) temp_args.result["--convert"] = {};
+                if(!path.empty()) temp_args.result["--path"] = { path };
+                splitter::split(temp_args);
+            });
+            ImGui::SameLine();
+
+            generateSlowedButton(argsButtons[1], [&]() {
+                args::parser temp_args;
+                if(json) temp_args.result["--json"] = {};
+                if(convert) temp_args.result["--convert"] = {};
+                if(!path.empty()) temp_args.result["--path"] = { path };
+                merger::merge(temp_args);
+            });
+            ImGui::SameLine();
+
+            generateSlowedButton(argsButtons[2], [&]() {
+                args::parser temp_args;
+                if(cf) temp_args.result["--curseforge"] = {};
+                if(!path.empty()) temp_args.result["--path"] = { path };
+                gen::generate(temp_args);
+            });
+            ImGui::SameLine();
+
+            generateSlowedButton(argsButtons[3], [&]() {
+                args::parser temp_args;
+                if(cf) temp_args.result["--curseforge"] = {};
+                if(!path.empty()) temp_args.result["--path"] = { path };
+                if(!mod_path.empty()) temp_args.result["--mods"] = { mod_path };
+                pack::pack(temp_args);
+            });
 
             settings::draw_menu();
             ImGui::SameLine();
