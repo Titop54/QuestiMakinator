@@ -3,6 +3,7 @@
 #include <fstream>
 #include <cfloat>
 #include <filesystem>
+#include <imgui.h>
 #include <system_error>
 #include <algorithm>
 #include <imgui_stdlib.h>
@@ -320,6 +321,7 @@ namespace settings
 
             if(j.contains("scrollbar_size")) saved.scrollbar_size = j["scrollbar_size"];
             if(j.contains("grab_min_size")) saved.grab_min_size = j["grab_min_size"];
+            if(j.contains("font_size")) saved.font_size = j["font_size"];
 
             auto load_vec2 = [&](const char* key, float arr[2]) {
                 if(j.contains(key))
@@ -392,6 +394,7 @@ namespace settings
         j["window_title_align"] = { saved.window_title_align[0], saved.window_title_align[1] };
         j["button_text_align"] = { saved.button_text_align[0], saved.button_text_align[1] };
         j["selectable_text_align"] = { saved.selectable_text_align[0], saved.selectable_text_align[1] };
+        j["font_size"] = saved.font_size;
 
         std::ofstream file("settings.json");
         if(file.is_open())
@@ -530,6 +533,13 @@ namespace settings
 
                 ImGui::Separator();
                 ImGui::SliderFloat("Global Zoom", &current.font_scale, 0.5f, 4.0f);
+
+                ImGui::SliderFloat("Font Size", &current.font_size, 10.0f, 48.0f, "%.1f px");
+                
+                if(ImGui::IsItemHovered())
+                {
+                    ImGui::SetTooltip("Custom font resolution. Requires restarting the app.");
+                }
 
                 if(cached_fonts.empty())
                 {

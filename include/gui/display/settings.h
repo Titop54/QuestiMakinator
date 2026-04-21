@@ -46,6 +46,7 @@ namespace settings
         float window_title_align[2] = { 0.0f, 0.5f };
         float button_text_align[2] = { 0.5f, 0.5f };
         float selectable_text_align[2] = { 0.0f, 0.0f };
+        float font_size = 16.0f;
     };
 
     extern struct settings current;
@@ -60,6 +61,6 @@ namespace settings
     void reset_to_defaults(struct settings& s);
 
     void apply_preset(struct settings& s, int preset_id);
-    
+
     std::vector<std::string> get_system_fonts();
-}
+} // namespace settings
