@@ -138,7 +138,7 @@ void KubeJSImageBrowser::render()
             {
                 currentAnimation->isPlaying = !currentAnimation->isPlaying;
             }
-            ImGui::NewLine();
+            ImGui::SameLine();
             if(ImGui::Button("Reset"))
             {
                 currentAnimation->currentTick = 0;
@@ -187,7 +187,7 @@ void KubeJSImageBrowser::render()
             useCustomView = true;
         }
 
-        ImGui::SameLine();
+        ImGui::NewLine();
         if(ImGui::Button("Reset View"))
         {
             viewYaw = 45.0f;
