@@ -87,6 +87,8 @@ else()
     endif()
 endif()
 
+add_compile_definitions(GLFW_INCLUDE_NONE)
+
 # Dependency search
 find_package(SFML COMPONENTS Network Graphics Audio System CONFIG REQUIRED)
 find_package(ImGui-SFML CONFIG REQUIRED)
@@ -99,6 +101,7 @@ find_package(glad CONFIG REQUIRED)
 find_package(OpenGL REQUIRED)
 find_package(GLEW CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
+find_package(tinyfiledialogs CONFIG REQUIRED)
 
 # Source files configuration (this can be done with all .cpp)
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "src/*.cpp")
@@ -151,6 +154,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     OpenGL::GL
     GLEW::GLEW
     glm::glm
+    tinyfiledialogs::tinyfiledialogs
 )
 
 # Installation configuration
