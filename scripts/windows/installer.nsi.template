@@ -2,7 +2,8 @@
 
 Name "${PROJECT_NAME}"
 OutFile "${OUTPUT_EXE}"
-InstallDir "$PROGRAMFILES64\${PROJECT_NAME}"
+InstallDir "$LOCALAPPDATA\${PROJECT_NAME}"
+RequestExecutionLevel user 
 ManifestDPIAware true
 
 ;Icons
@@ -11,23 +12,57 @@ ManifestDPIAware true
 
 ;Interfaces
 !insertmacro MUI_PAGE_WELCOME
+!insertmacro MUI_PAGE_COMPONENTS
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
+
+!define MUI_FINISHPAGE_RUN "$INSTDIR\${PROJECT_NAME}.exe"
+
+!define MUI_FINISHPAGE_SHOWREADME "https://github.com/Titop54/QuestiMakinator/tree/main"
+!define MUI_FINISHPAGE_SHOWREADME_NOTCHECKED
+!define MUI_FINISHPAGE_SHOWREADME_TEXT "$(GitHubText)"
+
 !insertmacro MUI_PAGE_FINISH
 
 ;Langs
-!insertmacro MUI_LANGUAGE "Spanish"
 !insertmacro MUI_LANGUAGE "English"
+!insertmacro MUI_LANGUAGE "Spanish"
 !insertmacro MUI_LANGUAGE "French"
 !insertmacro MUI_LANGUAGE "German"
 !insertmacro MUI_LANGUAGE "Turkish"
 
-Section "Install"
+LangString GitHubText ${LANG_SPANISH} "Abrir repositorio en GitHub"
+LangString GitHubText ${LANG_ENGLISH} "Open GitHub repository"
+LangString GitHubText ${LANG_FRENCH} "Ouvrir le dépôt GitHub"
+LangString GitHubText ${LANG_GERMAN} "GitHub-Repository öffnen"
+LangString GitHubText ${LANG_TURKISH} "GitHub deposunu aç"
+
+Section "Instalar ${PROJECT_NAME} (Requerido)" SecInstall
+    SectionIn RO
     SetOutPath "$INSTDIR"
     File /r "*"
     WriteUninstaller "$INSTDIR\Uninstall.exe"
+    
+    CreateShortcut "$SMPROGRAMS\${PROJECT_NAME}.lnk" "$INSTDIR\${PROJECT_NAME}.exe" "" "$INSTDIR\${ICON_PATH}"
 SectionEnd
+
+Section "Acceso directo en el Escritorio" SecDesktop
+    CreateShortcut "$DESKTOP\${PROJECT_NAME}.lnk" "$INSTDIR\${PROJECT_NAME}.exe" "" "$INSTDIR\${ICON_PATH}"
+SectionEnd
+
+LangString Desc_SecInstall ${LANG_SPANISH} "Instala los archivos principales de la aplicación."
+LangString Desc_SecInstall ${LANG_ENGLISH} "Installs the main application files."
+
+LangString Desc_SecDesktop ${LANG_SPANISH} "Crea un acceso directo de la aplicación en tu escritorio."
+LangString Desc_SecDesktop ${LANG_ENGLISH} "Creates an application shortcut on your desktop."
+
+!insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecInstall} $(Desc_SecInstall)
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecDesktop} $(Desc_SecDesktop)
+!insertmacro MUI_FUNCTION_DESCRIPTION_END
 
 Section "Uninstall"
     RMDir /r "$INSTDIR"
+    Delete "$DESKTOP\${PROJECT_NAME}.lnk"
+    Delete "$SMPROGRAMS\${PROJECT_NAME}.lnk"
 SectionEnd

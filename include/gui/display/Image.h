@@ -1,5 +1,6 @@
 #pragma once
 
+#include <GL/gl.h>
 #include <nlohmann/json.hpp>
 
 #include <integration/model.h>
