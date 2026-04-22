@@ -72,6 +72,7 @@ private:
     bool need_first_refresh = false;
     bool flip_vertical = false;
     bool flip_horizontal = false;
+    bool wireframe = false;
 
     unsigned int lastTexWidth = 0;
     unsigned int lastTexHeight = 0;

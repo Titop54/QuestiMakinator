@@ -140,7 +140,7 @@ public:
      * @param yaw Y-axis rotation
      * @return vector containing 1 or more images to display
      */
-    std::vector<RenderedFrame> generateIsometricSequence(unsigned int outputSize = 128, bool customRotation = false, float pitch = 30.0f, float yaw = 45.0f);
+    std::vector<RenderedFrame> generateIsometricSequence(unsigned int outputSize = 128, bool customRotation = false, float pitch = 30.0f, float yaw = 45.0f, bool wireframe = false);
 
     /**
      * @brief Generate a sequence of images to display
@@ -150,7 +150,7 @@ public:
      * @param yaw Y-axis rotation
      * @return vector containing 1 or more images to display
      */
-    std::vector<RenderedFrame> generateIsometricSequenceOBJ(unsigned int outputSize = 128, bool customRotation = false, float pitch = 30.0f, float yaw = 45.0f);
+    std::vector<RenderedFrame> generateIsometricSequenceOBJ(unsigned int outputSize = 128, bool customRotation = false, float pitch = 30.0f, float yaw = 45.0f, bool wireframe = false);
 
     /**
      * @brief Downloads JSON and all textures to a folder named "mod_itemid_assets"

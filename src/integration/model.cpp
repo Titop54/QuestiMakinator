@@ -64,10 +64,12 @@ out vec4 FragColor;
 in vec4 vColor;
 in vec2 TexCoord;
 uniform sampler2D uTexture;
+uniform bool uWireframe;
 
 void main()
 {
     vec4 texColor = texture(uTexture, TexCoord);
+    if(!uWireframe && texColor.a < 0.1) discard;
     FragColor = texColor * vColor;
 }
 )glsl";
@@ -209,8 +211,8 @@ static GLuint CreateGLTextureFromPixels(const std::vector<uint8_t> &pixels, int 
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glBindTexture(GL_TEXTURE_2D, 0);
     return texID;
 }
@@ -540,7 +542,7 @@ int ModelGenerator::calculateTotalLoopTicks()
     return totalTicks;
 }
 
-std::vector<RenderedFrame> ModelGenerator::generateIsometricSequence(unsigned int outputSize, bool customRotation, float pitch, float yaw)
+std::vector<RenderedFrame> ModelGenerator::generateIsometricSequence(unsigned int outputSize, bool customRotation, float pitch, float yaw, bool wireframe)
 {
     bool isFlatItem = false;
     if(modelJson.contains("parent") && modelJson["parent"].get<std::string>().find("item/generated") != std::string::npos) isFlatItem = true;
@@ -639,7 +641,7 @@ std::vector<RenderedFrame> ModelGenerator::generateIsometricSequence(unsigned in
 
         for(const auto &f : faces)
         {
-            if(!element["faces"].contains(f.dir)) continue;
+            if(!element.contains("faces") || !element["faces"].contains(f.dir)) continue;
             auto faceJson = element["faces"][f.dir];
             std::string texRef = faceJson.value("texture", "");
             if(texRef.empty()) continue;
@@ -661,17 +663,29 @@ std::vector<RenderedFrame> ModelGenerator::generateIsometricSequence(unsigned in
             TextureAnimation &anim = textures[texRef];
             const Texture *tex = &anim.texture;
 
-            float texW = (float)tex->size.x, texH = (float)tex->size.y;
-            float k = texW / 16.0f;
+            float texH = (float)tex->size.y;
+            float vScale = (float)anim.frameHeight / texH;
             sf::Vector2f uv[4];
+
             if(faceJson.contains("uv"))
             {
                 float u1 = faceJson["uv"][0], v1 = faceJson["uv"][1];
                 float u2 = faceJson["uv"][2], v2 = faceJson["uv"][3];
-                uv[0] = {u1 * k, v1 * k};
-                uv[1] = {u2 * k, v1 * k};
-                uv[2] = {u2 * k, v2 * k};
-                uv[3] = {u1 * k, v2 * k};
+                
+                sf::Vector2f baseUv[4] = {
+                    {u1 / 16.0f, v1 / 16.0f * vScale},
+                    {u2 / 16.0f, v1 / 16.0f * vScale},
+                    {u2 / 16.0f, v2 / 16.0f * vScale},
+                    {u1 / 16.0f, v2 / 16.0f * vScale}
+                };
+                
+                int uvRot = faceJson.value("rotation", 0);
+                int shift = (4 - (uvRot / 90) % 4) % 4;
+                
+                for(int i = 0; i < 4; i++)
+                {
+                    uv[i] = baseUv[(i + shift) % 4];
+                }
             }
             else
             {
@@ -693,7 +707,7 @@ std::vector<RenderedFrame> ModelGenerator::generateIsometricSequence(unsigned in
                         ux = f.v[i].z;
                         vy = 16.0f - f.v[i].y;
                     }
-                    uv[i] = {ux * k, vy * k};
+                    uv[i] = {ux / 16.0f, vy / 16.0f * vScale};
                 }
             }
 
@@ -702,19 +716,28 @@ std::vector<RenderedFrame> ModelGenerator::generateIsometricSequence(unsigned in
             float avgZ = 0;
             for(int i = 0; i < 4; i++)
             {
+                float bias = 0.0f;
+                if(f.dir == "up") bias = 0.01f;
+                else if(f.dir == "north") bias = 0.02f;
+                else if(f.dir == "east") bias = 0.03f;
+                else if(f.dir == "west") bias = 0.04f;
+                else if(f.dir == "south") bias = 0.05f;
+                else if(f.dir == "down") bias = 0.06f;
+
                 sf::Vector3f rotV = rotatePoint(f.v[i], rotOrigin, rotAxis, rotAngle);
                 if(isFlatItem)
                 {
-                    screenPos[i] = {rotV.x * scale, (16.0f - rotV.y) * scale, rotV.z};
+                    screenPos[i] = {rotV.x * scale, (16.0f - rotV.y) * scale, rotV.z + bias};
                 }
                 else if(customRotation)
                 {
                     screenPos[i] = project3DTransform(rotV.x, rotV.y, rotV.z, pitch, yaw, scale, centerX, centerY, 8, 8, 8);
+                    screenPos[i].z += bias;
                 }
                 else
                 {
                     sf::Vector2f iso = toIso(rotV.x, rotV.y, rotV.z, scale, centerX, centerY);
-                    screenPos[i] = {iso.x, iso.y, rotV.x + rotV.y + rotV.z};
+                    screenPos[i] = {iso.x, iso.y, rotV.x + rotV.y + rotV.z + bias};
                 }
                 avgZ += screenPos[i].z;
             }
@@ -740,8 +763,8 @@ std::vector<RenderedFrame> ModelGenerator::generateIsometricSequence(unsigned in
                 tri1.v[i].g = shade.g / 255.0f;
                 tri1.v[i].b = shade.b / 255.0f;
                 tri1.v[i].a = 1.0f;
-                tri1.v[i].u = uv[idx].x / texW;
-                tri1.v[i].v = uv[idx].y / texH;
+                tri1.v[i].u = uv[idx].x;
+                tri1.v[i].v = uv[idx].y;
             }
             for(int i = 0; i < 3; i++)
             {
@@ -753,8 +776,8 @@ std::vector<RenderedFrame> ModelGenerator::generateIsometricSequence(unsigned in
                 tri2.v[i].g = shade.g / 255.0f;
                 tri2.v[i].b = shade.b / 255.0f;
                 tri2.v[i].a = 1.0f;
-                tri2.v[i].u = uv[idx].x / texW;
-                tri2.v[i].v = uv[idx].y / texH;
+                tri2.v[i].u = uv[idx].x;
+                tri2.v[i].v = uv[idx].y;
             }
             triangles.push_back(tri1);
             triangles.push_back(tri2);
@@ -769,7 +792,7 @@ std::vector<RenderedFrame> ModelGenerator::generateIsometricSequence(unsigned in
 
     if(triangles.empty()) return {};
 
-    std::sort(triangles.begin(), triangles.end(), [](const Triangle &a, const Triangle &b)
+    std::stable_sort(triangles.begin(), triangles.end(), [](const Triangle &a, const Triangle &b)
               { return a.depth < b.depth; });
 
     if(minZ >= maxZ)
@@ -777,10 +800,7 @@ std::vector<RenderedFrame> ModelGenerator::generateIsometricSequence(unsigned in
         minZ = -1.0f;
         maxZ = 1.0f;
     }
-    float zRange = maxZ - minZ;
-    float zNear = minZ - zRange * 0.1f;
-    float zFar = maxZ + zRange * 0.1f;
-    glm::mat4 proj = glm::ortho(0.0f, (float)outputSize, 0.0f, (float)outputSize, zNear, zFar);
+    glm::mat4 proj = glm::ortho(0.0f, (float)outputSize, 0.0f, (float)outputSize, -300.0f, 300.0f);
 
     static GLuint shaderProgram = 0;
     if(shaderProgram == 0) shaderProgram = CreateShaderProgram();
@@ -844,13 +864,19 @@ std::vector<RenderedFrame> ModelGenerator::generateIsometricSequence(unsigned in
     glGetIntegerv(GL_BLEND_DST_ALPHA, &blendDst);
 
     glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LESS);
+    glDepthFunc(GL_LEQUAL);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glDisable(GL_CULL_FACE);
     glViewport(0, 0, outputSize, outputSize);
+    if(wireframe)
+    {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        glLineWidth(2.0f);
+    }
     glUseProgram(shaderProgram);
     glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "uProjection"), 1, GL_FALSE, glm::value_ptr(proj));
+    glUniform1i(glGetUniformLocation(shaderProgram, "uWireframe"), wireframe ? 1 : 0);
     GLint texOffsetLoc = glGetUniformLocation(shaderProgram, "uTexOffset");
 
     std::vector<RenderedFrame> resultFrames;
@@ -1022,6 +1048,7 @@ std::vector<RenderedFrame> ModelGenerator::generateIsometricSequence(unsigned in
         
         if(!anyAnimated) break;
     }
+    if(wireframe) glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     glEnable(GL_CULL_FACE);
 
     glDeleteVertexArrays(1, &vao);
@@ -1046,7 +1073,7 @@ std::vector<RenderedFrame> ModelGenerator::generateIsometricSequence(unsigned in
     return resultFrames;
 }
 
-std::vector<RenderedFrame> ModelGenerator::generateIsometricSequenceOBJ(unsigned int outputSize, bool customRotation, float pitch, float yaw)
+std::vector<RenderedFrame> ModelGenerator::generateIsometricSequenceOBJ(unsigned int outputSize, bool customRotation, float pitch, float yaw, bool wireframe)
 {
     float minIsoX = 1e9, maxIsoX = -1e9;
     float minIsoY = 1e9, maxIsoY = -1e9;
@@ -1277,9 +1304,15 @@ std::vector<RenderedFrame> ModelGenerator::generateIsometricSequenceOBJ(unsigned
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glDisable(GL_CULL_FACE);
     glViewport(0, 0, outputSize, outputSize);
+    if(wireframe)
+    {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        glLineWidth(2.0f);
+    }
 
     glUseProgram(shaderProgram);
     glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "uProjection"), 1, GL_FALSE, glm::value_ptr(proj));
+    glUniform1i(glGetUniformLocation(shaderProgram, "uWireframe"), wireframe ? 1 : 0);
     GLint texOffsetLoc = glGetUniformLocation(shaderProgram, "uTexOffset");
 
     std::vector<RenderedFrame> resultFrames;
@@ -1346,6 +1379,7 @@ std::vector<RenderedFrame> ModelGenerator::generateIsometricSequenceOBJ(unsigned
         glBlendFunc(blendSrc, blendDst);
     }
 
+    if(wireframe) glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     if(cullFace) glEnable(GL_CULL_FACE);
     glViewport(prevViewport[0], prevViewport[1], prevViewport[2], prevViewport[3]);
     glBindFramebuffer(GL_FRAMEBUFFER, prevFbo);

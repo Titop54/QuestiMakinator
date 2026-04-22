@@ -174,6 +174,10 @@ void KubeJSImageBrowser::render()
         {
             viewChanged = true;
         }
+        if(ImGui::Checkbox("WireFrame", &wireframe))
+        {
+            viewChanged = true;
+        }
 
         if(ImGui::SliderFloat("Yaw (Rotation)", &viewYaw, -180.0f, 180.0f))
         {
@@ -211,11 +215,11 @@ void KubeJSImageBrowser::render()
             {
                 if(currentGenerator->isObjModel)
                 {
-                    frames = currentGenerator->generateIsometricSequenceOBJ(currentOutputSize, useCustomView, viewPitch, viewYaw);
+                    frames = currentGenerator->generateIsometricSequenceOBJ(currentOutputSize, useCustomView, viewPitch, viewYaw, wireframe);
                 }
                 else
                 {
-                    frames = currentGenerator->generateIsometricSequence(currentOutputSize, useCustomView, viewPitch, viewYaw);
+                    frames = currentGenerator->generateIsometricSequence(currentOutputSize, useCustomView, viewPitch, viewYaw, wireframe);
                 }
             }
             catch(...)
@@ -391,11 +395,11 @@ void KubeJSImageBrowser::loadImage(const std::string& id)
         {
             if(currentGenerator->isObjModel)
             {
-                frames = currentGenerator->generateIsometricSequenceOBJ(currentOutputSize, useCustomView, viewPitch, viewYaw);
+                frames = currentGenerator->generateIsometricSequenceOBJ(currentOutputSize, useCustomView, viewPitch, viewYaw, wireframe);
             }
             else
             {
-                frames = currentGenerator->generateIsometricSequence(currentOutputSize, useCustomView, viewPitch, viewYaw);
+                frames = currentGenerator->generateIsometricSequence(currentOutputSize, useCustomView, viewPitch, viewYaw, wireframe);
             }
         }
         catch(...)
