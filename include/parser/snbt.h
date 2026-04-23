@@ -79,31 +79,33 @@ namespace snbt
         explicit Tag(const List& v) : type(Type::List), value(v) {}
         explicit Tag(const Compound& v) : type(Type::Compound), value(v) {}
 
-        void print(std::ostream& os = std::cout, int indent = 0, bool insertComma = false) const
+        void print(std::ostream& os = std::cout, int indent = 0, bool insertComma = false, bool compact = false) const
         {
-            std::string pad(indent, ' ');
+            std::string pad = compact ? "" : std::string(indent, ' ');
+            std::string newline = compact ? "" : "\n";
+            std::string space = compact ? "" : " ";
+
             switch(type)
             {
                 case Type::Compound:
                 {
                     const auto& map = std::get<Compound>(value);
-                    os << "{\n";
+                    os << "{";
+                    if(!compact) os << newline;
+
                     size_t counter = 0;
                     for(const auto& [key, tag] : map)
                     {
-                        os << pad << key << ": ";
-                        tag.print(os, indent, insertComma);
+                        os << (compact ? "" : pad) << key << ":" << space;
+                        tag.print(os, compact ? 0 : indent + 4, insertComma, compact);
                         counter++;
-                        if(insertComma)
+                        if(insertComma && counter < map.size())
                         {
-                            if(counter < map.size())
-                            {
-                                os << ",";
-                            }
+                            os << ",";
                         }
-                        os << "\n";
+                        if(!compact) os << newline;
                     }
-                    os << "}";
+                    os << (compact ? "" : std::string(std::max(0, indent - 4), ' ')) << "}";
                     break;
                 }
 
@@ -111,67 +113,37 @@ namespace snbt
                 {
                     const auto& list = std::get<List>(value);
                     os << "[";
+                    if(!compact && list.size() > 1) os << newline;
+
                     size_t counter = 0;
-
-                    if(list.size() > 1)
-                    {
-                        os << "\n";
-                    }
-
                     for(const auto& tag : list)
                     {
-                        if(list.size() > 1)
+                        if(!compact && list.size() > 1) os << pad << "    ";
+                        tag.print(os, compact ? 0 : indent + 4, insertComma, compact);
+                        counter++;
+                        if(insertComma && counter < list.size())
                         {
-                            os << pad << pad;
+                            os << ",";
                         }
-
-                        tag.print(os, indent);
-                        if(insertComma) 
-                        {
-                            if(counter < list.size())
-                            {
-                                os << ",";
-                            }
-                        }
-
-                        if(list.size() > 1)
-                        {
-                            os << "\n";
-                        }
-                        os.flush();
+                        if(!compact && list.size() > 1) os << newline;
                     }
-                    if(list.size() > 1)
-                    {
-                        os << pad;
-                    }
+                    if(!compact && list.size() > 1) os << pad;
                     os << "]";
                     break;
                 }
 
-                case Type::String: 
+                case Type::String:
                 {
                     os << "\"";
                     std::string raw = std::get<String>(value);
                     for(char c : raw)
                     {
-                        if(c == '"')
-                        {
-                            os << "\\\"";
-                        }
-                        else if(c == '\\')
-                        {
-                            os << "\\\\";
-                        }
-                        else if(c == '\n')
-                        {
-                            os << "\\n";
-                        }
-                        else
-                        {
-                            os << c;
-                        }
+                        if(c == '"') os << "\\\"";
+                        else if(c == '\\') os << "\\\\";
+                        else if(c == '\n') os << "\\n";
+                        else os << c;
                     }
-                    os << "\""; 
+                    os << "\"";
                     break;
                 }
                 case Type::Byte: os << (int)std::get<Byte>(value) << "b"; break;
@@ -826,7 +798,7 @@ namespace snbt
         Tag root = json_to_tag(jsonObj);
 
         std::ostringstream oss;
-        root.print(oss, 4, false);
+        root.print(oss, 0, true, true);
         return oss.str();
     }
 }

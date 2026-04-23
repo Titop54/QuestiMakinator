@@ -1,32 +1,33 @@
 #pragma once
 
+#include <cctype>
 #include <cstddef>
 #include <cstdio>
+#include <gui/display/colors.h>
+#include <gui/display/settings.h>
 #include <iostream>
+#include <nlohmann/json.hpp>
 #include <ostream>
+#include <parser/snbt.h>
 #include <string>
 #include <vector>
-#include <cctype>
-#include <iomanip>
-#include <sstream>
-
-#include <gui/display/colors.h>
 
 namespace raw
 {
 
     static const std::vector<std::string> IGNORED_COMMANDS = {
-        "l", "o", "n", "m", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", 
-        "a", "b", "c", "d", "e", "f", "r", "k", "@url:\"", "@in:\"", "@file:\"", 
-        "@command:\"", "@copy:\"", "@change:\"", "@page", "&text:\"", "&item:\"", "&shadow:\""
+        "l", "o", "n", "m", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+        "a", "b", "c", "d", "e", "f", "r", "k", "@url:\"", "@in:\"", "@file:\"",
+        "@command:\"", "@copy:\"", "@change:\"", "@page", "&text:\"", "&item:\"", "&shadow:\"",
+        "&@custom:\""
     };
 
     inline std::string get_color(std::string hex)
     {
         char hex_code = hex[0];
-        if((hex_code >= '0' && hex_code <= '9') || 
-           (hex_code >= 'a' && hex_code <= 'f') || 
-           (hex_code >= 'A' && hex_code <= 'F'))
+        if((hex_code >= '0' && hex_code <= '9') ||
+            (hex_code >= 'a' && hex_code <= 'f') ||
+            (hex_code >= 'A' && hex_code <= 'F'))
         {
             int index;
             if(hex_code >= '0' && hex_code <= '9')
@@ -39,7 +40,7 @@ namespace raw
             }
             else
             {
-                index = 10 + (hex_code - 'A');            
+                index = 10 + (hex_code - 'A');
             }
             return COLOR_CODES[index];
         }
@@ -49,22 +50,23 @@ namespace raw
     inline bool check_non_ftb(const std::string& text)
     {
         if(text.contains("&@url:") ||
-           text.contains("&@in:") ||
-           text.contains("&@file:") ||
-           text.contains("&@command:") ||
-           text.contains("&@copy:") ||
-           text.contains("&@change:") ||
-           text.contains("&&text:") ||
-           text.contains("&&item:") ||
-           text.contains("&&shadow:")
-        ) return true;
+            text.contains("&@in:") ||
+            text.contains("&@file:") ||
+            text.contains("&@command:") ||
+            text.contains("&@copy:") ||
+            text.contains("&@change:") ||
+            text.contains("&@custom:") ||
+            text.contains("&&text:") ||
+            text.contains("&&item:") ||
+            text.contains("&&shadow:")) return true;
 
         return false;
     }
 
-    inline std::string change_gradient(std::string &text)
+    inline std::string change_gradient(std::string& text)
     {
-        struct Text {
+        struct Text
+        {
             int start;
             int end;
             std::string text;
@@ -77,15 +79,15 @@ namespace raw
             int r1 = std::stoi(color1.substr(0, 2), nullptr, 16);
             int g1 = std::stoi(color1.substr(2, 2), nullptr, 16);
             int b1 = std::stoi(color1.substr(4, 2), nullptr, 16);
-            
+
             int r2 = std::stoi(color2.substr(0, 2), nullptr, 16);
             int g2 = std::stoi(color2.substr(2, 2), nullptr, 16);
             int b2 = std::stoi(color2.substr(4, 2), nullptr, 16);
-            
+
             int r = static_cast<int>(r1 + (r2 - r1) * t);
             int g = static_cast<int>(g1 + (g2 - g1) * t);
             int b = static_cast<int>(b1 + (b2 - b1) * t);
-            
+
             char hex_color[7];
             snprintf(hex_color, sizeof(hex_color), "%02X%02X%02X", r, g, b);
             return std::string(hex_color);
@@ -101,7 +103,7 @@ namespace raw
                     pos += 2;
                     continue;
                 }
-                
+
                 if(str[pos] == '&')
                 {
                     if(pos + 1 < str.size())
@@ -156,72 +158,71 @@ namespace raw
 
             switch(segment.type)
             {
-                case 1:
-                    if(segment.text.size() < 30)
-                    {
-                        segment.type = -1;
-                        break;
-                    }
-                    segment.colors.emplace_back(segment.text.substr(15, 6));
-                    segment.colors.emplace_back(segment.text.substr(23, 6));
+            case 1:
+                if(segment.text.size() < 30)
+                {
+                    segment.type = -1;
                     break;
-                case 2:
-                    if(segment.text.size() < 22)
-                    {
-                        segment.type = -1;
-                        break;
-                    }
-                    {
-                        size_t color_pos = 15;
-                        while(color_pos + 6 <= segment.text.size())
-                        {
-                            segment.colors.emplace_back(segment.text.substr(color_pos, 6));
-                            color_pos += 8;
-                            if(color_pos >= segment.text.size() || segment.text[color_pos - 1] != '#') break;
-                        }
-                    }
+                }
+                segment.colors.emplace_back(segment.text.substr(15, 6));
+                segment.colors.emplace_back(segment.text.substr(23, 6));
+                break;
+            case 2:
+                if(segment.text.size() < 22)
+                {
+                    segment.type = -1;
                     break;
-                case 3: {
-                    if(segment.text.size() < 22)
+                }
+                {
+                    size_t color_pos = 15;
+                    while(color_pos + 6 <= segment.text.size())
                     {
-                        segment.type = -1;
-                        break;
-                    }
-                    //first color 
-                    std::string first_color = segment.text.substr(15, 6);
-                    segment.colors.emplace_back(first_color);
-                    
-                    //check the closing "
-                    size_t content_start = segment.text.find("\"", 14) + 1;
-                    if(content_start == std::string::npos) break;
-
-                    // Buscar próximos códigos de color
-                    size_t color_pos = segment.text.find("&", content_start);
-
-                    if(color_pos != std::string::npos && color_pos < static_cast<size_t>(segment.end))
-                    {
-                        if(segment.text.substr(color_pos, 2) == "&r") //we found nothing
-                        {
-                            break;
-                        }
-                        //hex colors
-                        else if(segment.text.substr(color_pos, 2) == "&#" && color_pos + 8 <= static_cast<size_t>(segment.end))
-                        {
-                            segment.colors.emplace_back(segment.text.substr(color_pos + 2, 6));
-                        }
-                        //letters
-                        else if(color_pos + 1 < static_cast<size_t>(segment.end))
-                        {
-                            segment.colors.emplace_back(
-                                get_color(segment.text.substr(color_pos, 1))
-                            );
-                        }
+                        segment.colors.emplace_back(segment.text.substr(color_pos, 6));
+                        color_pos += 8;
+                        if(color_pos >= segment.text.size() || segment.text[color_pos - 1] != '#') break;
                     }
                 }
                 break;
-                default:
+            case 3: {
+                if(segment.text.size() < 22)
+                {
                     segment.type = -1;
                     break;
+                }
+                // first color
+                std::string first_color = segment.text.substr(15, 6);
+                segment.colors.emplace_back(first_color);
+
+                // check the closing "
+                size_t content_start = segment.text.find("\"", 14) + 1;
+                if(content_start == std::string::npos) break;
+
+                // Buscar próximos códigos de color
+                size_t color_pos = segment.text.find("&", content_start);
+
+                if(color_pos != std::string::npos && color_pos < static_cast<size_t>(segment.end))
+                {
+                    if(segment.text.substr(color_pos, 2) == "&r") // we found nothing
+                    {
+                        break;
+                    }
+                    // hex colors
+                    else if(segment.text.substr(color_pos, 2) == "&#" && color_pos + 8 <= static_cast<size_t>(segment.end))
+                    {
+                        segment.colors.emplace_back(segment.text.substr(color_pos + 2, 6));
+                    }
+                    // letters
+                    else if(color_pos + 1 < static_cast<size_t>(segment.end))
+                    {
+                        segment.colors.emplace_back(
+                            get_color(segment.text.substr(color_pos, 1)));
+                    }
+                }
+            }
+            break;
+            default:
+                segment.type = -1;
+                break;
             }
 
             if(segment.type != -1)
@@ -231,13 +232,13 @@ namespace raw
             status = segment.end + 1;
         }
 
-        //last to start, why? because we will change stuff
+        // last to start, why? because we will change stuff
         std::string text_input = text;
         for(int i = cases.size() - 1; i >= 0; i--)
         {
             auto& c = cases[i];
             size_t content_start = c.text.find("\"", 12) + 1;
-            if (content_start == std::string::npos) continue;
+            if(content_start == std::string::npos) continue;
 
             std::string content = c.text.substr(content_start);
             size_t limit = find_limit(content);
@@ -267,8 +268,7 @@ namespace raw
                         std::string color = interpolate_color(
                             c.colors[color_index],
                             c.colors[color_index + 1],
-                            segment_t
-                        );
+                            segment_t);
                         colored_text += "&#" + color + text_to_color[j];
                     }
                 }
@@ -281,43 +281,20 @@ namespace raw
         return text_input;
     }
 
-    inline std::string json_escape(const std::string& str)
-    {
-        std::ostringstream oss;
-        for(char c : str)
-        {
-            switch (c)
-            {
-                case '"': oss << "\\\""; break;
-                case '\\': oss << "\\\\"; break;
-                case '\b': oss << "\\b"; break;
-                case '\f': oss << "\\f"; break;
-                case '\n': oss << "\\n"; break;
-                case '\r': oss << "\\r"; break;
-                case '\t': oss << "\\t"; break;
-                default:
-                    if(static_cast<unsigned char>(c) <= 0x1F)
-                    {
-                        oss << "\\u" << std::hex << std::setw(4) << std::setfill('0') 
-                            << static_cast<int>(c);
-                    }
-                    else
-                    {
-                        oss << c;
-                    }
-            }
-        }
-        return oss.str();
-    }
-
     inline std::string to_json(std::string& input, bool use_extra = false)
     {
         std::string text_input = change_gradient(input);
-        if(!check_non_ftb(text_input)) return text_input;
+        bool is_1_21_5 = settings::current.mc_version >= settings::MC_1_21_5;
+
+        if(!check_non_ftb(text_input))
+        {
+            std::string json_str = nlohmann::json(text_input).dump();
+            return is_1_21_5 ? snbt::json_to_tag(json_str) : json_str;
+        }
 
         struct State
         {
-            std::string color;  // Vacío por defecto en lugar de "#FFFFFF"
+            std::string color;
             bool bold = false;
             bool italic = false;
             bool underlined = false;
@@ -330,68 +307,134 @@ namespace raw
             std::string shadow;
         };
 
-        std::vector<std::string> components;
+        std::vector<nlohmann::json> components;
         State current_state;
         std::string current_text;
         bool has_formatting = false;
 
         auto flush_text = [&]() {
-            if (current_text.empty()) return;
+            if(current_text.empty()) return;
 
-            std::ostringstream oss;
-            oss << "{";
-            oss << "\"text\":\"" << json_escape(current_text) << "\"";
-            
+            nlohmann::json component;
+            component["text"] = current_text;
+
             auto has_extra_properties = [](const State& s) -> bool {
-                return (s.color != "#FFFFFF") ||
-                    s.bold ||
-                    s.italic ||
-                    s.underlined ||
-                    s.strikethrough ||
-                    s.obfuscated ||
-                    !s.click_action.empty() ||
-                    !s.hover_action.empty() ||
-                    !s.shadow.empty();
+                return (!s.color.empty() && s.color != "#FFFFFF") || s.bold || s.italic || s.underlined || s.strikethrough || s.obfuscated || !s.click_action.empty() || !s.hover_action.empty() || !s.shadow.empty();
             };
 
-            // Verificar si es el primer componente y tiene propiedades extra
             if(components.empty() && has_extra_properties(current_state))
             {
-                components.push_back("{\"text\":\"\"}");
-            }
-            // Solo añadir propiedades si no son valores por defecto
-            if(!current_state.color.empty() && current_state.color != "#FFFFFF") {
-                oss << ",\"color\":\"" << current_state.color << "\"";
+                components.push_back({ { "text", "" } });
             }
 
-            if (current_state.bold) oss << ",\"bold\":true";
-            if (current_state.italic) oss << ",\"italic\":true";
-            if (current_state.underlined) oss << ",\"underlined\":true";
-            if (current_state.strikethrough) oss << ",\"strikethrough\":true";
-            if (current_state.obfuscated) oss << ",\"obfuscated\":true";
-            
-            if (!current_state.shadow.empty()) {
-                oss << ",\"shadow_color\":" << current_state.shadow;
+            if(!current_state.color.empty() && current_state.color != "#FFFFFF")
+            {
+                component["color"] = current_state.color;
             }
-            
-            if (!current_state.click_action.empty()) {
-                oss << ",\"clickEvent\":{\"action\":\"" << current_state.click_action 
-                    << "\",\"value\":\"" << json_escape(current_state.click_value) << "\"}";
-            }
-            
-            if (!current_state.hover_action.empty()) {
-                oss << ",\"hoverEvent\":{\"action\":\"" << current_state.hover_action << "\"";
-                if (current_state.hover_action == "show_item") {
-                    oss << ",\"contents\":{\"id\":\"" << json_escape(current_state.hover_value) 
-                        << "\",\"count\":1}";
-                } else {
-                    oss << ",\"contents\":{\"text\":\"" << json_escape(current_state.hover_value) << "\"}";
+
+            if(current_state.bold) component["bold"] = true;
+            if(current_state.italic) component["italic"] = true;
+            if(current_state.underlined) component["underlined"] = true;
+            if(current_state.strikethrough) component["strikethrough"] = true;
+            if(current_state.obfuscated) component["obfuscated"] = true;
+
+            if(!current_state.shadow.empty())
+            {
+                try
+                {
+                    component["shadow_color"] = std::stoll(current_state.shadow);
                 }
-                oss << "}";
+                catch(...)
+                {
+                }
             }
-            
-            oss << "}";
-            components.push_back(oss.str());
+
+            if(!current_state.click_action.empty())
+            {
+                if(current_state.click_action == "custom" && is_1_21_5)
+                {
+                    nlohmann::json click;
+                    click["action"] = "custom";
+                    std::string val = current_state.click_value;
+                    size_t colon = val.find(':');
+                    if(colon != std::string::npos)
+                    {
+                        click["id"] = val.substr(0, colon);
+                        click["payload"] = val.substr(colon + 1);
+                    }
+                    else
+                    {
+                        click["id"] = val;
+                    }
+                    component["click_event"] = click;
+                }
+                else if(current_state.click_action == "custom")
+                {
+                    // Ignore custom action for versions < 1.21.5
+                }
+                else if(is_1_21_5)
+                {
+                    nlohmann::json click;
+                    click["action"] = current_state.click_action;
+                    if(current_state.click_action == "open_url")
+                        click["url"] = current_state.click_value;
+                    else if(current_state.click_action == "run_command" || current_state.click_action == "suggest_command")
+                        click["command"] = current_state.click_value;
+                    else if(current_state.click_action == "change_page")
+                    {
+                        try
+                        {
+                            click["page"] = std::stoi(current_state.click_value);
+                        }
+                        catch(...)
+                        {
+                            click["page"] = 1;
+                        }
+                    }
+                    else
+                        click["value"] = current_state.click_value;
+                    component["click_event"] = click;
+                }
+                else
+                {
+                    component["clickEvent"] = { { "action", current_state.click_action }, { "value", current_state.click_value } };
+                }
+            }
+
+            if(!current_state.hover_action.empty())
+            {
+                if(is_1_21_5)
+                {
+                    nlohmann::json hover;
+                    hover["action"] = current_state.hover_action;
+                    if(current_state.hover_action == "show_text")
+                        hover["text"] = current_state.hover_value;
+                    else if(current_state.hover_action == "show_item")
+                    {
+                        hover["id"] = current_state.hover_value;
+                        hover["count"] = 1;
+                    }
+                    else
+                        hover["contents"] = { { "text", current_state.hover_value } };
+                    component["hover_event"] = hover;
+                }
+                else
+                {
+                    nlohmann::json hover;
+                    hover["action"] = current_state.hover_action;
+                    if(current_state.hover_action == "show_item")
+                    {
+                        hover["contents"] = { { "id", current_state.hover_value }, { "count", 1 } };
+                    }
+                    else
+                    {
+                        hover["contents"] = { { "text", current_state.hover_value } };
+                    }
+                    component["hoverEvent"] = hover;
+                }
+            }
+
+            components.push_back(component);
             current_text.clear();
             current_state.hover_action.clear();
             current_state.hover_value.clear();
@@ -403,13 +446,12 @@ namespace raw
         size_t i = 0;
         while(i < text_input.size())
         {
-            if(text_input[i] == '&' && (i + 1) < input.size())
+            if(text_input[i] == '&' && (i + 1) < text_input.size())
             {
-                char code = input[i + 1];
+                char code = text_input[i + 1];
                 if(code == 'r')
                 {
                     flush_text();
-                    // Reset completo del estado (incluyendo eventos)
                     current_state = State();
                     has_formatting = true;
                     i += 2;
@@ -418,24 +460,30 @@ namespace raw
                 else if(code == 'l' || code == 'o' || code == 'n' || code == 'm' || code == 'k')
                 {
                     flush_text();
-                    if (code == 'l') current_state.bold = true;
-                    else if (code == 'o') current_state.italic = true;
-                    else if (code == 'n') current_state.underlined = true;
-                    else if (code == 'm') current_state.strikethrough = true;
-                    else if (code == 'k') current_state.obfuscated = true;
+                    if(code == 'l')
+                        current_state.bold = true;
+                    else if(code == 'o')
+                        current_state.italic = true;
+                    else if(code == 'n')
+                        current_state.underlined = true;
+                    else if(code == 'm')
+                        current_state.strikethrough = true;
+                    else if(code == 'k')
+                        current_state.obfuscated = true;
                     has_formatting = true;
                     i += 2;
                     continue;
                 }
-                else if((code >= '0' && code <= '9') || 
-                        (code >= 'a' && code <= 'f') || 
-                        (code >= 'A' && code <= 'F'))
+                else if((code >= '0' && code <= '9') || (code >= 'a' && code <= 'f') || (code >= 'A' && code <= 'F'))
                 {
                     flush_text();
                     int index;
-                    if(code >= '0' && code <= '9') index = code - '0';
-                    else if(code >= 'a' && code <= 'f') index = 10 + (code - 'a');
-                    else index = 10 + (code - 'A');
+                    if(code >= '0' && code <= '9')
+                        index = code - '0';
+                    else if(code >= 'a' && code <= 'f')
+                        index = 10 + (code - 'a');
+                    else
+                        index = 10 + (code - 'A');
                     current_state.color = COLOR_CODES[index];
                     has_formatting = true;
                     i += 2;
@@ -454,74 +502,56 @@ namespace raw
                     size_t start = i + 2;
                     size_t pos = start;
                     std::string cmd;
-                    
-                    // Extraer el nombre del comando
+
                     while(pos < text_input.size() && (std::isalpha(text_input[pos]) || text_input[pos] == '_'))
                     {
                         cmd += text_input[pos];
                         pos++;
                     }
-                    
-                    // Manejar comando de página sin parámetros
+
                     if(cmd == "page")
                     {
                         flush_text();
-                        components.emplace_back("{\"text\":\"\\n{@pagebreak}\\n\"}");
+                        components.push_back({ { "text", "\n{@pagebreak}\n" } });
                         has_formatting = true;
                         i = pos;
                         continue;
                     }
-                    
-                    // Manejar comandos con parámetros entre comillas
-                    if(pos < text_input.size() && text_input[pos+1] == '"') 
+
+                    if(pos < text_input.size() && text_input[pos + 1] == '"')
                     {
                         size_t end_quote = pos + 2;
                         while(end_quote < text_input.size() && text_input[end_quote] != '"')
                         {
                             if(text_input[end_quote] == '\\' && end_quote + 1 < text_input.size())
                             {
-                                end_quote++; // Saltar caracter de escape
+                                end_quote++;
                             }
                             end_quote++;
                         }
-                        
+
                         if(end_quote < text_input.size())
                         {
                             std::string value = text_input.substr(pos + 2, end_quote - pos - 2);
                             flush_text();
                             has_formatting = true;
-                            
+
                             if(cmd == "url")
-                            {
                                 current_state.click_action = "open_url";
-                                current_state.click_value = value;
-                            }
                             else if(cmd == "in")
-                            {
                                 current_state.click_action = "suggest_command";
-                                current_state.click_value = value;
-                            }
                             else if(cmd == "file")
-                            {
                                 current_state.click_action = "open_file";
-                                current_state.click_value = value;
-                            }
                             else if(cmd == "command")
-                            {
                                 current_state.click_action = "run_command";
-                                current_state.click_value = value;
-                            }
                             else if(cmd == "copy")
-                            {
                                 current_state.click_action = "copy_to_clipboard";
-                                current_state.click_value = value;
-                            }
                             else if(cmd == "change")
-                            {
                                 current_state.click_action = "change_page";
-                                current_state.click_value = value;
-                            }
-                            
+                            else if(cmd == "custom")
+                                current_state.click_action = "custom";
+
+                            current_state.click_value = value;
                             i = end_quote + 1;
                             continue;
                         }
@@ -529,7 +559,6 @@ namespace raw
                 }
                 else if(code == '&' && (i + 2) < text_input.size())
                 {
-                    // Manejo de eventos hover
                     size_t start = i + 2;
                     size_t pos = start;
                     std::string cmd;
@@ -540,7 +569,7 @@ namespace raw
                         pos++;
                     }
 
-                    if(pos < text_input.size() && text_input[pos+1] == '"')
+                    if(pos < text_input.size() && text_input[pos + 1] == '"')
                     {
                         size_t end_quote = pos + 2;
                         while(end_quote < text_input.size())
@@ -576,8 +605,8 @@ namespace raw
                             }
                             else if(cmd == "shadow")
                             {
-                                if (value.length() >= 1 && value[0] == '#' && value.length() == 9) {
-                                    // #AARRGGBB
+                                if(value.length() >= 1 && value[0] == '#' && value.length() == 9)
+                                {
                                     std::string argb_hex = value.substr(1);
                                     unsigned int shadow_decimal = argb_hex_to_decimal(argb_hex);
                                     current_state.shadow = std::to_string(shadow_decimal);
@@ -595,116 +624,40 @@ namespace raw
         }
         flush_text();
 
+        nlohmann::json final_json;
         if(!has_formatting)
         {
-            return "\"" + json_escape(text_input) + "\"";
+            final_json = text_input;
         }
         else if(components.empty())
         {
-            return "\"\"";
+            final_json = "";
         }
         else if(components.size() == 1)
         {
-            return "[" + components[0] + "]";
+            final_json = components;
         }
         else
         {
             if(use_extra)
             {
-                std::string first_component = components[0];
-                
-                if(!first_component.empty() && first_component.back() == '}')
-                {
-                    first_component.pop_back();
-                }
-
-                first_component += ",\"extra\":[";
+                nlohmann::json result = components[0];
+                nlohmann::json extra = nlohmann::json::array();
                 for(size_t j = 1; j < components.size(); ++j)
                 {
-                    if(j > 1) first_component += ",";
-                    first_component += components[j];
+                    extra.push_back(components[j]);
                 }
-                first_component += "]}";
-                
-                return first_component;
+                result["extra"] = extra;
+                final_json = result;
             }
-            else //original
+            else
             {
-                
-                std::string result = "[";
-                for(size_t j = 0; j < components.size(); ++j)
-                {
-                    if(j > 0) result += ",";
-                    result += components[j];
-                }
-                result += "]";
-                return result;
+                final_json = components;
             }
         }
+
+        std::string json_str = final_json.dump();
+        return is_1_21_5 ? snbt::json_to_tag(json_str) : json_str;
     }
 
-    inline void hola()
-    {
-        std::cout << "Program made by Titop54 - https://github.com/Titop54\n"
-                << "You can't use this program unless explicit permission by Titop54 which has being granted with screenshots proof\n"
-                << "If you are found using this without permission, you are granting me to remove your content :)\n"
-                << "\nBase FTB setup:\n"
-                << "- Bold (&l)\n"
-                << "- Italic (&o)\n"
-                << "- Underline (&n)\n"
-                << "- Strikethrough (&m)\n"
-                << "- Colors (&0 to &f)\n"
-                << "- Reset to default (&r)\n"
-                << "- Custom colors (&#<6-digit hex>), goes before anything else\n"
-                << "\nCustom commands:\n"
-                << "- Obfuscated (&k)\n"
-                << "- Insert URL (&@url:\"<url>\"), words after this will be affected\n"
-                << "- Insert chat text (&@in:\"<text>\"), words after this will be affected\n"
-                << "- Open file (&@file:\"<file>\"), words after this will be affected\n"
-                << "- Run command (&@command:\"<command>\"), words after this will be affected\n"
-                << "- Copy to clipboard (&@copy:\"<text>\"), words after this will be affected\n"
-                << "- Change page (&@change:\"<value>\"), words after this will be affected\n"
-                << "- New page (&@page), acts as the new page on ftb\n"
-                << "- Show text on hover (&&text:\"<text>\"), words before this will be affected\n"
-                << "- Show item on hover (&&item:\"<item_id>\"), words before this will be affected\n"
-                << "- Set shadow color (&&shadow:\"#AARRGGBB\"), words before this will be affected\n\n";
-    }
-
-    inline void interactive_converter()
-    {
-        hola();
-        std::string input;
-        bool use_extra_mode = false;
-        
-        while(true)
-        {
-            std::cout << "Use mode <extra | array> to change mode\n";
-            std::cout << "> (Mode: " << (use_extra_mode ? "EXTRA" : "ARRAY") << ") ";
-            std::getline(std::cin, input);
-            
-            if(input == "F" || input == "f")
-            {
-                std::cout << "Exiting converter...\n";
-                break;
-            }
-            
-            if(input == "mode extra")
-            {
-                use_extra_mode = true;
-                std::cout << "Extra mode\n";
-                continue;
-            }
-            else if(input == "mode array")
-            {
-                use_extra_mode = false;
-                std::cout << "Array mode\n";
-                continue;
-            }
-            
-            std::string json = to_json(input, use_extra_mode);
-            std::cout << "\nJSON Result:\n";
-            std::cout << json << "\n\n";
-        }
-    }
-
-}
+} // namespace raw

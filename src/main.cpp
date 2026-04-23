@@ -96,29 +96,30 @@ int main(int argc, char* argv[])
     double lastTime = glfwGetTime();
 
     std::vector<Button> basicFormats = {
-        { "Bold", "Bold text (&l)", "&l", "&r" },
-        { "Italic", "Italic text (&o)", "&o", "&r" },
-        { "Underline", "Underlined text (&n)", "&n", "&r" },
-        { "Strikethrough", "Strikethrough text (&m)", "&m", "&r" },
-        { "Reset", "Reset formatting (&r)", "&r" },
-        { "Obfuscated", "Obfuscated text (&k)", "&k", "&r" },
-        { "Rainbows", "Gradient using the rainbow (1.21.1+ only) (&z)", "&z", "&r" }
+        { "Bold", "Applies a bold thickness to the text.\nUsage: &l<text>", "&l", "&r" },
+        { "Italic", "Applies an italic slant to the text.\nUsage: &o<text>", "&o", "&r" },
+        { "Underline", "Adds an underline beneath the text.\nUsage: &n<text>", "&n", "&r" },
+        { "Strikethrough", "Adds a horizontal line through the center of the text.\nUsage: &m<text>", "&m", "&r" },
+        { "Reset", "Clears all active formatting and colors, returning text to default.\nUsage: &r<text>", "&r" },
+        { "Obfuscated", "Animates characters with random symbols.\nUsage: &k<text>", "&k", "&r" },
+        { "Rainbows", "Applies a dynamic rainbow gradient to the text.\nUsage: &z<text>\n(Requires Minecraft 1.21.1+)", "&z", "&r" }
     };
 
     std::vector<Button> specialActions = {
-        { "Insert URL", "Insert URL: &@url:\"url\"", "&@url:\"", "\"&r" },
-        { "Insert Text", "Insert chat text: &@in:\"text\"", "&@in:\"", "\"&r" },
-        { "Open File", "Open file: &@file:\"path\"", "&@file:\"", "\"&r" },
-        { "Run Command", "Execute command: &@command:\"/<command>\"", "&@command:\"", "\"&r" },
-        { "Copy Text", "Copy text: &@copy:\"text\"", "&@copy:\"", "\"&r" },
-        { "Change Quest", "Change quest: &@change:\"text\"", "&@change:\"", "\"&r" },
-        { "New Page", "New page: &@page", "&@page", "" }
+        { "Insert URL", "Creates a clickable link that prompts the player to open a URL in their browser.\nUsage: &@url:\"<url>\"", "&@url:\"", "\"&r" },
+        { "Insert Text", "Inserts text directly into the player's chat bar when clicked.\nUseful for pre-filling commands for the player.\nUsage: &@in:\"<text>\"", "&@in:\"", "\"&r" },
+        { "Open File", "Attempts to open a local file or directory on the player's computer.\nUsage: &@file:\"<path>\"", "&@file:\"", "\"&r" },
+        { "Run Command", "Executes a Minecraft command as the player upon clicking the text.\nUsage: &@command:\"/<command>\"", "&@command:\"", "\"&r" },
+        { "Copy Text", "Copies the specified text to the player's clipboard when clicked.\nUsage: &@copy:\"<text>\"", "&@copy:\"", "\"&r" },
+        { "Change Quest", "Navigates the player to a specific quest page within the FTB Quests GUI.\nUsage: &@change:\"<quest_id>\"", "&@change:\"", "\"&r" },
+        { "Custom Event", "Sends a custom server-side event for mod/script integration.\nUsage: &@custom:\"<id>:<payload>\"\n- id: Unique event identifier.\n- payload: Optional data string.\n(Requires Minecraft 1.21.5+)", "&@custom:\"", "\"&r" },
+        { "New Page", "Inserts a page break marker for multi-page quest descriptions.\nUsage: &@page", "&@page", "" }
     };
 
     std::vector<Button> hoverEffects = {
-        { "Show Text Hover", "Needs to be after the text.\nShow text on hover: <some text to show tooltip>&&text:\"text\"", "&&text:\"", "\"&r" },
-        { "Show Item Hover", "Needs to be after the text.\nShow item on hover: <some text to show tooltip>&&item:\"item\"", "&&item:\"", "\"&r" },
-        { "Shadow Text", "&&shadow:\"", "Needs to be after the text.\n Put a shadow on the text (1.21.4) (#AARRGGBB)", "&r" }
+        { "Show Text Hover", "Displays a custom text tooltip when hovering over this component.\nUsage: <trigger_text>&&text:\"<tooltip_text>\"", "&&text:\"", "\"&r" },
+        { "Show Item Hover", "Displays an item's tooltip and NBT properties when hovering.\nUsage: <trigger_text>&&item:\"<item_id>\"\nExample: minecraft:diamond", "&&item:\"", "\"&r" },
+        { "Shadow Text", "Adds a custom-colored drop shadow to the text.\nUsage: <trigger_text>&&shadow:\"#<AARRGGBB>\"\n(Requires Minecraft 1.21.4+)", "&&shadow:\"", "&r" }
     };
 
     std::vector<Button> modEffects = {
@@ -261,11 +262,11 @@ int main(int argc, char* argv[])
     };
 
     std::vector<Button> actionButtons = {
-        { "Convert", "Convert text to JSON format and copy to clipboard" },
-        { "Copy Text Output", "Copy converted text to clipboard" },
-        { "Reload Minecraft (1.21.1+)", "Reload Minecraft scripts (requires KubeJS)" },
-        { "Settings", "Open appearance settings" },
-        { "Exit", "Close the application" }
+        { "Convert", "Processes the input, applies formatting/gradients, and copies the result to clipboard." },
+        { "Copy Text Output", "Copies the currently displayed output text to your system clipboard." },
+        { "Reload Minecraft", "Connects via KubeJS to execute a server-side reload command." },
+        { "Settings", "Configure application appearance, fonts, and target Minecraft version." },
+        { "Exit", "Safely closes the application." }
     };
 
     std::vector<Button> argsButtons = {
@@ -284,8 +285,6 @@ int main(int argc, char* argv[])
     {
         KubeJSImageBrowser browser;
         bool browserFirstRun = true;
-
-        bool is_new = true;
 
         bool convert = false;
         bool json = false;
@@ -318,7 +317,7 @@ int main(int argc, char* argv[])
             {
                 auto& data = basicFormats[i];
 
-                if(!is_new && data.label == "Rainbows")
+                if(settings::current.mc_version < settings::MC_1_21_1 && data.label == "Rainbows")
                 {
                     continue;
                 }
@@ -338,6 +337,11 @@ int main(int argc, char* argv[])
             {
                 auto& data = specialActions[i];
 
+                if(settings::current.mc_version < settings::MC_1_21_5 && data.label == "Custom Event")
+                {
+                    continue;
+                }
+
                 generateSlowedButton(field, data);
 
                 if(i < specialActions.size() - 1)
@@ -351,6 +355,11 @@ int main(int argc, char* argv[])
             for(size_t i = 0; i < hoverEffects.size(); ++i)
             {
                 auto& data = hoverEffects[i];
+
+                if(settings::current.mc_version < settings::MC_1_21_4 && data.label == "Shadow Text")
+                {
+                    continue;
+                }
 
                 generateSlowedButton(field, data);
 
@@ -366,7 +375,7 @@ int main(int argc, char* argv[])
             {
                 Button& data = modEffects[i];
 
-                if(!is_new)
+                if(settings::current.mc_version < settings::MC_1_21_1)
                 {
                     size_t space_pos = data.prefix.find(' ');
 
@@ -441,12 +450,19 @@ int main(int argc, char* argv[])
             });
             ImGui::SameLine();
 
-            generateSlowedButton(actionButtons[action_idx++], [&]() {
-                if(!client.connect()) inputText2 = "Couldn't connect to server";
-                if(!client.sendReloadCommand(ReloadType::SERVER)) inputText2 = "Error executing reload";
-                inputText2 = "Reload successful!";
-            });
-            ImGui::SameLine();
+            if(settings::current.mc_version == settings::MCVersion::MC_1_21_1)
+            {
+                generateSlowedButton(actionButtons[action_idx++], [&]() {
+                    if(!client.connect()) inputText2 = "Couldn't connect to server";
+                    if(!client.sendReloadCommand(ReloadType::SERVER)) inputText2 = "Error executing reload";
+                    inputText2 = "Reload successful!";
+                });
+                ImGui::SameLine();
+            }
+            else
+            {
+                action_idx++;
+            }
 
             generateSlowedButton(actionButtons[action_idx++], [&]() {
                 settings::show_menu = !settings::show_menu;
@@ -495,7 +511,6 @@ int main(int argc, char* argv[])
                 }
                 ImGui::SameLine();
 
-                ImGui::Checkbox("1.21.1+ format", &is_new);
                 if(ImGui::IsItemHovered())
                 {
                     ImGui::SetTooltip("Toggles more effects details (1.21.1+).\n"
