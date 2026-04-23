@@ -4,6 +4,7 @@
 #include <fstream>
 #include <filesystem>
 #include <nlohmann/json.hpp>
+#include <set>
 
 KubeJSClient client(61423, "");
 
@@ -222,8 +223,59 @@ std::vector<std::string> KubeJSClient::searchItems() {
 }
 
 std::vector<std::string> KubeJSClient::searchFluids() {
-    //Not for now
-    return {};
+    std::string resp;
+    if(!sendHttpRequest("GET", "/api/client/assets/list/textures/block", "", resp)) return {};
+
+    std::set<std::string> fluidIds;
+    try
+    {
+        auto j = json::parse(resp);
+        for(auto& [modId, files] : j.items())
+        {
+            for(const auto& file : files)
+            {
+                std::string path = file.get<std::string>();
+                
+                bool inFluidDir = (path.find("/fluid/") != std::string::npos || 
+                                   path.find("/fluids/") != std::string::npos ||
+                                   path.substr(0, 6) == "fluid/" ||
+                                   path.substr(0, 7) == "fluids/");
+
+                if(!inFluidDir) continue;
+                
+                std::vector<std::string> suffixes = {"_still", "_flow", "_gas_still", "_liquid_still", "_gas", "_liquid"};
+                bool hasFluidSuffix = false;
+                std::string name = "";
+
+                size_t lastSlash = path.find_last_of('/');
+                name = (lastSlash == std::string::npos) ? path : path.substr(lastSlash + 1);
+
+                size_t dot = name.find_last_of('.');
+                if(dot != std::string::npos) name = name.substr(0, dot);
+
+                for(const auto& s : suffixes)
+                {
+                    if(name.length() > s.length() && name.substr(name.length() - s.length()) == s)
+                    {
+                        name = name.substr(0, name.length() - s.length());
+                        hasFluidSuffix = true;
+                        break;
+                    }
+                }
+                    
+                if(hasFluidSuffix && !name.empty())
+                {
+                    fluidIds.insert(modId + ":" + name);
+                }
+            }
+        }
+    }
+    catch (...) {}
+
+    fluidIds.insert("minecraft:water");
+    fluidIds.insert("minecraft:lava");
+
+    return std::vector<std::string>(fluidIds.begin(), fluidIds.end());
 }
 
 sf::Image KubeJSClient::getPreview(const std::string& id, int size, TypeElement type, bool isTag) {

@@ -51,7 +51,7 @@ struct Texture
         if(pixels.empty() || size.x == 0 || size.y == 0) return;
         
         std::vector<uint8_t> newPixels;
-        newPixels.reserve(pixels.size());
+        newPixels.resize(pixels.size());
         for(unsigned int y = 0; y < size.y; ++y)
         {
             for(unsigned int x = 0; x < size.x; ++x)
@@ -81,6 +81,7 @@ struct TextureAnimation
     
     int defaultFrameTime = 1; 
     std::vector<AnimationFrame> sequence; 
+    std::string rawMcmeta;
 
     int getTotalDuration() const
     {

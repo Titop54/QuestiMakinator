@@ -28,16 +28,31 @@ void KubeJSImageBrowser::loadAssets()
     if(assetsLoaded) return;
     isLoading = true;
 
-    allBlocks = client.searchBlocks();
-    allItems = client.searchItems();
+    auto blocks = client.searchBlocks();
+    auto items = client.searchItems();
+    auto fluids = client.searchFluids();
+    
+    std::set<std::string> fluidSet(fluids.begin(), fluids.end());
 
-    validIds.reserve(allBlocks.size() + allItems.size());
-
-    validIds.insert(validIds.end(), allBlocks.begin(), allBlocks.end());
-    validIds.insert(validIds.end(), allItems.begin(), allItems.end());
+    validIds.reserve(blocks.size() + items.size() + fluids.size());
+    for(const auto& b : blocks)
+    {
+        if(fluidSet.find(b) == fluidSet.end()) validIds.push_back("[Block] " + b);
+    }
+    for(const auto& i : items)
+    {
+        if(fluidSet.find(i) == fluidSet.end()) validIds.push_back("[Item] " + i);
+    }
+    for(const auto& f : fluids)
+    {
+        validIds.push_back("[Fluid] " + f);
+    }
 
     assetsLoaded = true;
     isLoading = false;
+    allBlocks = blocks.size();
+    allItems = blocks.size();
+    allFluids = fluids.size();
 }
 
 void KubeJSImageBrowser::update(float deltaTime)
@@ -100,8 +115,9 @@ void KubeJSImageBrowser::render()
     });
 
     ImGui::Separator();
-    ImGui::Text("Current amount of items: %zu", allItems.size());
-    ImGui::Text("Current amount of blocks: %zu", allBlocks.size());
+    ImGui::Text("Current amount of items: %d", allItems);
+    ImGui::Text("Current amount of blocks: %d", allBlocks);
+    ImGui::Text("Current amount of fluids: %d", allFluids);
     ImGui::Separator();
 
     if(currentTexture != 0 && currentAnimation && !currentAnimation->frames.empty())
@@ -123,7 +139,7 @@ void KubeJSImageBrowser::render()
         ImGui::TextColored(ImVec4(1, 0, 0, 1), "Failed to load model or texture.");
     }
 
-    if(currentAnimation)
+    if(currentAnimation.has_value())
     {
         ImGui::Separator();
 
@@ -270,7 +286,7 @@ void KubeJSImageBrowser::render()
         {
             currentId.clear();
             idInputBuffer[0] = '\0';
-            currentAnimation = nullptr;
+            currentAnimation.reset();
             currentGenerator.reset();
             animations.clear();
 
@@ -306,22 +322,55 @@ void KubeJSImageBrowser::loadImage(const std::string& id)
     need_first_refresh = true;
 
     isLoading = true;
-    currentAnimation = nullptr;
+    currentAnimation.reset();
     currentGenerator.reset();
 
     std::string ns, path;
-    parseId(id, ns, path);
+    std::string cleanId = id;
+    bool forceBlock = false;
+    bool forceItem = false;
+    bool forceFluid = false;
+
+    if(id.substr(0, 8) == "[Block] ")
+    {
+        forceBlock = true;
+        cleanId = id.substr(8);
+    }
+    else if(id.substr(0, 7) == "[Item] ")
+    {
+        forceItem = true;
+        cleanId = id.substr(7);
+    }
+    else if(id.substr(0, 8) == "[Fluid] ")
+    {
+        forceFluid = true;
+        cleanId = id.substr(8);
+    }
+
+    parseId(cleanId, ns, path);
 
     std::string jsonBody;
     bool modelFound = false;
 
-    std::string urlBlock = "/api/client/assets/get/" + ns + "/models/block/" + path + ".json";
-    client.sendHttpRequest("GET", urlBlock, "", jsonBody);
-
-    if(!jsonBody.empty() && jsonBody.find("error") == std::string::npos)
+    if(forceFluid)
     {
-        currentGenerator = std::make_unique<ModelGenerator>(jsonBody, client, id);
+        nlohmann::json fluidModel;
+        fluidModel["parent"] = "minecraft:block/cube_all";
+        fluidModel["textures"]["all"] = cleanId;
+        currentGenerator.emplace(fluidModel.dump(), client, cleanId);
         modelFound = true;
+    }
+
+    if(!modelFound && !forceItem)
+    {
+        std::string urlBlock = "/api/client/assets/get/" + ns + "/models/block/" + path + ".json";
+        client.sendHttpRequest("GET", urlBlock, "", jsonBody);
+
+        if(!jsonBody.empty() && jsonBody.find("error") == std::string::npos)
+        {
+            currentGenerator.emplace(jsonBody, client, cleanId);
+            modelFound = true;
+        }
     }
 
     if(!modelFound)
@@ -362,13 +411,13 @@ void KubeJSImageBrowser::loadImage(const std::string& id)
 
                 std::string mtlUrl = "/api/client/assets/get/" + ns + "/models/" + mtlPath;
                 client.sendHttpRequest("GET", mtlUrl, "", mtlData);
-                currentGenerator = std::make_unique<ModelGenerator>(objData, mtlData, client, ns, id);
+                currentGenerator.emplace(objData, mtlData, client, ns, id);
                 modelFound = true;
             }
         }
     }
 
-    if(!modelFound)
+    if(!modelFound && !forceBlock)
     {
         std::string urlItem = "/api/client/assets/get/" + ns + "/models/item/" + path + ".json";
         jsonBody.clear();
@@ -376,12 +425,12 @@ void KubeJSImageBrowser::loadImage(const std::string& id)
 
         if(!jsonBody.empty() && jsonBody.find("error") == std::string::npos)
         {
-            currentGenerator = std::make_unique<ModelGenerator>(jsonBody, client, id);
+            currentGenerator.emplace(jsonBody, client, cleanId);
             modelFound = true;
         }
     }
 
-    if(modelFound && currentGenerator)
+    if(modelFound && currentGenerator.has_value())
     {
         GLboolean scissorEnabled = glIsEnabled(GL_SCISSOR_TEST);
         GLint prevViewport[4];
@@ -427,7 +476,7 @@ void KubeJSImageBrowser::loadImage(const std::string& id)
             anim.currentTick = 0;
 
             animations[id] = anim;
-            currentAnimation = &animations[id];
+            currentAnimation = animations[id];
             updateDisplayTexture();
         }
         else

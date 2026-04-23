@@ -231,15 +231,15 @@ ModelGenerator::ModelGenerator(const std::string &rawJson, KubeJSClient &client,
     int recursionDepth = 0;
     nlohmann::json currentLevel = modelJson;
 
-    if(modelJson.contains("loader") && modelJson["loader"] == "neoforge:fluid_container")
+    if(modelJson.contains("loader") && (modelJson["loader"] == "neoforge:fluid_container" || modelJson["loader"] == "immersiveengineering:potion_bucket"))
     {
-        if(modelJson.contains("fluid"))
-        {
-            std::string fluidId = modelJson["fluid"];
-            modelJson["textures"]["layer1"] = fluidId; 
-            modelJson["parent"] = "minecraft:item/generated";
-            modelJson["textures"]["layer0"] = "minecraft:item/bucket";
-        }
+        std::string fluidId = "minecraft:water";
+        if(modelJson.contains("fluid")) fluidId = modelJson["fluid"];
+        
+        modelJson["textures"]["layer1"] = fluidId; 
+        modelJson["parent"] = "minecraft:item/generated";
+        modelJson["textures"]["layer0"] = "minecraft:item/bucket";
+        modelJson["is_fluid_container"] = true;
     }
 
     //we want all layers, but up to a limit
@@ -337,12 +337,74 @@ ModelGenerator::ModelGenerator(const std::string &rawJson, KubeJSClient &client,
                 std::string ns = (colon == std::string::npos) ? "minecraft" : namespace_id.substr(0, colon);
                 std::string p = (colon == std::string::npos) ? namespace_id : namespace_id.substr(colon + 1);
 
-                std::string pngUrl = "/api/client/assets/get/" + ns + "/textures/" + p + ".png";
-                std::string imgData;
+                std::vector<std::string> pathsToTry;
+                pathsToTry.push_back("/api/client/assets/get/" + ns + "/textures/" + p + ".png");
+                pathsToTry.push_back("/api/client/assets/get/" + ns + "/textures/block/" + p + ".png");
+                pathsToTry.push_back("/api/client/assets/get/" + ns + "/textures/fluid/" + p + "_still.png");
+                pathsToTry.push_back("/api/client/assets/get/" + ns + "/textures/block/" + p + "_still.png");
+                pathsToTry.push_back("/api/client/assets/get/" + ns + "/textures/block/fluids/" + p + "_still.png");
+                pathsToTry.push_back("/api/client/assets/get/" + ns + "/textures/block/fluid/" + p + "_still.png");
 
+                std::string imgData;
+                bool loaded = false;
+                std::string successfulUrl = "";
                 TextureAnimation animData;
 
-                if(client.sendHttpRequest("GET", pngUrl, "", imgData))
+                for(const auto& pngUrl : pathsToTry)
+                {
+                    if(client.sendHttpRequest("GET", pngUrl, "", imgData))
+                    {
+                        if(imgData.empty() || imgData.find("error") != std::string::npos) continue;
+                        successfulUrl = pngUrl;
+                        loaded = true;
+                        break;
+                    }
+                }
+
+                if(!loaded)
+                {
+                    std::string assetListJson;
+                    if(client.sendHttpRequest("GET", "/api/client/assets/list/textures/block", "", assetListJson))
+                    {
+                        try
+                        {
+                            auto list = nlohmann::json::parse(assetListJson);
+                            if(list.contains(ns))
+                            {
+                                std::string bestMatch = "";
+                                for(const auto& assetPath : list[ns])
+                                {
+                                    std::string pathStr = assetPath.get<std::string>();
+                                    if(pathStr.find(p) != std::string::npos)
+                                    {
+                                        if(pathStr.find("still") != std::string::npos)
+                                        {
+                                            bestMatch = pathStr;
+                                            break;
+                                        }
+                                        if(bestMatch.empty()) bestMatch = pathStr;
+                                    }
+                                }
+
+                                if(!bestMatch.empty())
+                                {
+                                    successfulUrl = "/api/client/assets/get/" + ns + "/textures/block/" + bestMatch;
+                                    if(client.sendHttpRequest("GET", successfulUrl, "", imgData))
+                                    {
+                                        if(!imgData.empty() && imgData.find("error") == std::string::npos)
+                                        {
+                                            loaded = true;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        catch(...)
+                        {}
+                    }
+                }
+
+                if(loaded)
                 {
                     sf::Image img;
                     if(img.loadFromMemory(imgData.data(), imgData.size()))
@@ -360,7 +422,6 @@ ModelGenerator::ModelGenerator(const std::string &rawJson, KubeJSClient &client,
                             animData.texture.pixels.assign(rawPixels, rawPixels + totalBytes);
                         }
 
-
                         if(animData.texture.size.x > animData.texture.size.y)
                         {
                             animData.texture.rotate90Clockwise();
@@ -373,10 +434,11 @@ ModelGenerator::ModelGenerator(const std::string &rawJson, KubeJSClient &client,
                         if(h > w)
                         {
                             animData.isAnimated = true;
-                            std::string metaUrl = pngUrl + ".mcmeta";
+                            std::string metaUrl = successfulUrl + ".mcmeta";
                             std::string metaData;
                             if(client.sendHttpRequest("GET", metaUrl, "", metaData))
                             {
+                                animData.rawMcmeta = metaData;
                                 try
                                 {
                                     auto metaJson = nlohmann::json::parse(metaData);
@@ -402,18 +464,52 @@ ModelGenerator::ModelGenerator(const std::string &rawJson, KubeJSClient &client,
                                                 animData.sequence.emplace_back(frameInfo);
                                             }
                                         }
-                                        animData.isAnimated = true;
                                     }
                                 }
-                                catch(...)
-                                {
-                                }
+                                catch(...) {}
                             }
+                        }
+                        textures[texturePath] = animData;
+                    }
+                }
+            }
+        }
+    }
+
+    if(modelJson.value("is_fluid_container", false))
+    {
+        std::string bucketTexPath = "minecraft:item/bucket";
+        if(modelJson.contains("textures") && modelJson["textures"].contains("layer0"))
+        {
+            bucketTexPath = modelJson["textures"]["layer0"];
+        }
+
+        if(textures.count(bucketTexPath))
+        {
+            auto &tex = textures[bucketTexPath].texture;
+            auto clearBlock = [&](int x, int y) {
+                unsigned int xStart = (x * tex.size.x) / 16;
+                unsigned int xEnd = ((x + 1) * tex.size.x) / 16;
+                unsigned int yStart = (y * tex.size.y) / 16;
+                unsigned int yEnd = ((y + 1) * tex.size.y) / 16;
+
+                for(unsigned int ty = yStart; ty < yEnd; ty++)
+                {
+                    for(unsigned int tx = xStart; tx < xEnd; tx++)
+                    {
+                        if(tx < tex.size.x && ty < tex.size.y)
+                        {
+                            tex.pixels[(ty * tex.size.x + tx) * 4 + 3] = 0;
                         }
                     }
                 }
-                textures[texturePath] = animData;
-            }
+            };
+            // Row 3: 5-10
+            for(int x = 5; x <= 10; ++x) clearBlock(x, 3);
+            // Row 4: 4-11
+            for(int x = 4; x <= 11; ++x) clearBlock(x, 4);
+            // Rows 5-10: 5-10
+            for(int x = 5; x <= 10; ++x) clearBlock(x, 5);
         }
     }
 }
@@ -552,11 +648,40 @@ std::vector<RenderedFrame> ModelGenerator::generateIsometricSequence(unsigned in
     {
         if(isFlatItem)
         {
-            nlohmann::json flatItem;
-            flatItem["from"] = {0, 0, 0};
-            flatItem["to"] = {16, 16, 0};
-            flatItem["faces"]["north"] = {{"texture", "#layer0"}, {"uv", {0, 0, 16, 16}}};
-            modelJson["elements"] = nlohmann::json::array({flatItem});
+            auto elementsArray = nlohmann::json::array();
+            for(int i = 0; i < 10; ++i) 
+            {
+                std::string layerKey = "layer" + std::to_string(i);
+                if(modelJson["textures"].contains(layerKey))
+                {
+                    nlohmann::json flatItem;
+                    if(modelJson.value("is_fluid_container", false) && i == 1)
+                    {
+                        flatItem["from"] = {4, 3, 0.0f};
+                        flatItem["to"] = {12, 13, 0.0f};
+                        flatItem["faces"]["north"] = {{"texture", "#" + layerKey}, {"uv", {4, 3, 12, 13}}};
+                    }
+                    else
+                    {
+                        flatItem["from"] = {0, 0, (i + 1) * 1.0f};
+                        flatItem["to"] = {16, 16, (i + 1) * 1.0f};
+                        flatItem["faces"]["north"] = {{"texture", "#" + layerKey}, {"uv", {0, 0, 16, 16}}};
+                    }
+                    elementsArray.push_back(flatItem);
+                }
+            }
+            if(!elementsArray.empty())
+            {
+                modelJson["elements"] = elementsArray;
+            }
+            else
+            {
+                nlohmann::json flatItem;
+                flatItem["from"] = {0, 0, 0};
+                flatItem["to"] = {16, 16, 0};
+                flatItem["faces"]["north"] = {{"texture", "#layer0"}, {"uv", {0, 0, 16, 16}}};
+                modelJson["elements"] = nlohmann::json::array({flatItem});
+            }
         }
         else
         {
@@ -662,6 +787,8 @@ std::vector<RenderedFrame> ModelGenerator::generateIsometricSequence(unsigned in
             if(textures.find(texRef) == textures.end()) continue;
             TextureAnimation &anim = textures[texRef];
             const Texture *tex = &anim.texture;
+
+            if(tex->size.x == 0 || tex->size.y == 0) continue;
 
             float texH = (float)tex->size.y;
             float vScale = (float)anim.frameHeight / texH;
@@ -1075,10 +1202,29 @@ std::vector<RenderedFrame> ModelGenerator::generateIsometricSequence(unsigned in
 
 std::vector<RenderedFrame> ModelGenerator::generateIsometricSequenceOBJ(unsigned int outputSize, bool customRotation, float pitch, float yaw, bool wireframe)
 {
-    float minIsoX = 1e9, maxIsoX = -1e9;
-    float minIsoY = 1e9, maxIsoY = -1e9;
-    float minZ = 1e9, maxZ = -1e9;
+    float minX = 1e9, maxX = -1e9;
+    float minY = 1e9, maxY = -1e9;
+    float minZ_local = 1e9, maxZ_local = -1e9;
     bool hasVertices = false;
+
+    for(size_t i = 0; i < attrib.vertices.size() / 3; i++)
+    {
+        float vx = attrib.vertices[3 * i + 0];
+        float vy = attrib.vertices[3 * i + 1];
+        float vz = attrib.vertices[3 * i + 2];
+        if(vx < minX) minX = vx;
+        if(vx > maxX) maxX = vx;
+        if(vy < minY) minY = vy;
+        if(vy > maxY) maxY = vy;
+        if(vz < minZ_local) minZ_local = vz;
+        if(vz > maxZ_local) maxZ_local = vz;
+        hasVertices = true;
+    }
+    if(!hasVertices) return {};
+
+    float localCenterX = (minX + maxX) / 2.0f;
+    float localCenterY = (minY + maxY) / 2.0f;
+    float localCenterZ = (minZ_local + maxZ_local) / 2.0f;
 
     const float cos30 = 0.866025f;
     const float sin30 = 0.5f;
@@ -1087,7 +1233,7 @@ std::vector<RenderedFrame> ModelGenerator::generateIsometricSequenceOBJ(unsigned
     {
         if(customRotation)
         {
-            return project3DTransform(vx, vy, vz, pitch, yaw, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+            return project3DTransform(vx, vy, vz, pitch, yaw, 1.0f, 0.0f, 0.0f, localCenterX, localCenterY, localCenterZ);
         }
         else
         {
@@ -1097,45 +1243,33 @@ std::vector<RenderedFrame> ModelGenerator::generateIsometricSequenceOBJ(unsigned
         }
     };
 
+    float maxDistSq = 0;
     for(size_t i = 0; i < attrib.vertices.size() / 3; i++)
     {
-        float vx = attrib.vertices[3 * i + 0];
-        float vy = attrib.vertices[3 * i + 1];
-        float vz = attrib.vertices[3 * i + 2];
-        sf::Vector3f proj = projectRawIso(vx, vy, vz);
-        if(proj.x < minIsoX) minIsoX = proj.x;
-        if(proj.x > maxIsoX) maxIsoX = proj.x;
-        if(proj.y < minIsoY) minIsoY = proj.y;
-        if(proj.y > maxIsoY) maxIsoY = proj.y;
-        if(proj.z < minZ) minZ = proj.z;
-        if(proj.z > maxZ) maxZ = proj.z;
-        hasVertices = true;
+        float dx = attrib.vertices[3 * i + 0] - localCenterX;
+        float dy = attrib.vertices[3 * i + 1] - localCenterY;
+        float dz = attrib.vertices[3 * i + 2] - localCenterZ;
+        float distSq = dx * dx + dy * dy + dz * dz;
+        if(distSq > maxDistSq) maxDistSq = distSq;
     }
-    if(!hasVertices) return {};
-
-    float contentWidth = maxIsoX - minIsoX;
-    float contentHeight = maxIsoY - minIsoY;
-    if(contentWidth < 0.001f) contentWidth = 1.0f;
-    if(contentHeight < 0.001f) contentHeight = 1.0f;
+    float radius = std::sqrt(maxDistSq);
+    if(radius < 0.001f) radius = 1.0f;
 
     const float padding = 0.85f;
-    float scaleX = (outputSize * padding) / contentWidth;
-    float scaleY = (outputSize * padding) / contentHeight;
-    float finalScale = std::min(scaleX, scaleY);
-    float isoCenterX = (minIsoX + maxIsoX) / 2.0f;
-    float isoCenterY = (minIsoY + maxIsoY) / 2.0f;
-    float screenCenterX = outputSize / 2.0f;
-    float screenCenterY = outputSize / 2.0f;
+    float finalScale = (outputSize * padding) / (radius * 2.0f);
 
     auto projectToScreen = [&](float vx, float vy, float vz) -> sf::Vector3f
     {
-        sf::Vector3f proj = projectRawIso(vx, vy, vz);
-        float centeredX = proj.x - isoCenterX;
-        float centeredY = proj.y - isoCenterY;
+        sf::Vector3f centerProj = projectRawIso(localCenterX, localCenterY, localCenterZ);
+        sf::Vector3f vertexProj = projectRawIso(vx, vy, vz);
+        
+        float offsetX = vertexProj.x - centerProj.x;
+        float offsetY = vertexProj.y - centerProj.y;
+        
         return {
-            screenCenterX + centeredX * finalScale,
-            screenCenterY + centeredY * finalScale,
-            proj.z
+            (float)outputSize / 2.0f + offsetX * finalScale,
+            (float)outputSize / 2.0f + offsetY * finalScale,
+            vertexProj.z
         };
     };
 
@@ -1416,6 +1550,14 @@ void ModelGenerator::saveAssets(const std::string &itemId, bool customRotation, 
         std::string texName = changeFilename(path) + ".png";
         sf::Image img = animData.texture.copyToImage();
         if(!img.saveToFile(targetDir + "/" + texName)) std::cerr << "Error loading image" << std::endl;
+
+        if(!animData.rawMcmeta.empty())
+        {
+            std::string metaName = texName + ".mcmeta";
+            std::ofstream metaFile(targetDir + "/" + metaName);
+            metaFile << animData.rawMcmeta;
+            metaFile.close();
+        }
     }
 
     bool isItem = false;

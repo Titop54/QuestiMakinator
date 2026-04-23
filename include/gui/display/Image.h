@@ -4,6 +4,7 @@
 #include <nlohmann/json.hpp>
 
 #include <integration/model.h>
+#include <optional>
 #include "integration/kubejs.h"
 
 #include <GLFW/glfw3.h>
@@ -48,18 +49,17 @@ class KubeJSImageBrowser
 {
 private:
     std::map<std::string, AnimationData> animations;
-    std::vector<std::string> allBlocks;
-    std::vector<std::string> allItems;
+    int allBlocks = 0;
+    int allItems = 0;
+    int allFluids = 0;
     std::vector<std::string> validIds;
 
-    //Autocomplete
-    std::vector<std::string> filteredCandidates;
 
     //Textures display
     std::string currentId;
     GLuint currentTexture = 0; 
-    AnimationData* currentAnimation = nullptr;
-    std::unique_ptr<ModelGenerator> currentGenerator; 
+    std::optional<AnimationData> currentAnimation;
+    std::optional<ModelGenerator> currentGenerator; 
     
     bool isLoading = false;
     bool assetsLoaded = false;
