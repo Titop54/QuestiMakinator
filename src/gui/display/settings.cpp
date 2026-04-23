@@ -357,6 +357,9 @@ namespace settings
         sync_vec2(j, "window_title_align", s.window_title_align, loading);
         sync_vec2(j, "button_text_align", s.button_text_align, loading);
         sync_vec2(j, "selectable_text_align", s.selectable_text_align, loading);
+
+        // Version
+        sync(j, "mc_version", s.mc_version, loading);
     }
 
     void load()
@@ -421,6 +424,19 @@ namespace settings
                 ImGui::Checkbox("Show colors", &current.show_colors);
                 ImGui::Checkbox("Show TextAnimator", &current.textanimator);
                 ImGui::Checkbox("Show Modpack Tools", &current.show_packing);
+
+                ImGui::Dummy(ImVec2(0, 10));
+                ImGui::Separator();
+                ImGui::Text("Minecraft Version:");
+                
+                ImGui::RadioButton("1.19.2", &current.mc_version, MC_1_19_2); ImGui::SameLine();
+                ImGui::RadioButton("1.20.1", &current.mc_version, MC_1_20_1); ImGui::SameLine();
+                ImGui::RadioButton("1.20.4", &current.mc_version, MC_1_20_4);
+                
+                ImGui::RadioButton("1.21.1", &current.mc_version, MC_1_21_1); ImGui::SameLine();
+                ImGui::RadioButton("1.21.4", &current.mc_version, MC_1_21_4); ImGui::SameLine();
+                ImGui::RadioButton("1.21.5+", &current.mc_version, MC_1_21_5);
+
                 ImGui::EndChild();
                 ImGui::EndTabItem();
             }

@@ -7,9 +7,20 @@
 namespace settings
 {
 
+    enum MCVersion {
+        MC_1_19_2,
+        MC_1_20_1,
+        MC_1_20_4,
+        MC_1_21_1,
+        MC_1_21_4,
+        MC_1_21_5
+    };
+
     struct settings
     {
         float colors[ImGuiCol_COUNT][4];
+
+        int mc_version = MC_1_21_1;
 
         float font_scale = 1.0f;
         std::string font_path = "";
