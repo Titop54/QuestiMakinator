@@ -73,6 +73,7 @@ private:
     bool flip_vertical = false;
     bool flip_horizontal = false;
     bool wireframe = false;
+    bool rotate = false;
 
     unsigned int lastTexWidth = 0;
     unsigned int lastTexHeight = 0;

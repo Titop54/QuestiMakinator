@@ -307,6 +307,46 @@ ModelGenerator::ModelGenerator(const std::string &rawJson, KubeJSClient &client,
         }
     }
 
+    if(!modelJson.contains("elements") && modelJson.contains("overrides") && modelJson["overrides"].is_array() && !modelJson["overrides"].empty())
+    {
+        auto firstOverride = modelJson["overrides"][0];
+        if(firstOverride.contains("model"))
+        {
+            std::string overridePath = firstOverride["model"].get<std::string>();
+            std::string ns = "minecraft";
+            std::string path = overridePath;
+            size_t colon = overridePath.find(':');
+            if(colon != std::string::npos)
+            {
+                ns = overridePath.substr(0, colon);
+                path = overridePath.substr(colon + 1);
+            }
+
+            std::string overrideUrl = "/api/client/assets/get/" + ns + "/models/" + path + ".json";
+            std::string overrideData;
+            if(client.sendHttpRequest("GET", overrideUrl, "", overrideData))
+            {
+                try
+                {
+                    auto overrideJson = nlohmann::json::parse(overrideData);
+                    if(overrideJson.contains("elements"))
+                    {
+                        modelJson["elements"] = overrideJson["elements"];
+                    }
+                    if(overrideJson.contains("textures"))
+                    {
+                        for(auto &[key, val] : overrideJson["textures"].items())
+                        {
+                            if(!modelJson["textures"].contains(key))
+                                modelJson["textures"][key] = val;
+                        }
+                    }
+                }
+                catch(...) {}
+            }
+        }
+    }
+
     if(modelJson.contains("textures"))
     {
         for(auto &[key, path] : modelJson["textures"].items())

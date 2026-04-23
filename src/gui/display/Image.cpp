@@ -8,6 +8,20 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 
+static void rotateSfImage90(sf::Image& image)
+{
+    sf::Vector2u size = image.getSize();
+    sf::Image rotated({size.y, size.x});
+    for(unsigned int y = 0; y < size.y; y++)
+    {
+        for(unsigned int x = 0; x < size.x; x++)
+        {
+            rotated.setPixel({size.y - 1 - y, x}, image.getPixel({x, y}));
+        }
+    }
+    image = rotated;
+}
+
 void parseId(const std::string& fullId, std::string& ns, std::string& path)
 {
     size_t colon = fullId.find(':');
@@ -184,22 +198,29 @@ void KubeJSImageBrowser::render()
         {
             viewChanged = true;
         }
+        ImGui::SameLine();
         if(ImGui::Checkbox("Flip Vertical", &flip_vertical))
         {
             viewChanged = true;
         }
+        ImGui::NewLine();
         if(ImGui::Checkbox("WireFrame", &wireframe))
         {
             viewChanged = true;
         }
+        ImGui::SameLine();
+        if(ImGui::Checkbox("Rotate 90º", &rotate))
+        {
+            viewChanged = true;
+        }
 
-        if(ImGui::SliderFloat("Yaw (Rotation)", &viewYaw, -180.0f, 180.0f))
+        if(ImGui::SliderFloat("Horizontal rotation", &viewYaw, -180.0f, 180.0f))
         {
             viewChanged = true;
             useCustomView = true;
         }
 
-        if(ImGui::SliderFloat("Pitch (Tilt)", &viewPitch, -90.0f, 90.0f))
+        if(ImGui::SliderFloat("Vertical Rotation", &viewPitch, -90.0f, 90.0f))
         {
             viewChanged = true;
             useCustomView = true;
@@ -244,6 +265,7 @@ void KubeJSImageBrowser::render()
             {
                 if(flip_horizontal) img.image.flipHorizontally();
                 if(flip_vertical) img.image.flipVertically();
+                if(rotate) rotateSfImage90(img.image);
             }
 
             if(!frames.empty())
@@ -457,6 +479,7 @@ void KubeJSImageBrowser::loadImage(const std::string& id)
         {
             if(flip_horizontal) img.image.flipHorizontally();
             if(flip_vertical) img.image.flipVertically();
+            if(rotate) rotateSfImage90(img.image);
         }
 
         if(scissorEnabled)
