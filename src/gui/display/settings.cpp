@@ -208,53 +208,7 @@ namespace settings
 
     void reset_to_defaults(struct settings& s)
     {
-        ImGuiStyle default_style;
-        for(int i = 0; i < ImGuiCol_COUNT; ++i)
-        {
-            s.colors[i][0] = default_style.Colors[i].x;
-            s.colors[i][1] = default_style.Colors[i].y;
-            s.colors[i][2] = default_style.Colors[i].z;
-            s.colors[i][3] = default_style.Colors[i].w;
-        }
-
-        apply_preset(s, 0);
-
-        s.font_scale = 1.0f;
-        s.font_path = "";
-        s.alpha = 1.0f;
-        s.disabled_alpha = 0.60f;
-
-        s.window_min_size[0] = 32.0f;
-        s.window_min_size[1] = 32.0f;
-        s.scrollbar_size = 14.0f;
-        s.grab_min_size = 12.0f;
-
-        s.window_padding[0] = 8.0f;
-        s.window_padding[1] = 8.0f;
-        s.frame_padding[0] = 4.0f;
-        s.frame_padding[1] = 3.0f;
-        s.item_spacing[0] = 8.0f;
-        s.item_spacing[1] = 4.0f;
-        s.item_inner_spacing[0] = 4.0f;
-        s.item_inner_spacing[1] = 4.0f;
-        s.cell_padding[0] = 4.0f;
-        s.cell_padding[1] = 2.0f;
-        s.display_window_padding[0] = 19.0f;
-        s.display_window_padding[1] = 19.0f;
-        s.display_safe_area_padding[0] = 3.0f;
-        s.display_safe_area_padding[1] = 3.0f;
-
-        s.window_title_align[0] = 0.0f;
-        s.window_title_align[1] = 0.5f;
-        s.button_text_align[0] = 0.5f;
-        s.button_text_align[1] = 0.5f;
-        s.selectable_text_align[0] = 0.0f;
-        s.selectable_text_align[1] = 0.0f;
-
-        s.show_colors = true;
-        s.show_image = true;
-        s.textanimator = true;
-        s.show_packing = true;
+        s = settings();
     }
 
     void apply_to_imgui(const struct settings& s)
@@ -302,138 +256,131 @@ namespace settings
         ImGui::GetIO().FontGlobalScale = s.font_scale;
     }
 
-    void load()
+    template <typename T>
+    void sync(json& j, const char* key, T& var, bool loading)
     {
-        reset_to_defaults(saved);
-
-        std::ifstream file("settings.json");
-        if(!file.is_open())
+        if(loading)
         {
-            current = saved;
-            save();
-            return;
+            if(j.contains(key))
+            {
+                try
+                {
+                    var = j.at(key).get<T>();
+                }
+                catch(...)
+                {}
+            }
         }
-
-        try
+        else
         {
-            json j;
-            file >> j;
+            j[key] = var;
+        }
+    }
 
+    void sync_vec2(json& j, const char* key, float var[2], bool loading)
+    {
+        if(loading)
+        {
+            if(j.contains(key) && j[key].is_array() && j[key].size() >= 2)
+            {
+                var[0] = j[key][0];
+                var[1] = j[key][1];
+            }
+        }
+        else
+        {
+            j[key] = { var[0], var[1] };
+        }
+    }
+
+    void sync_all(json& j, struct settings& s, bool loading)
+    {
+        // Colors
+        if(loading)
+        {
             if(j.contains("colors"))
             {
-                auto jcolors = j["colors"];
-                for(size_t i = 0; i < (size_t)ImGuiCol_COUNT && i < jcolors.size(); ++i)
+                auto& jc = j["colors"];
+                for(int i = 0; i < ImGuiCol_COUNT && (size_t)i < jc.size(); ++i)
                 {
-                    for(int c = 0; c < 4; ++c) saved.colors[i][c] = jcolors[i][c];
+                    for(int c = 0; c < 4; ++c) s.colors[i][c] = jc[i][c];
                 }
             }
-
-            if(j.contains("font_scale")) saved.font_scale = j["font_scale"];
-            if(j.contains("font_path")) saved.font_path = j["font_path"];
-            if(j.contains("alpha")) saved.alpha = j["alpha"];
-            if(j.contains("disabled_alpha")) saved.disabled_alpha = j["disabled_alpha"];
-
-            if(j.contains("window_rounding")) saved.window_rounding = j["window_rounding"];
-            if(j.contains("child_rounding")) saved.child_rounding = j["child_rounding"];
-            if(j.contains("frame_rounding")) saved.frame_rounding = j["frame_rounding"];
-            if(j.contains("popup_rounding")) saved.popup_rounding = j["popup_rounding"];
-            if(j.contains("scrollbar_rounding")) saved.scrollbar_rounding = j["scrollbar_rounding"];
-            if(j.contains("grab_rounding")) saved.grab_rounding = j["grab_rounding"];
-            if(j.contains("tab_rounding")) saved.tab_rounding = j["tab_rounding"];
-
-            if(j.contains("window_border_size")) saved.window_border_size = j["window_border_size"];
-            if(j.contains("child_border_size")) saved.child_border_size = j["child_border_size"];
-            if(j.contains("popup_border_size")) saved.popup_border_size = j["popup_border_size"];
-            if(j.contains("frame_border_size")) saved.frame_border_size = j["frame_border_size"];
-            if(j.contains("tab_border_size")) saved.tab_border_size = j["tab_border_size"];
-
-            if(j.contains("scrollbar_size")) saved.scrollbar_size = j["scrollbar_size"];
-            if(j.contains("grab_min_size")) saved.grab_min_size = j["grab_min_size"];
-            if(j.contains("font_size")) saved.font_size = j["font_size"];
-
-            if(j.contains("show_image")) saved.show_image = j["show_image"];
-            if(j.contains("show_colors")) saved.show_colors = j["show_colors"];
-            if(j.contains("textanimator")) saved.textanimator = j["textanimator"];
-            if(j.contains("show_packing")) saved.show_packing = j["show_packing"];
-
-            auto load_vec2 = [&](const char* key, float arr[2]) {
-                if(j.contains(key))
-                {
-                    arr[0] = j[key][0];
-                    arr[1] = j[key][1];
-                }
-            };
-
-            load_vec2("window_min_size", saved.window_min_size);
-            load_vec2("window_padding", saved.window_padding);
-            load_vec2("frame_padding", saved.frame_padding);
-            load_vec2("item_spacing", saved.item_spacing);
-            load_vec2("item_inner_spacing", saved.item_inner_spacing);
-            load_vec2("cell_padding", saved.cell_padding);
-            load_vec2("display_window_padding", saved.display_window_padding);
-            load_vec2("display_safe_area_padding", saved.display_safe_area_padding);
-            load_vec2("window_title_align", saved.window_title_align);
-            load_vec2("button_text_align", saved.button_text_align);
-            load_vec2("selectable_text_align", saved.selectable_text_align);
         }
-        catch(const json::exception& e)
+        else
         {
+            j["colors"] = json::array();
+            for(int i = 0; i < ImGuiCol_COUNT; i++)
+            {
+                j["colors"].push_back({ s.colors[i][0], s.colors[i][1], s.colors[i][2], s.colors[i][3] });
+            }
         }
 
+        // Floats
+        sync(j, "font_scale", s.font_scale, loading);
+        sync(j, "alpha", s.alpha, loading);
+        sync(j, "disabled_alpha", s.disabled_alpha, loading);
+        sync(j, "window_rounding", s.window_rounding, loading);
+        sync(j, "child_rounding", s.child_rounding, loading);
+        sync(j, "frame_rounding", s.frame_rounding, loading);
+        sync(j, "popup_rounding", s.popup_rounding, loading);
+        sync(j, "scrollbar_rounding", s.scrollbar_rounding, loading);
+        sync(j, "grab_rounding", s.grab_rounding, loading);
+        sync(j, "tab_rounding", s.tab_rounding, loading);
+        sync(j, "window_border_size", s.window_border_size, loading);
+        sync(j, "child_border_size", s.child_border_size, loading);
+        sync(j, "popup_border_size", s.popup_border_size, loading);
+        sync(j, "frame_border_size", s.frame_border_size, loading);
+        sync(j, "tab_border_size", s.tab_border_size, loading);
+        sync(j, "scrollbar_size", s.scrollbar_size, loading);
+        sync(j, "grab_min_size", s.grab_min_size, loading);
+        sync(j, "font_size", s.font_size, loading);
+
+        // Strings
+        sync(j, "font_path", s.font_path, loading);
+
+        // Bools
+        sync(j, "show_image", s.show_image, loading);
+        sync(j, "show_colors", s.show_colors, loading);
+        sync(j, "textanimator", s.textanimator, loading);
+        sync(j, "show_packing", s.show_packing, loading);
+
+        // Vec2
+        sync_vec2(j, "window_min_size", s.window_min_size, loading);
+        sync_vec2(j, "window_padding", s.window_padding, loading);
+        sync_vec2(j, "frame_padding", s.frame_padding, loading);
+        sync_vec2(j, "item_spacing", s.item_spacing, loading);
+        sync_vec2(j, "item_inner_spacing", s.item_inner_spacing, loading);
+        sync_vec2(j, "cell_padding", s.cell_padding, loading);
+        sync_vec2(j, "display_window_padding", s.display_window_padding, loading);
+        sync_vec2(j, "display_safe_area_padding", s.display_safe_area_padding, loading);
+        sync_vec2(j, "window_title_align", s.window_title_align, loading);
+        sync_vec2(j, "button_text_align", s.button_text_align, loading);
+        sync_vec2(j, "selectable_text_align", s.selectable_text_align, loading);
+    }
+
+    void load()
+    {
+        saved = settings();
+        std::ifstream file("settings.json");
+        if(file.is_open())
+        {
+            try
+            {
+                json j;
+                file >> j;
+                sync_all(j, saved, true);
+            }
+            catch(...)
+            {}
+        }
         current = saved;
     }
 
     void save()
     {
         json j;
-
-        j["colors"] = json::array();
-        for(int i = 0; i < ImGuiCol_COUNT; ++i)
-        {
-            j["colors"].push_back({ saved.colors[i][0], saved.colors[i][1], saved.colors[i][2], saved.colors[i][3] });
-        }
-
-        j["font_scale"] = saved.font_scale;
-        j["font_path"] = saved.font_path;
-        j["alpha"] = saved.alpha;
-        j["disabled_alpha"] = saved.disabled_alpha;
-
-        j["window_rounding"] = saved.window_rounding;
-        j["child_rounding"] = saved.child_rounding;
-        j["frame_rounding"] = saved.frame_rounding;
-        j["popup_rounding"] = saved.popup_rounding;
-        j["scrollbar_rounding"] = saved.scrollbar_rounding;
-        j["grab_rounding"] = saved.grab_rounding;
-        j["tab_rounding"] = saved.tab_rounding;
-
-        j["window_border_size"] = saved.window_border_size;
-        j["child_border_size"] = saved.child_border_size;
-        j["popup_border_size"] = saved.popup_border_size;
-        j["frame_border_size"] = saved.frame_border_size;
-        j["tab_border_size"] = saved.tab_border_size;
-
-        j["scrollbar_size"] = saved.scrollbar_size;
-        j["grab_min_size"] = saved.grab_min_size;
-
-        j["window_min_size"] = { saved.window_min_size[0], saved.window_min_size[1] };
-        j["window_padding"] = { saved.window_padding[0], saved.window_padding[1] };
-        j["frame_padding"] = { saved.frame_padding[0], saved.frame_padding[1] };
-        j["item_spacing"] = { saved.item_spacing[0], saved.item_spacing[1] };
-        j["item_inner_spacing"] = { saved.item_inner_spacing[0], saved.item_inner_spacing[1] };
-        j["cell_padding"] = { saved.cell_padding[0], saved.cell_padding[1] };
-        j["display_window_padding"] = { saved.display_window_padding[0], saved.display_window_padding[1] };
-        j["display_safe_area_padding"] = { saved.display_safe_area_padding[0], saved.display_safe_area_padding[1] };
-
-        j["window_title_align"] = { saved.window_title_align[0], saved.window_title_align[1] };
-        j["button_text_align"] = { saved.button_text_align[0], saved.button_text_align[1] };
-        j["selectable_text_align"] = { saved.selectable_text_align[0], saved.selectable_text_align[1] };
-        j["font_size"] = saved.font_size;
-
-        j["show_colors"] = saved.show_colors;
-        j["show_image"] = saved.show_image;
-        j["textanimator"] = saved.textanimator;
-        j["show_packing"] = saved.show_packing;
-
+        sync_all(j, saved, false);
         std::ofstream file("settings.json");
         if(file.is_open())
         {
