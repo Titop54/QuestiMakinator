@@ -48,8 +48,8 @@ struct Size
 struct Button
 {
     std::string label = "";
-    std::string prefix = ""; //prefix
     std::string tooltip = "";
+    std::string prefix = ""; //prefix
     std::string ending = "";
     Position pos = {};
     Size size = {};

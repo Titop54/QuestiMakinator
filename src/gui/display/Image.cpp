@@ -64,15 +64,13 @@ void KubeJSImageBrowser::update(float deltaTime)
 
 void KubeJSImageBrowser::render()
 {
-    ImGui::Begin("KubeJS Image Browser");
+    ImGui::Begin("Image Browser");
     if(client.needs_manual)
     {
         ImGui::Text("Not connect to KubeJS\nNeeds to be loaded on port localhost:61423\n");
         Button a = {
             "Connect to KubeJS",
-            "",
-            "Try to connect to KubeJS localhost server",
-            ""
+            "Try to connect to KubeJS localhost server"
         };
 
         static bool has_tried = false;

@@ -96,68 +96,185 @@ int main(int argc, char* argv[])
     double lastTime = glfwGetTime();
 
     std::vector<Button> basicFormats = {
-        { "Bold", "&l", "Bold text (&l)", "&r" },
-        { "Italic", "&o", "Italic text (&o)", "&r" },
-        { "Underline", "&n", "Underlined text (&n)", "&r" },
-        { "Strikethrough", "&m", "Strikethrough text (&m)", "&r" },
-        { "Reset", "&r", "Reset formatting (&r)" },
-        { "Obfuscated", "&k", "Obfuscated text (&k)", "&r" },
-        { "Rainbows", "&z", "Gradient using the rainbow (1.21.1+ only) (&z)", "&r" }
+        { "Bold", "Bold text (&l)", "&l", "&r" },
+        { "Italic", "Italic text (&o)", "&o", "&r" },
+        { "Underline", "Underlined text (&n)", "&n", "&r" },
+        { "Strikethrough", "Strikethrough text (&m)", "&m", "&r" },
+        { "Reset", "Reset formatting (&r)", "&r" },
+        { "Obfuscated", "Obfuscated text (&k)", "&k", "&r" },
+        { "Rainbows", "Gradient using the rainbow (1.21.1+ only) (&z)", "&z", "&r" }
     };
 
     std::vector<Button> specialActions = {
-        { "Insert URL", "&@url:\"", "Insert URL: &@url:\"url\"", "\"&r" },
-        { "Insert Text", "&@in:\"", "Insert chat text: &@in:\"text\"", "\"&r" },
-        { "Open File", "&@file:\"", "Open file: &@file:\"path\"", "\"&r" },
-        { "Run Command", "&@command:\"", "Execute command: &@command:\"command\"", "\"&r" },
-        { "Copy Text", "&@copy:\"", "Copy text: &@copy:\"text\"", "\"&r" },
-        { "Change Quest", "&@change:\"", "Change quest: &@change:\"text\"", "\"&r" },
-        { "New Page", "&@page", "New page: &@page", "" }
+        { "Insert URL", "Insert URL: &@url:\"url\"", "&@url:\"", "\"&r" },
+        { "Insert Text", "Insert chat text: &@in:\"text\"", "&@in:\"", "\"&r" },
+        { "Open File", "Open file: &@file:\"path\"", "&@file:\"", "\"&r" },
+        { "Run Command", "Execute command: &@command:\"/<command>\"", "&@command:\"", "\"&r" },
+        { "Copy Text", "Copy text: &@copy:\"text\"", "&@copy:\"", "\"&r" },
+        { "Change Quest", "Change quest: &@change:\"text\"", "&@change:\"", "\"&r" },
+        { "New Page", "New page: &@page", "&@page", "" }
     };
 
     std::vector<Button> hoverEffects = {
-        { "Show Text Hover", "&&text:\"", "Needs to be after the text.\nShow text on hover: <some text to show tooltip>&&text:\"text\"", "\"&r" },
-        { "Show Item Hover", "&&item:\"", "Needs to be after the text.\nShow item on hover: <some text to show tooltip>&&item:\"item\"", "\"&r" },
-        //{"Shadow Text", "&&shadow:\"", "Needs to be after the text.\n Put a shadow on the text (Not working) (#AARRGGBB)", "&r"}
+        { "Show Text Hover", "Needs to be after the text.\nShow text on hover: <some text to show tooltip>&&text:\"text\"", "&&text:\"", "\"&r" },
+        { "Show Item Hover", "Needs to be after the text.\nShow item on hover: <some text to show tooltip>&&item:\"item\"", "&&item:\"", "\"&r" },
+        { "Shadow Text", "&&shadow:\"", "Needs to be after the text.\n Put a shadow on the text (1.21.4) (#AARRGGBB)", "&r" }
     };
 
     std::vector<Button> modEffects = {
         // row 1
-        { "Typewriter", "<typewriter>", "Typewriter effect", "</typewriter>" },
-        { "Bounce", "<bounce a=1.0 f=1.0 w=1.0>", "Vertical bounce effect", "</bounce>" },
-        { "Fade", "<fade a=0.3 f=1.0 w=0.0>", "Fade effect", "</fade>" },
-        { "Glitch", "<glitch f=1.0 j=0.015 b=0.003 s=0.08>", "Glitch effect", "</glitch>" },
+        { "Typewriter",
+            "Simulates real-time typing by rendering characters one by one.\n\n"
+            "Usage:\n- Must be placed at the very beginning of the text.\n\n"
+            "Note: 1.21.1+ for the extra parameters",
+            "<typewriter>", "</typewriter>" },
+
+        { "Bounce",
+            "Makes characters bounce vertically.\n\n"
+            "Parameters:\n"
+            "- a: Amplitude (Height of the bounce)\n"
+            "- f: Frequency (Speed of movement)\n"
+            "- w: Wave Size (Distance between character peaks)\n\n"
+            "Note: 1.21.1+ for the extra parameters",
+            "<bounce a=1.0 f=1.0 w=1.0>", "</bounce>" },
+
+        { "Fade",
+            "Periodically changes text opacity (breathing effect).\n\n"
+            "Parameters:\n"
+            "- a: Minimum Opacity (Lower bound)\n"
+            "- f: Frequency (Speed of the fade)\n"
+            "- w: Wave Size (Offset between characters)\n\n"
+            "Note: 1.21.1+ for the extra parameters",
+            "<fade a=0.3 f=1.0 w=0.0>", "</fade>" },
+
+        { "Glitch",
+            "Creates slicing, flickering, and random jitter layers.\n\n"
+            "Parameters:\n"
+            "- f: Frequency (Speed of glitching)\n"
+            "- j: Jitter Chance (Random character displacement)\n"
+            "- b: Blink Chance (Random visibility flicker)\n"
+            "- s: Slicing Chance (Horizontal layer shifting)\n\n"
+            "Note: 1.21.1+ for the extra parameters",
+            "<glitch f=1.0 j=0.015 b=0.003 s=0.08>", "</glitch>" },
+
         // row 2
-        { "Gradient", "<grad from=#7FFFD4 to=#1E90FF hue=false f=0.0 sp=20.0 uni=false>", "Color gradient effect", "</grad>" },
-        { "Neon", "<neon p=10 r=2 a=0.12>", "Neon effect", "</neon>" },
-        { "Pendulum", "<pend f=1.0 a=30 r=0.0>", "Circular pendulum effect", "</pend>" },
-        { "Pulse", "<pulse base=0.75 a=1.0 f=1.0 w=0.0>", "Brightness pulse effect", "</pulse>" },
+        { "Gradient",
+            "Smooth color transition in RGB or HSV space.\n\n"
+            "Parameters:\n"
+            "- from/to: Start and End colors (Hex code)\n"
+            "- hue: Use HSV interpolation (True/False)\n"
+            "- f: Flow Speed (Movement speed)\n"
+            "- sp: Span (Color distribution distance)\n"
+            "- uni: Unidirectional flow (True/False)\n\n"
+            "Note: 1.21.1+ for the extra parameters",
+            "<grad from=#7FFFD4 to=#1E90FF hue=false f=0.0 sp=20.0 uni=false>", "</grad>" },
+
+        { "Neon",
+            "Generates multiple glowing outlines around characters.\n\n"
+            "Parameters:\n"
+            "- p: Sampling Count (Quality of glow, min 4)\n"
+            "- r: Radius (Thickness of the glow)\n"
+            "- a: Opacity Multiplier (Glow intensity)\n\n"
+            "Note: 1.21.1+ for the extra parameters",
+            "<neon p=10 r=2 a=0.12>", "</neon>" },
+
+        { "Pendulum",
+            "Characters swing back and forth from the top.\n\n"
+            "Parameters:\n"
+            "- f: Frequency (Swing speed)\n"
+            "- a: Maximum Angle (Degrees of rotation)\n"
+            "- r: Circular Radius (Optional circular path)\n\n"
+            "Note: 1.21.1+ for the extra parameters",
+            "<pend f=1.0 a=30 r=0.0>", "</pend>" },
+
+        { "Pulse",
+            "Changes the overall brightness over time.\n\n"
+            "Parameters:\n"
+            "- base: Minimum Brightness multiplier\n"
+            "- a: Amplitude (Intensity of the pulse)\n"
+            "- f: Frequency (Speed of fluctuation)\n"
+            "- w: Wave Size (Offset between characters)\n\n"
+            "Note: 1.21.1+ for the extra parameters",
+            "<pulse base=0.75 a=1.0 f=1.0 w=0.0>", "</pulse>" },
+
         // row 3
-        { "Rainbow", "<rainb f=1.0 w=1.0>", "Rainbow color effect", "</rainb>" },
-        { "Shadow", "<shadow x=0.0 y=0.0 c=000000 a=1.0>", "Modify text shadow", "</shadow>" },
-        { "Shake", "<shake a=1.0 f=1.0>", "Random shake effect", "</shake>" },
-        { "Swing", "<swing a=1.0 f=1.0 w=0.0>", "Character swing effect", "</swing>" },
+        { "Rainbow",
+            "Cycles through the full HSV color spectrum.\n\n"
+            "Parameters:\n"
+            "- f: Frequency (Color cycle speed)\n"
+            "- w: Wave Size (Color distribution width)\n\n"
+            "Note: 1.21.1+ for the extra parameters",
+            "<rainb f=1.0 w=1.0>", "</rainb>" },
+
+        { "Shadow",
+            "Customizes the text shadow properties.\n\n"
+            "Parameters:\n"
+            "- x/y: Offset Delta (Horizontal and vertical position)\n"
+            "- c: Shadow Color (Hex code)\n"
+            "- a: Opacity (Shadow transparency)\n\n"
+            "Note: 1.21.1+ for the extra parameters",
+            "<shadow x=0.0 y=0.0 c=000000 a=1.0>", "</shadow>" },
+
+        { "Shake",
+            "High-energy random jitter in all directions.\n\n"
+            "Parameters:\n"
+            "- a: Amplitude (Strength of the shake)\n"
+            "- f: Frequency (Speed of the jitter)\n\n"
+            "Note: 1.21.1+ for the extra parameters",
+            "<shake a=1.0 f=1.0>", "</shake>" },
+
+        { "Swing",
+            "Characters spin back and forth on their axis.\n\n"
+            "Parameters:\n"
+            "- a: Amplitude (Rotation intensity)\n"
+            "- f: Frequency (Spin speed)\n"
+            "- w: Wave Size (Phase offset per character)\n\n"
+            "Note: 1.21.1+ for the extra parameters",
+            "<swing a=1.0 f=1.0 w=0.0>", "</swing>" },
+
         // row 4
-        { "Turbulence", "<turb a=1.0 f=1.0>", "Turbulence effect", "</turb>" },
-        { "Wave", "<wave a=1.0 f=1.0 w=1.0>", "Wave-like undulation effect", "</wave>" },
-        { "Wiggle", "<wiggle a=1.0 f=1.0 w=1.0>", "Per-character random movement", "</wiggle>" }
+        { "Turbulence",
+            "Applies noise-based random displacement.\n\n"
+            "Parameters:\n"
+            "- a: Amplitude (Strength of the wind effect)\n"
+            "- f: Frequency (Complexity of the noise)\n\n"
+            "Note: 1.21.1+ for the extra parameters",
+            "<turb a=1.0 f=1.0>", "</turb>" },
+
+        { "Wave",
+            "Smooth vertical undulation like ocean waves.\n\n"
+            "Parameters:\n"
+            "- a: Amplitude (Height of the wave)\n"
+            "- f: Frequency (Speed of the wave)\n"
+            "- w: Wave Size (Horizontal wave length)\n\n"
+            "Note: 1.21.1+ for the extra parameters",
+            "<wave a=1.0 f=1.0 w=1.0>", "</wave>" },
+
+        { "Wiggle",
+            "Each character moves along its own random fixed path.\n\n"
+            "Parameters:\n"
+            "- a: Amplitude (Distance of movement)\n"
+            "- f: Frequency (Speed of the wiggle)\n"
+            "- w: Wave Size (Phase offset)\n\n"
+            "Note: 1.21.1+ for the extra parameters",
+            "<wiggle a=1.0 f=1.0 w=1.0>", "</wiggle>" }
     };
 
     std::vector<Button> actionButtons = {
-        { "Convert", "", "Convert text to JSON format and copy to clipboard" },
-        { "Copy Text Output", "", "Copy converted text to clipboard" },
-        { "Reload Minecraft (1.21.1+)", "", "Reload Minecraft scripts (requires KubeJS)" },
-        { "Settings", "", "Open appearance settings" },
-        { "Exit", "", "Close the application" }
+        { "Convert", "Convert text to JSON format and copy to clipboard" },
+        { "Copy Text Output", "Copy converted text to clipboard" },
+        { "Reload Minecraft (1.21.1+)", "Reload Minecraft scripts (requires KubeJS)" },
+        { "Settings", "Open appearance settings" },
+        { "Exit", "Close the application" }
     };
 
     std::vector<Button> argsButtons = {
-        { "Deconstruct", "", "Breaks down large .lang files into modular chunks.\nIdeal for localized editing and clean Git version control." },
-        { "Rebuild", "", "Reassembles modular chunks back into a single .lang file.\nSynchronizes all your translations into the final game format." },
-        { "Setup Project", "", "Initializes a fresh workspace with folders and base scripts.\nRun this when starting a new modpack development." },
-        { "Ship Modpack", "", "Compiles the project into final distribution ZIPs.\nCreates separate Client and Server packages for your players." },
-        { "Set Client Root", "", "Points to your Minecraft instance folder.\nUsed to extract mod metadata for the server-side generation." },
-        { "Set Project Path", "", "Defines the working directory of your quest project.\nWhere the 'config/ftbquests' folder is located." }
+        { "Deconstruct", "Breaks down large .lang files into modular chunks.\nIdeal for localized editing and clean Git version control." },
+        { "Rebuild", "Reassembles modular chunks back into a single .lang file.\nSynchronizes all your translations into the final game format." },
+        { "Setup Project", "Initializes a fresh workspace with folders and base scripts.\nRun this when starting a new modpack development." },
+        { "Ship Modpack", "Compiles the project into final distribution ZIPs.\nCreates separate Client and Server packages for your players." },
+        { "Set Client Root", "Points to your Minecraft instance folder.\nUsed to extract mod metadata for the server-side generation." },
+        { "Set Project Path", "Defines the working directory of your quest project.\nWhere the 'config/ftbquests' folder is located." }
     };
 
     int win_w, win_h;
@@ -244,9 +361,10 @@ int main(int argc, char* argv[])
             }
             ImGui::NewLine();
 
-            for(size_t i = 0; i < modEffects.size(); i++)
+            if(settings::current.textanimator) ImGui::Text("TextAnimator:");
+            for(size_t i = 0; i < modEffects.size() && settings::current.textanimator; i++)
             {
-                Button data = modEffects[i];
+                Button& data = modEffects[i];
 
                 if(!is_new)
                 {
@@ -341,112 +459,115 @@ int main(int argc, char* argv[])
 
             ImGui::NewLine();
             ImGui::Separator();
-            ImGui::Text("Global Settings:");
-
-            ImGui::Checkbox("Input Format", &json);
-            if(ImGui::IsItemHovered())
+            if(settings::current.show_packing)
             {
-                ImGui::SetTooltip(
-                    "Target Output Format (--json):\n\n"
-                    "- Enabled: Outputs generated files as .json. Ideal for translation websites and similar\n"
-                    "- Disabled: Outputs generated files as .snbt .\n\n"
-                    "Note: FTBQ only reads the final assembled file if it is in .snbt.");
+                ImGui::Text("Global Settings:");
+
+                ImGui::Checkbox("Input Format", &json);
+                if(ImGui::IsItemHovered())
+                {
+                    ImGui::SetTooltip(
+                        "Target Output Format (--json):\n\n"
+                        "- Enabled: Outputs generated files as .json. Ideal for translation websites and similar\n"
+                        "- Disabled: Outputs generated files as .snbt .\n\n"
+                        "Note: FTBQ only reads the final assembled file if it is in .snbt.");
+                }
+
+                ImGui::SameLine();
+                ImGui::Checkbox("Output Format", &convert);
+                if(ImGui::IsItemHovered())
+                {
+                    ImGui::SetTooltip(
+                        "Target Input Format (--convert ):\n"
+                        "- If splitting: It will look for .json in the lang folder if enabled, or .snbt if disabled.\n"
+                        "- If merging: It will look for chunks in .json to convert to .snbt.\n"
+                        "Note: FTBQ only reads the final assembled file if it's a .snbt.");
+                }
+
+                ImGui::SameLine();
+                ImGui::Checkbox("Manifest", &cf);
+                if(ImGui::IsItemHovered())
+                {
+                    ImGui::SetTooltip("Use manifest.json instead of mods.json (Prism): \n"
+                                      "- manifest.json comes from the CF launcher\n"
+                                      "- mods.json comes from the Prism Launcher using the export command on JSON\n"
+                                      "Note: manifest.json has the exact file you download, leading to better results");
+                }
+                ImGui::SameLine();
+
+                ImGui::Checkbox("1.21.1+ format", &is_new);
+                if(ImGui::IsItemHovered())
+                {
+                    ImGui::SetTooltip("Toggles more effects details (1.21.1+).\n"
+                                      "- Enabled: Shows '&z' and uses detailed modEffects (e.g., <pulse base=...>).\n"
+                                      "- Disabled: Hides '&z' and uses simple tags (e.g., <pulse>).");
+                }
+
+                ImGui::Spacing();
+
+                generateSlowedButton(argsButtons[5], [&]() {
+                    const char* selected = tinyfd_selectFolderDialog("Select Working Directory", path.c_str());
+                    if(selected) path = selected;
+                });
+                ImGui::SameLine();
+                ImGui::TextColored(ImGui::GetStyle().Colors[ImGuiCol_TextDisabled],
+                    " [%s]", path.empty() ? "Default: Current" : path.c_str());
+
+                generateSlowedButton(argsButtons[4], [&]() {
+                    const char* selected = tinyfd_selectFolderDialog("Select Minecraft Instance Folder", mod_path.c_str());
+                    if(selected) mod_path = selected;
+                });
+                ImGui::SameLine();
+                ImGui::TextColored(ImGui::GetStyle().Colors[ImGuiCol_TextDisabled],
+                    " [%s]", mod_path.empty() ? "Not set" : mod_path.c_str());
+
+                ImGui::Spacing();
+
+                ImGui::Separator();
+                ImGui::Text("Execute Operations:");
+
+                generateSlowedButton(argsButtons[0], [&]() {
+                    args::parser temp_args;
+                    if(json) temp_args.result["--json"] = {};
+                    if(convert) temp_args.result["--convert"] = {};
+                    if(!path.empty()) temp_args.result["--path"] = { path };
+                    splitter::split(temp_args);
+                });
+                ImGui::SameLine();
+
+                generateSlowedButton(argsButtons[1], [&]() {
+                    args::parser temp_args;
+                    if(json) temp_args.result["--json"] = {};
+                    if(convert) temp_args.result["--convert"] = {};
+                    if(!path.empty()) temp_args.result["--path"] = { path };
+                    merger::merge(temp_args);
+                });
+                ImGui::SameLine();
+
+                generateSlowedButton(argsButtons[2], [&]() {
+                    args::parser temp_args;
+                    if(cf) temp_args.result["--curseforge"] = {};
+                    if(!path.empty()) temp_args.result["--path"] = { path };
+                    gen::generate(temp_args);
+                });
+                ImGui::SameLine();
+
+                generateSlowedButton(argsButtons[3], [&]() {
+                    args::parser temp_args;
+                    if(cf) temp_args.result["--curseforge"] = {};
+                    if(!path.empty()) temp_args.result["--path"] = { path };
+                    if(!mod_path.empty()) temp_args.result["--mods"] = { mod_path };
+                    pack::pack(temp_args);
+                });
             }
-
-            ImGui::SameLine();
-            ImGui::Checkbox("Output Format", &convert);
-            if(ImGui::IsItemHovered())
-            {
-                ImGui::SetTooltip(
-                    "Target Input Format (--convert ):\n"
-                    "- If splitting: It will look for .json in the lang folder if enabled, or .snbt if disabled.\n"
-                    "- If merging: It will look for chunks in .json to convert to .snbt.\n"
-                    "Note: FTBQ only reads the final assembled file if it's a .snbt.");
-            }
-
-            ImGui::SameLine();
-            ImGui::Checkbox("Manifest", &cf);
-            if(ImGui::IsItemHovered())
-            {
-                ImGui::SetTooltip("Use manifest.json instead of mods.json (Prism): \n"
-                                  "- manifest.json comes from the CF launcher\n"
-                                  "- mods.json comes from the Prism Launcher using the export command on JSON\n"
-                                  "Note: manifest.json has the exact file you download, leading to better results");
-            }
-            ImGui::SameLine();
-
-            ImGui::Checkbox("1.21.1+ format", &is_new);
-            if(ImGui::IsItemHovered())
-            {
-                ImGui::SetTooltip("Toggles more effects details (1.21.1+).\n"
-                                  "- Enabled: Shows '&z' and uses detailed modEffects (e.g., <pulse base=...>).\n"
-                                  "- Disabled: Hides '&z' and uses simple tags (e.g., <pulse>).");
-            }
-
-            ImGui::Spacing();
-
-            generateSlowedButton(argsButtons[5], [&]() {
-                const char* selected = tinyfd_selectFolderDialog("Select Working Directory", path.c_str());
-                if(selected) path = selected;
-            });
-            ImGui::SameLine();
-            ImGui::TextColored(ImGui::GetStyle().Colors[ImGuiCol_TextDisabled],
-                " [%s]", path.empty() ? "Default: Current" : path.c_str());
-
-            generateSlowedButton(argsButtons[4], [&]() {
-                const char* selected = tinyfd_selectFolderDialog("Select Minecraft Instance Folder", mod_path.c_str());
-                if(selected) mod_path = selected;
-            });
-            ImGui::SameLine();
-            ImGui::TextColored(ImGui::GetStyle().Colors[ImGuiCol_TextDisabled],
-                " [%s]", mod_path.empty() ? "Not set" : mod_path.c_str());
-
-            ImGui::Spacing();
-
-            ImGui::Separator();
-            ImGui::Text("Execute Operations:");
-
-            generateSlowedButton(argsButtons[0], [&]() {
-                args::parser temp_args;
-                if(json) temp_args.result["--json"] = {};
-                if(convert) temp_args.result["--convert"] = {};
-                if(!path.empty()) temp_args.result["--path"] = { path };
-                splitter::split(temp_args);
-            });
-            ImGui::SameLine();
-
-            generateSlowedButton(argsButtons[1], [&]() {
-                args::parser temp_args;
-                if(json) temp_args.result["--json"] = {};
-                if(convert) temp_args.result["--convert"] = {};
-                if(!path.empty()) temp_args.result["--path"] = { path };
-                merger::merge(temp_args);
-            });
-            ImGui::SameLine();
-
-            generateSlowedButton(argsButtons[2], [&]() {
-                args::parser temp_args;
-                if(cf) temp_args.result["--curseforge"] = {};
-                if(!path.empty()) temp_args.result["--path"] = { path };
-                gen::generate(temp_args);
-            });
-            ImGui::SameLine();
-
-            generateSlowedButton(argsButtons[3], [&]() {
-                args::parser temp_args;
-                if(cf) temp_args.result["--curseforge"] = {};
-                if(!path.empty()) temp_args.result["--path"] = { path };
-                if(!mod_path.empty()) temp_args.result["--mods"] = { mod_path };
-                pack::pack(temp_args);
-            });
 
             settings::draw_menu();
             ImGui::SameLine();
 
             ImGui::End();
 
-            createKubejsImageBrowser(browser, browserFirstRun, dt, window);
-            createColorWheel(field);
+            if(settings::current.show_image) createKubejsImageBrowser(browser, browserFirstRun, dt, window);
+            if(settings::current.show_colors) createColorWheel(field);
 
             ImGui::Render();
             int display_w, display_h;

@@ -47,6 +47,12 @@ namespace settings
         float button_text_align[2] = { 0.5f, 0.5f };
         float selectable_text_align[2] = { 0.0f, 0.0f };
         float font_size = 16.0f;
+
+        //window
+        bool show_image = true;
+        bool show_colors = true;
+        bool textanimator = true;
+        bool show_packing = true;
     };
 
     extern struct settings current;

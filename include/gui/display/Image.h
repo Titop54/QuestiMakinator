@@ -104,8 +104,6 @@ public:
     void loadImage(const std::string &id);
 
     void updateDisplayTexture();
-
-    void regenerateFrames();
 };
 
 inline void createKubejsImageBrowser(KubeJSImageBrowser& browser, bool& firstRun, float deltaTime, GLFWwindow* window)

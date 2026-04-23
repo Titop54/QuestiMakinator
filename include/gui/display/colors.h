@@ -180,9 +180,7 @@ inline void createColorWheel(TextField& field)
 
     static Button apply_btn = {
         "Apply color",
-        "",
         "Put the selected color",
-        ""
     };
 
     ImGui::Checkbox("Upper Case", &upper);
@@ -229,7 +227,7 @@ inline void createColorWheel(TextField& field)
 
     ImGui::Dummy(ImVec2(0, 5));
 
-    static Button add_pal_btn = { "Add Palette", "", "Create a new empty palette", "" };
+    static Button add_pal_btn = { "Add Palette", "Create a new empty palette" };
     generateSlowedButton(add_pal_btn, []() {
         std::string new_name = std::format("New Palette {}", loaded_palettes.size() + 1);
         
@@ -240,7 +238,7 @@ inline void createColorWheel(TextField& field)
 
     ImGui::SameLine();
 
-    static Button remove_pal_btn = { "Remove", "", "Delete the currently selected palette", "" };
+    static Button remove_pal_btn = { "Remove", "Delete the currently selected palette"};
     generateSlowedButton(remove_pal_btn, []() {
         if(loaded_palettes.size() > 1)
         {
@@ -254,7 +252,7 @@ inline void createColorWheel(TextField& field)
     });
 
     ImGui::Separator();
-    static Button add_color_btn = { "+ Add Current Color", "", "Add the color from the wheel to this palette", "" };
+    static Button add_color_btn = { "+ Add Current Color", "Add the color from the wheel to this palette"};
     generateSlowedButton(add_color_btn, []() {
         auto& pal = loaded_palettes[current_palette_idx];
         if(pal.colors.size() < 16)
@@ -266,7 +264,7 @@ inline void createColorWheel(TextField& field)
 
     ImGui::SameLine();
 
-    static Button remove_color_btn = { "- Remove Last", "", "Remove the last color added to this palette", "" };
+    static Button remove_color_btn = { "- Remove Last", "Remove the last color added to this palette" };
     generateSlowedButton(remove_color_btn, []() {
         auto& pal = loaded_palettes[current_palette_idx];
         if(!pal.colors.empty())

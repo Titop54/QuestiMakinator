@@ -61,7 +61,7 @@ namespace settings
 
     void apply_preset(struct settings& s, int preset_id)
     {
-        ImVec4 accent, darkAcc, bg, btn, text;
+        ImVec4 accent, darkAcc, bg, btn, text, tab_select, tab;
 
         switch(preset_id)
         {
@@ -71,6 +71,8 @@ namespace settings
             bg = ImVec4(0.02f, 0.02f, 0.04f, 0.95f);
             btn = ImVec4(0.05f, 0.10f, 0.15f, 1.00f);
             text = ImVec4(0.00f, 0.80f, 1.00f, 1.00f);
+            tab_select = accent;
+            tab = ImVec4(0.00f, 0.20f, 0.30f, 1.00f);
             break;
         case 1:
             accent = ImVec4(0.26f, 0.59f, 0.98f, 1.00f);
@@ -78,6 +80,8 @@ namespace settings
             bg = ImVec4(0.90f, 0.90f, 0.90f, 0.94f);
             btn = ImVec4(0.26f, 0.59f, 0.98f, 0.40f);
             text = ImVec4(0.00f, 0.00f, 0.00f, 1.00f);
+            tab_select = accent;
+            tab = ImVec4(0.70f, 0.70f, 0.70f, 1.00f);
             break;
         case 2:
             accent = ImVec4(1.00f, 0.13f, 0.61f, 1.00f);
@@ -85,6 +89,8 @@ namespace settings
             bg = ImVec4(0.05f, 0.01f, 0.05f, 0.95f);
             btn = ImVec4(0.30f, 0.04f, 0.20f, 1.00f);
             text = ImVec4(0.00f, 1.00f, 0.90f, 1.00f);
+            tab_select = accent;
+            tab = darkAcc;
             break;
         case 3:
             accent = ImVec4(0.50f, 0.80f, 0.50f, 1.00f);
@@ -92,6 +98,8 @@ namespace settings
             bg = ImVec4(0.05f, 0.10f, 0.05f, 0.94f);
             btn = ImVec4(0.10f, 0.30f, 0.10f, 1.00f);
             text = ImVec4(0.80f, 0.95f, 0.80f, 1.00f);
+            tab_select = accent;
+            tab = ImVec4(0.15f, 0.40f, 0.15f, 1.00f);
             break;
         case 4:
             accent = ImVec4(1.00f, 0.40f, 0.20f, 1.00f);
@@ -99,6 +107,8 @@ namespace settings
             bg = ImVec4(0.10f, 0.05f, 0.05f, 0.94f);
             btn = ImVec4(0.30f, 0.10f, 0.05f, 1.00f);
             text = ImVec4(0.95f, 0.80f, 0.80f, 1.00f);
+            tab_select = accent;
+            tab = ImVec4(0.40f, 0.15f, 0.08f, 1.00f);
             break;
         case 5:
             accent = ImVec4(0.00f, 0.70f, 0.90f, 1.00f);
@@ -106,6 +116,8 @@ namespace settings
             bg = ImVec4(0.02f, 0.05f, 0.10f, 0.95f);
             btn = ImVec4(0.05f, 0.15f, 0.25f, 1.00f);
             text = ImVec4(0.80f, 0.95f, 1.00f, 1.00f);
+            tab_select = accent;
+            tab = ImVec4(0.05f, 0.20f, 0.35f, 1.00f);
             break;
         case 6:
             accent = ImVec4(0.00f, 1.00f, 0.00f, 1.00f);
@@ -113,6 +125,8 @@ namespace settings
             bg = ImVec4(0.00f, 0.00f, 0.00f, 0.98f);
             btn = ImVec4(0.00f, 0.20f, 0.00f, 1.00f);
             text = ImVec4(0.00f, 0.80f, 0.00f, 1.00f);
+            tab_select = accent;
+            tab = ImVec4(0.00f, 0.25f, 0.00f, 1.00f);
             break;
         case 7:
             accent = ImVec4(1.00f, 0.00f, 0.60f, 1.00f);
@@ -120,6 +134,8 @@ namespace settings
             bg = ImVec4(0.10f, 0.05f, 0.15f, 0.95f);
             btn = ImVec4(0.30f, 0.10f, 0.40f, 1.00f);
             text = ImVec4(1.00f, 0.80f, 0.20f, 1.00f);
+            tab_select = accent;
+            tab = darkAcc;
             break;
         case 8:
             accent = ImVec4(0.15f, 0.55f, 0.82f, 1.00f);
@@ -127,6 +143,8 @@ namespace settings
             bg = ImVec4(0.00f, 0.17f, 0.21f, 0.95f);
             btn = ImVec4(0.03f, 0.21f, 0.26f, 1.00f);
             text = ImVec4(0.51f, 0.58f, 0.59f, 1.00f);
+            tab_select = accent;
+            tab = ImVec4(0.07f, 0.30f, 0.35f, 1.00f);
             break;
         case 9:
             accent = ImVec4(0.80f, 0.55f, 0.40f, 1.00f);
@@ -134,6 +152,8 @@ namespace settings
             bg = ImVec4(0.15f, 0.12f, 0.10f, 0.95f);
             btn = ImVec4(0.30f, 0.20f, 0.15f, 1.00f);
             text = ImVec4(0.95f, 0.90f, 0.85f, 1.00f);
+            tab_select = accent;
+            tab = ImVec4(0.40f, 0.30f, 0.25f, 1.00f);
             break;
         }
 
@@ -160,6 +180,9 @@ namespace settings
         set_color(ImGuiCol_SliderGrab, accent);
         set_color(ImGuiCol_SliderGrabActive, text);
         set_color(ImGuiCol_TextSelectedBg, darkAcc);
+        set_color(ImGuiCol_Tab, tab);
+        set_color(ImGuiCol_TabActive, tab_select);
+        set_color(ImGuiCol_TabHovered, darkAcc);
 
         if(preset_id == 0)
         {
@@ -227,6 +250,11 @@ namespace settings
         s.button_text_align[1] = 0.5f;
         s.selectable_text_align[0] = 0.0f;
         s.selectable_text_align[1] = 0.0f;
+
+        s.show_colors = true;
+        s.show_image = true;
+        s.textanimator = true;
+        s.show_packing = true;
     }
 
     void apply_to_imgui(const struct settings& s)
@@ -323,6 +351,11 @@ namespace settings
             if(j.contains("grab_min_size")) saved.grab_min_size = j["grab_min_size"];
             if(j.contains("font_size")) saved.font_size = j["font_size"];
 
+            if(j.contains("show_image")) saved.show_image = j["show_image"];
+            if(j.contains("show_colors")) saved.show_colors = j["show_colors"];
+            if(j.contains("textanimator")) saved.textanimator = j["textanimator"];
+            if(j.contains("show_packing")) saved.show_packing = j["show_packing"];
+
             auto load_vec2 = [&](const char* key, float arr[2]) {
                 if(j.contains(key))
                 {
@@ -396,6 +429,11 @@ namespace settings
         j["selectable_text_align"] = { saved.selectable_text_align[0], saved.selectable_text_align[1] };
         j["font_size"] = saved.font_size;
 
+        j["show_colors"] = saved.show_colors;
+        j["show_image"] = saved.show_image;
+        j["textanimator"] = saved.textanimator;
+        j["show_packing"] = saved.show_packing;
+
         std::ofstream file("settings.json");
         if(file.is_open())
         {
@@ -417,15 +455,28 @@ namespace settings
         was_menu_open = show_menu;
 
         if(!show_menu) return;
-
+        apply_to_imgui(saved);
         ImGui::SetNextWindowSizeConstraints(ImVec2(550, 450), ImVec2(900, 900));
         ImGui::Begin("Settings", &show_menu);
 
-        ImGuiTabBarFlags tab_flags = ImGuiTabBarFlags_NoCloseWithMiddleMouseButton | ImGuiTabBarFlags_FittingPolicyScroll;
+        ImGuiTabBarFlags tab_flags = ImGuiTabBarFlags_NoCloseWithMiddleMouseButton |
+                                     ImGuiTabBarFlags_FittingPolicyScroll;
 
         if(ImGui::BeginTabBar("SettingsTabs", tab_flags))
         {
 
+            if(ImGui::BeginTabItem("Configuration"))
+            {
+                ImGui::Separator();
+
+                ImGui::BeginChild("PresetsScroll", ImVec2(0, -ImGui::GetFrameHeightWithSpacing()), false);
+                ImGui::Checkbox("Show images", &current.show_image);
+                ImGui::Checkbox("Show colors", &current.show_colors);
+                ImGui::Checkbox("Show TextAnimator", &current.textanimator);
+                ImGui::Checkbox("Show Modpack Tools", &current.show_packing);
+                ImGui::EndChild();
+                ImGui::EndTabItem();
+            }
             if(ImGui::BeginTabItem("Presets"))
             {
                 ImGui::Separator();
