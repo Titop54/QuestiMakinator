@@ -169,10 +169,10 @@ namespace settings
         set_color(ImGuiCol_Text, text);
         set_color(ImGuiCol_Button, btn);
         set_color(ImGuiCol_ButtonHovered, darkAcc);
-        set_color(ImGuiCol_ButtonActive, accent);
+        set_color(ImGuiCol_ButtonActive, darkAcc);
         set_color(ImGuiCol_FrameBg, btn);
         set_color(ImGuiCol_FrameBgHovered, darkAcc);
-        set_color(ImGuiCol_FrameBgActive, accent);
+        set_color(ImGuiCol_FrameBgActive, darkAcc);
         set_color(ImGuiCol_TitleBg, darkAcc);
         set_color(ImGuiCol_TitleBgActive, accent);
         set_color(ImGuiCol_Separator, accent);
@@ -209,6 +209,16 @@ namespace settings
     void reset_to_defaults(struct settings& s)
     {
         s = settings();
+        ImGuiStyle style;
+        ImGui::StyleColorsDark(&style);
+        for(int i = 0; i < ImGuiCol_COUNT; i++)
+        {
+            s.colors[i][0] = style.Colors[i].x;
+            s.colors[i][1] = style.Colors[i].y;
+            s.colors[i][2] = style.Colors[i].z;
+            s.colors[i][3] = style.Colors[i].w;
+        }
+
         apply_preset(s, 0);
     }
 
