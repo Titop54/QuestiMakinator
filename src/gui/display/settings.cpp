@@ -209,6 +209,7 @@ namespace settings
     void reset_to_defaults(struct settings& s)
     {
         s = settings();
+        apply_preset(s, 0);
     }
 
     void apply_to_imgui(const struct settings& s)
@@ -364,7 +365,7 @@ namespace settings
 
     void load()
     {
-        saved = settings();
+        reset_to_defaults(saved);
         std::ifstream file("settings.json");
         if(file.is_open())
         {
@@ -376,6 +377,10 @@ namespace settings
             }
             catch(...)
             {}
+        }
+        else
+        {
+            apply_preset(saved, 0);
         }
         current = saved;
     }

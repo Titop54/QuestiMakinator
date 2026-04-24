@@ -11,7 +11,7 @@
 static void rotateSfImage90(sf::Image& image)
 {
     sf::Vector2u size = image.getSize();
-    sf::Image rotated({size.y, size.x});
+    sf::Image rotated(size);
     for(unsigned int y = 0; y < size.y; y++)
     {
         for(unsigned int x = 0; x < size.x; x++)

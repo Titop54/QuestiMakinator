@@ -264,7 +264,7 @@ int main(int argc, char* argv[])
     std::vector<Button> actionButtons = {
         { "Convert", "Processes the input, applies formatting/gradients, and copies the result to clipboard." },
         { "Copy Text Output", "Copies the currently displayed output text to your system clipboard." },
-        { "Reload Minecraft", "Connects via KubeJS to execute a server-side reload command." },
+        { "Reload Minecraft", "Connects to KubeJS to execute a server-side reload command." },
         { "Settings", "Configure application appearance, fonts, and target Minecraft version." },
         { "Exit", "Safely closes the application." }
     };
@@ -333,7 +333,7 @@ int main(int argc, char* argv[])
             ImGui::NewLine();
 
             ImGui::Text("Special Actions:");
-            for(size_t i = 0; i < specialActions.size(); ++i)
+            for(size_t i = 0; i < specialActions.size(); i++)
             {
                 auto& data = specialActions[i];
 
@@ -344,12 +344,17 @@ int main(int argc, char* argv[])
 
                 generateSlowedButton(field, data);
 
-                if(i < specialActions.size() - 1)
+                if((i + 1) % 5 != 0 && i < modEffects.size() - 1)
                 {
                     ImGui::SameLine();
                 }
+                else
+                {
+                    ImGui::NewLine();
+                }
             }
             ImGui::NewLine();
+            ImGui::Dummy(ImVec2(0, 10));
 
             ImGui::Text("Hover Effects:");
             for(size_t i = 0; i < hoverEffects.size(); ++i)
@@ -369,6 +374,7 @@ int main(int argc, char* argv[])
                 }
             }
             ImGui::NewLine();
+            ImGui::Dummy(ImVec2(0, 10));
 
             if(settings::current.textanimator) ImGui::Text("TextAnimator:");
             for(size_t i = 0; i < modEffects.size() && settings::current.textanimator; i++)
