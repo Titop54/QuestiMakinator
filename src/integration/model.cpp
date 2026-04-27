@@ -1604,6 +1604,7 @@ void ModelGenerator::saveAssets(const std::string &itemId, bool customRotation, 
     if(modelJson.contains("parent") && modelJson["parent"].get<std::string>().find("item/generated") != std::string::npos) isItem = true;
     if(modelJson.contains("textures") && modelJson["textures"].contains("layer0")) isItem = true;
     if(!isItem) exportToObj(itemId, targetDir);
+    
     if(isObjModel)
     {
         saveAnimationWebP(itemId, targetDir, generateIsometricSequenceOBJ(customSize, customRotation, pitch, yaw));
@@ -1612,6 +1613,47 @@ void ModelGenerator::saveAssets(const std::string &itemId, bool customRotation, 
     {
         saveAnimationWebP(itemId, targetDir, generateIsometricSequence(customSize, customRotation, pitch, yaw));
     }
+}
+
+void ModelGenerator::saveAssets(const std::string &itemId, const std::vector<RenderedFrame>& frames)
+{
+    std::string safeName = changeFilename(itemId);
+    std::string targetDir = "img/" + safeName;
+
+    if(!fs::exists(targetDir))
+    {
+        fs::create_directories(targetDir);
+    }
+
+    std::ofstream jsonFile(targetDir + "/model.json");
+    jsonFile << std::setw(4) << modelJson << std::endl;
+    jsonFile.close();
+
+    for(const auto &[path, animData] : textures)
+    {
+        if(animData.texture.getSize().x == 0) continue;
+
+        std::string texName = changeFilename(path) + ".png";
+        
+        sf::Image img = animData.texture.copyToImage(); 
+        if(!img.saveToFile(targetDir + "/" + texName)) std::cerr << "Error loading image" << std::endl;
+
+        if(!animData.rawMcmeta.empty())
+        {
+            std::string metaName = texName + ".mcmeta";
+            std::ofstream metaFile(targetDir + "/" + metaName);
+            metaFile << animData.rawMcmeta;
+            metaFile.close();
+        }
+    }
+
+    bool isItem = false;
+    if(modelJson.contains("parent") && modelJson["parent"].get<std::string>().find("item/generated") != std::string::npos) isItem = true;
+    if(modelJson.contains("textures") && modelJson["textures"].contains("layer0")) isItem = true;
+    
+    if(!isItem) exportToObj(itemId, targetDir);
+    
+    saveAnimationWebP(itemId, targetDir, frames);
 }
 
 void ModelGenerator::saveAnimationWebP(const std::string &itemId, const std::string &outputDir, const std::vector<RenderedFrame>& frames)
@@ -1846,4 +1888,9 @@ void ModelGenerator::exportToObj(const std::string &itemId, const std::string &o
         mtlFile << "map_Kd " << texFilename << "\n\n";
     }
     mtlFile.close();
+}
+
+std::string ModelGenerator::getID() const 
+{
+    return id;
 }

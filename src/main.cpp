@@ -283,7 +283,7 @@ int main(int argc, char* argv[])
     ImVec2 center = ImVec2(win_w / 2.0f, win_h / 2.0f);
     ImGui::SetNextWindowPos(center, ImGuiCond_FirstUseEver, ImVec2(0.5f, 0.5f));
     {
-        KubeJSImageBrowser browser;
+        ImageBrowser browser;
         bool browserFirstRun = true;
 
         bool convert = false;
@@ -587,7 +587,7 @@ int main(int argc, char* argv[])
 
             ImGui::End();
 
-            if(settings::current.show_image) createKubejsImageBrowser(browser, browserFirstRun, dt, window);
+            if(settings::current.show_image) createImageBrowser(browser, browserFirstRun, dt, window);
             if(settings::current.show_colors) createColorWheel(field);
 
             ImGui::Render();

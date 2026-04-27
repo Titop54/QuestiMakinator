@@ -5,6 +5,7 @@
 
 #include <integration/model.h>
 #include <optional>
+#include "gui/elements/button.h"
 #include "integration/kubejs.h"
 
 #include <GLFW/glfw3.h>
@@ -45,7 +46,7 @@ struct AnimationData
 
 void parseId(const std::string& fullId, std::string& ns, std::string& path);
 
-class KubeJSImageBrowser
+class ImageBrowser
 {
 private:
     std::map<std::string, AnimationData> animations;
@@ -78,16 +79,12 @@ private:
     unsigned int lastTexWidth = 0;
     unsigned int lastTexHeight = 0;
 
-public:
-    KubeJSImageBrowser()
-    {
-        if(!client.isConnected())
-        {
-            client.connect();
-        }
-    }
+    std::vector<Button> buttons;
 
-    ~KubeJSImageBrowser()
+public:
+    ImageBrowser();
+
+    ~ImageBrowser()
     {
         if(currentTexture != 0)
         {
@@ -105,9 +102,11 @@ public:
     void loadImage(const std::string &id);
 
     void updateDisplayTexture();
+
+    ModelGenerator generateModel(const std::string& id_to_search);
 };
 
-inline void createKubejsImageBrowser(KubeJSImageBrowser& browser, bool& firstRun, float deltaTime, GLFWwindow* window)
+inline void createImageBrowser(ImageBrowser& browser, bool& firstRun, float deltaTime, GLFWwindow* window)
 {   
     if(firstRun && !client.needs_manual)
     {

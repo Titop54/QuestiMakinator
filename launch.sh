@@ -102,16 +102,10 @@ for CURRENT_TRIPLET in "${TARGET_TRIPLETS[@]}"; do
     printf "Building: %s (Config: %s)\n" "$CURRENT_TRIPLET" "$BUILD_TYPE"
 
     CMAKE_DYNAMIC_FLAG="OFF"
-    if [[ "$CURRENT_TRIPLET" == *"dynamic"* ]]; then
-        CMAKE_DYNAMIC_FLAG="ON"
-    fi
+    [[ "$CURRENT_TRIPLET" == *"dynamic"* ]] && CMAKE_DYNAMIC_FLAG="ON"
 
-    UNITY_FLAG="OFF"
-    if [ -d "build/${CURRENT_TRIPLET}" ]; then
-        UNITY_FLAG="OFF"
-    else
-        UNITY_FLAG="ON"
-    fi
+    UNITY_FLAG="ON"
+    [ -d "build/${CURRENT_TRIPLET}" ] && UNITY_FLAG="OFF"
 
     mkdir -p "build/${CURRENT_TRIPLET}"
     

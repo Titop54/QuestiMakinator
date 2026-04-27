@@ -81,3 +81,55 @@ bool generateSlowedButton(Button& button, std::function<void()> onClickAction)
     
     return clicked;
 }
+
+bool generateButton(Button& button, std::function<void()> onClickAction)
+{
+    bool clicked = false;
+    ImVec2 original_position = ImGui::GetCursorPos();
+    if(button.pos.does_work())
+    {
+        ImGui::SetCursorPos(button.pos.vector());
+    }
+
+    if(ImGui::Button(button.label.data(), button.size.vector()))
+    {
+        if(onClickAction)
+        {
+            onClickAction();
+        }
+        clicked = true;
+    }
+
+    if(button.pos.does_work()) 
+    {
+        ImGui::SetCursorPos(original_position);
+    }
+    
+    return clicked;
+}
+
+bool generateSlowedButton(Button&& button, std::function<void()> onClickAction)
+{
+    bool clicked = false;
+    ImVec2 original_position = ImGui::GetCursorPos();
+    if(button.pos.does_work())
+    {
+        ImGui::SetCursorPos(button.pos.vector());
+    }
+
+    if(ImGui::Button(button.label.data(), button.size.vector()))
+    {
+        if(onClickAction)
+        {
+            onClickAction();
+        }
+        clicked = true;
+    }
+    ShowDelayedTooltip(button.state, button.tooltip);
+    if(button.pos.does_work()) 
+    {
+        ImGui::SetCursorPos(original_position);
+    }
+    
+    return clicked;
+}

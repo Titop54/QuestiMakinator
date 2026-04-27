@@ -129,6 +129,8 @@ public:
 
     bool isObjModel = false;
 
+    ModelGenerator() = default;
+
     ModelGenerator(const std::string& rawJson, KubeJSClient& client, const std::string& id);
 
     ModelGenerator(const std::string& objData, const std::string& mtlData, KubeJSClient& client, const std::string& checkNamespace, const std::string& id);
@@ -157,6 +159,11 @@ public:
      * @brief Downloads JSON and all textures to a folder named "mod_itemid_assets"
      */
     void saveAssets(const std::string& itemId, bool customRotation = false, int customSize = 128, float pitch = 30.0f, float yaw = 45.0f);
+    
+    /**
+     * @brief Downloads JSON and all textures to a folder named "mod_itemid_assets"
+     */
+    void saveAssets(const std::string& itemId, const std::vector<RenderedFrame>& frames);
 
     /**
      * @brief Generates an animated .webp file from the generated sequence
@@ -167,5 +174,11 @@ public:
      * @brief Exports the 3D model to .obj and .mtl for Blender
      */
     void exportToObj(const std::string& itemId, const std::string& outputdir);
+
+    std::string getID() const;
+
+    bool isValid() const {
+        return !textures.empty();
+    }
 
 };

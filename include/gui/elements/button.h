@@ -61,3 +61,7 @@ bool ShowDelayedTooltip(Tooltip& state, std::string desc);
 bool generateSlowedButton(TextField& editorState, Button& data);
 
 bool generateSlowedButton(Button& data, std::function<void()> function = nullptr);
+
+bool generateSlowedButton(Button&& data, std::function<void()> function = nullptr);
+
+bool generateButton(Button& data, std::function<void()> function = nullptr);
