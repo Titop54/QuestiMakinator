@@ -50,7 +50,7 @@ struct ListResponse {
     TypeElement type; //if comes from models folder, type is model, if not it comes from texture/block or texture_item
 };
 
-class KubeJSClient {
+class Client {
 private:
     int port; //61423 by default
     std::string auth;
@@ -63,7 +63,7 @@ private:
 
 public:
     bool needs_manual = false;
-    KubeJSClient(int port, const std::string& auth); //auth is "" by default since we can't know if there is a correct folder
+    Client(int port, const std::string& auth); //auth is "" by default since we can't know if there is a correct folder
     
     bool connect(); //connect to the server
     void disconnect(); //disconnect from it
@@ -221,11 +221,11 @@ public:
     /**
      * @brief Divide una imagen vertical en frames
      */
-    std::vector<sf::Image> splitVerticalFrames(const sf::Image& spriteSheet, int frameHeight);
+    std::vector<sf::Image> splitVerticalFrames(const sf::Image& spriteSheet);
 
     sf::Image createIsometricView(const sf::Image& texture);
 
 };
 
 // Global client instance
-extern KubeJSClient client;
+extern Client client;
