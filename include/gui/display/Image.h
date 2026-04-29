@@ -53,6 +53,7 @@ private:
     int allItems = 0;
     int allFluids = 0;
     std::vector<std::string> validIds;
+    std::vector<std::string> models;
 
 
     //Textures display
@@ -63,7 +64,8 @@ private:
     
     bool isLoading = false;
     bool assetsLoaded = false;
-    std::string idInputBuffer = "";
+    std::string id_input_buffer = "";
+    std::string model_input_buffer = "";
 
     float viewYaw = 45.0f;
     float viewPitch = 30.0f;

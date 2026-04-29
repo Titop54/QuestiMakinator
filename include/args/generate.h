@@ -5,16 +5,13 @@
 #include <iostream>
 #include <fstream>
 #include <cstdlib>
-#include <nlohmann/json.hpp>
-#include <SFML/Network.hpp>
-#include <stdexcept>
 
 namespace gen
 {
     namespace fs = std::filesystem;
     using json = nlohmann::json;
 
-    inline bool command_exists(const std::string &cmd)
+    inline bool command_exists(const std::string& cmd)
     {
         #ifdef _WIN32
             std::string check = "where " + cmd + " >nul 2>nul";
@@ -24,7 +21,7 @@ namespace gen
         return std::system(check.c_str()) == 0;
     }
 
-    inline void download_file(const std::string &url, const std::string &output)
+    inline void download_file(const std::string& url, const std::string& output)
     {
         if(command_exists("wget"))
         {
@@ -45,7 +42,7 @@ namespace gen
         }
     }
 
-    inline void download_packwiz(const fs::path &base_path)
+    inline void download_packwiz(const fs::path& base_path)
     {
         std::string url;
         std::string check_name;
@@ -105,7 +102,7 @@ namespace gen
         std::cout << "[INFO] Packwiz ready to be used!.\n";
     }
 
-    inline void handle_git_clone(const fs::path &base_path)
+    inline void handle_git_clone(const fs::path& base_path)
     {
         fs::path info_path = base_path / "info.json";
         if(!fs::exists(info_path)) return;
@@ -116,53 +113,46 @@ namespace gen
             return;
         }
 
-        try
-        {
-            std::ifstream file(info_path);
-            json data = json::parse(file);
+        std::ifstream file(info_path);
+        json data = json::parse(file, nullptr, false, true);
+        if(data.is_discarded()) return;
 
-            if(data.contains("git") && !data["git"].get<std::string>().empty())
+        if(data.contains("git") && !data["git"].get<std::string>().empty())
+        {
+            std::string git_url = data["git"];
+            std::string branch = data.value("branch", "");
+
+            std::string branch_flag = "";
+            std::string branch_name = branch.empty() ? "main" : branch;
+
+            if(!branch.empty())
             {
-                std::string git_url = data["git"];
-                std::string branch = data.value("branch", "");
-
-                std::string branch_flag = "";
-                std::string branch_name = branch.empty() ? "main" : branch;
-
-                if(!branch.empty())
-                {
-                    branch_flag = "-b " + branch + " ";
-                    std::cout << "[INFO] Using custom branch: " << branch << "\n";
-                }
-
-                fs::path target_dir = base_path;
-
-                if(fs::exists(target_dir / ".git"))
-                {
-                    std::cout << "[INFO] Updating repo...\n";
-                    std::string cmd = "git -C \"" + target_dir.string() + "\" pull origin " + branch_name;
-                    std::system(cmd.c_str());
-                }
-                else
-                {
-                    std::cout << "[INFO] Cloning repo with depth 1...\n";
-
-                    std::string cmd_init = "git -C \"" + target_dir.string() + "\" init -q";
-                    std::string cmd_remote = "git -C \"" + target_dir.string() + "\" remote add origin " + git_url;
-                    std::string cmd_fetch = "git -C \"" + target_dir.string() + "\" fetch --depth 1 origin " + branch_name + " -q";
-                    std::string cmd_reset = "git -C \"" + target_dir.string() + "\" reset --hard FETCH_HEAD -q";
-
-                    std::system(cmd_init.c_str());
-                    std::system(cmd_remote.c_str());
-                    std::system(cmd_fetch.c_str());
-                    std::system(cmd_reset.c_str());
-                }
+                branch_flag = "-b " + branch + " ";
+                std::cout << "[INFO] Using custom branch: " << branch << "\n";
             }
-        }
-        catch(const std::runtime_error &e)
-        {
-            std::cerr << "[ERROR] Error parsing info.json or with git command.\n"
-                      << e.what();
+
+            fs::path target_dir = base_path;
+
+            if(fs::exists(target_dir / ".git"))
+            {
+                std::cout << "[INFO] Updating repo...\n";
+                std::string cmd = "git -C \"" + target_dir.string() + "\" pull origin " + branch_name;
+                std::system(cmd.c_str());
+            }
+            else
+            {
+                std::cout << "[INFO] Cloning repo with depth 1...\n";
+
+                std::string cmd_init = "git -C \"" + target_dir.string() + "\" init -q";
+                std::string cmd_remote = "git -C \"" + target_dir.string() + "\" remote add origin " + git_url;
+                std::string cmd_fetch = "git -C \"" + target_dir.string() + "\" fetch --depth 1 origin " + branch_name + " -q";
+                std::string cmd_reset = "git -C \"" + target_dir.string() + "\" reset --hard FETCH_HEAD -q";
+
+                std::system(cmd_init.c_str());
+                std::system(cmd_remote.c_str());
+                std::system(cmd_fetch.c_str());
+                std::system(cmd_reset.c_str());
+            }
         }
     }
 
@@ -170,10 +160,10 @@ namespace gen
     {
         fs::path raw_path = args.result.contains("--path") ? args.result["--path"][0] : ".";
         fs::path base_path = fs::absolute(raw_path).lexically_normal();
-        
+
         bool has_cf = args.result.contains("--curseforge");
 
-        if (base_path == base_path.root_path())
+        if(base_path == base_path.root_path())
         {
             std::cout << "[FATAL] You can't use root path (" << base_path << ")\n";
             return;
@@ -183,11 +173,11 @@ namespace gen
 
         std::cout << "Generating structure for packing in : " << base_path << "\n";
 
-        std::vector<std::string> volatile_dirs = {"mods", "resourcepacks"};
-        for(const auto &dir : volatile_dirs)
+        std::vector<std::string> volatile_dirs = { "mods", "resourcepacks" };
+        for(const auto& dir : volatile_dirs)
         {
             fs::path p = base_path / dir;
-            try 
+            try
             {
                 if(fs::exists(p))
                 {
@@ -197,15 +187,16 @@ namespace gen
                 fs::create_directories(p);
                 std::cout << "[INFO] Folder created: " << dir << "\n";
             }
-            catch (const fs::filesystem_error& e)
+            catch(const fs::filesystem_error& e)
             {
-                std::cout << "[ERROR] Problems deleting folder '" << dir << "':\n" << e.what() << "\n";
+                std::cout << "[ERROR] Problems deleting folder '" << dir << "':\n"
+                          << e.what() << "\n";
                 return;
             }
         }
 
-        std::vector<std::string> persistent_dirs = {"config", "defaultconfigs", "changelogs", "kubejs"};
-        for(const auto &dir : persistent_dirs)
+        std::vector<std::string> persistent_dirs = { "config", "defaultconfigs", "changelogs", "kubejs" };
+        for(const auto& dir : persistent_dirs)
         {
             fs::path p = base_path / dir;
             if(!fs::exists(p))
@@ -219,13 +210,14 @@ namespace gen
         if(!fs::exists(info_path))
         {
             json info = {
-                {"name", "MyModpack"},
-                {"version", "1.0.0"},
-                {"loader", "neoforge"},
-                {"loader_version", "21.1.222"},
-                {"mc_version", "1.21.1"},
-                {"git", ""},
-                {"branch", "main"}};
+                { "name", "MyModpack" },
+                { "version", "1.0.0" },
+                { "loader", "neoforge" },
+                { "loader_version", "21.1.222" },
+                { "mc_version", "1.21.1" },
+                { "git", "" },
+                { "branch", "main" }
+            };
             std::ofstream(info_path) << info.dump(4);
             std::cout << "[INFO] info.json generated.\n";
         }
@@ -244,13 +236,14 @@ namespace gen
             if(!fs::exists(manifest_path))
             {
                 json manifest = {
-                    {"minecraft", {{"version", "1.21.1"}, {"modLoaders", {{{"id", "neoforge-21.1.219"}, {"primary", true}}}}}},
-                    {"manifestType", "minecraftModpack"},
-                    {"manifestVersion", 1},
-                    {"name", "MyModpack"},
-                    {"version", "1.0.0"},
-                    {"author", "Catalyst Studios"},
-                    {"files", json::array()}};
+                    { "minecraft", { { "version", "1.21.1" }, { "modLoaders", { { { "id", "neoforge-21.1.219" }, { "primary", true } } } } } },
+                    { "manifestType", "minecraftModpack" },
+                    { "manifestVersion", 1 },
+                    { "name", "MyModpack" },
+                    { "version", "1.0.0" },
+                    { "author", "Catalyst Studios" },
+                    { "files", json::array() }
+                };
                 std::ofstream(manifest_path) << manifest.dump(4);
                 std::cout << "[INFO] manifest.json generado.\n";
             }
@@ -267,4 +260,4 @@ namespace gen
         }
         download_packwiz(base_path);
     }
-}
+} // namespace gen
