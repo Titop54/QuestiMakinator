@@ -42,66 +42,49 @@ void parseId(const std::string& fullId, std::string& ns, std::string& path)
 
 ImageBrowser::ImageBrowser()
 {
-    buttons.reserve(10);
-    buttons.push_back({
-        // 0
+    buttons["Connect to KubeJS"] = {
+        "Connect to KubeJS",
+        "Try to connect to KubeJS's localhost server",
+    };
+    
+    buttons["Pause"] = {
         "Pause",
         "Pause the animation",
-    });
-
-    buttons.push_back({
-        // 1
+    };
+    buttons["Play"] = {
         " Play ",
         "Start the animation",
-    });
-
-    buttons.push_back({
-        // 2
+    };
+    buttons["Reset"] = {
         "Reset",
         "Restart the animation timer",
-    });
-
-    buttons.push_back({
-        // 3
+    };
+    buttons["Reset View"] = {
         "Reset View",
         "Put default values",
-    });
-
-    buttons.push_back({
-        // 4
-        "Download Assets",
-        "Saves model.json and all textures to folder img/mod_id_assets and Blender .obj",
-    });
-
-    buttons.push_back({
-        // 5
-        "Download Animation",
-        "Saves as WebP",
-    });
-
-    buttons.push_back({
-        // 6
+    };
+    buttons["Clear"] = {
         "Clear",
-        "Clear the current item/block",
-    });
-
-    buttons.push_back({
-        // 7
-        "Connect to KubeJS",
-        "Try to connect to KubeJS localhost server",
-    });
-
-    buttons.push_back({
-        // 8
-        "Download all mods assets",
-        "Download every asset from the mod",
-    });
-
-    buttons.push_back({
-        // 9
-        "Download all mods assets (WebP)",
-        "Make a .webp from all id of the mod",
-    });
+        "Clear the current item/block/fluid",
+    };
+    buttons["Download Assets"] = {
+        "Download Assets",
+        "Saves a representation of model.json and saves all relevant files, likes .obj or model.json or textures\n"
+        "These will save only model.json, original textures, a .webp, and a representation on obj\n"
+        "Output will be on img/<id> where this program is being executed",
+    };
+    buttons["Export as WebP"] = {
+        "Export as WebP",
+        "Makes a WebP image\nIf it has animation, it will include it",
+    };
+    buttons["Export as APNG"] = {
+        "Export as APNG",
+        "Make an animated .png",
+    };
+    buttons["Export as PNG"] = {
+        "Export as PNG",
+        "Make a PNG or multiple\nIf it has an animation, one PNG per unique frame",
+    };
 
     if(!client.isConnected())
     {
@@ -173,7 +156,7 @@ void ImageBrowser::render()
         ImGui::Text("Not connect to KubeJS\nNeeds to be loaded on port localhost:61423\n");
 
         static bool has_tried = false;
-        generateSlowedButton(buttons[7], [&]() {
+        generateSlowedButton(buttons["Connect to KubeJS"], [&]() {
             client.needs_manual = false;
             has_tried = !client.connect();
         });
@@ -247,20 +230,20 @@ void ImageBrowser::render()
 
         if(currentAnimation->isPlaying)
         {
-            generateSlowedButton(buttons[0], [this]() {
+            generateSlowedButton(buttons["Pause"], [this]() {
                 currentAnimation->isPlaying = false;
             });
         }
         else
         {
-            generateSlowedButton(buttons[1], [this]() {
+            generateSlowedButton(buttons["Play"], [this]() {
                 currentAnimation->isPlaying = true;
             });
         }
 
         ImGui::SameLine();
 
-        generateSlowedButton(buttons[2], [this]() {
+        generateSlowedButton(buttons["Reset"], [this]() {
             currentAnimation->currentTick = 0;
             currentAnimation->accumulatedTime = 0.0f;
             updateDisplayTexture();
@@ -320,7 +303,7 @@ void ImageBrowser::render()
 
     ImGui::NewLine();
 
-    generateSlowedButton(buttons[3], [&]() {
+    generateSlowedButton(buttons["Reset View"], [&]() {
         viewYaw = 45.0f;
         viewPitch = 30.0f;
         useCustomView = false;
@@ -342,11 +325,11 @@ void ImageBrowser::render()
         {
             if(currentGenerator->isObj())
             {
-                frames = currentGenerator->generateIsometricSequenceOBJ(currentOutputSize, useCustomView, viewPitch, viewYaw, wireframe);
+                frames = currentGenerator->generateIsometricSequenceOBJ(currentOutputSize, viewPitch, viewYaw, wireframe);
             }
             else
             {
-                frames = currentGenerator->generateIsometricSequence(currentOutputSize, useCustomView, viewPitch, viewYaw, wireframe);
+                frames = currentGenerator->generateIsometricSequence(currentOutputSize, viewPitch, viewYaw, wireframe);
             }
         }
         catch(...)
@@ -371,7 +354,7 @@ void ImageBrowser::render()
     ImGui::Separator();
     ImGui::Text("Export Options:");
 
-    generateSlowedButton(buttons[4], [&]() { // Download
+    generateSlowedButton(buttons["Download Assets"], [&]() { // Download
         if(!currentGenerator) return;
 
         std::thread([id = currentId, this]() mutable {
@@ -380,14 +363,14 @@ void ImageBrowser::render()
             auto model = generateModel(id);
             if(!model.isValid()) return;
 
-            model.saveAssets(id, true, currentOutputSize, viewPitch, viewYaw, wireframe);
+            model.saveAssets(id, currentOutputSize, viewPitch, viewYaw, wireframe);
             WindowUtils::destroyWindow(window);
         }).detach();
     });
 
     ImGui::SameLine();
 
-    generateSlowedButton(buttons[5], [this]() { // webp
+    generateSlowedButton(buttons["Export as WebP"], [this]() { // webp
         if(!currentGenerator || !currentAnimation) return;
 
         std::thread([id = currentId, this]() mutable {
@@ -402,11 +385,11 @@ void ImageBrowser::render()
             std::vector<RenderedFrame> frames;
             if(model.isObj())
             {
-                frames = model.generateIsometricSequenceOBJ(currentOutputSize, true, viewPitch, viewYaw, wireframe);
+                frames = model.generateIsometricSequenceOBJ(currentOutputSize, viewPitch, viewYaw, wireframe);
             }
             else
             {
-                frames = model.generateIsometricSequence(currentOutputSize, true, viewPitch, viewYaw, wireframe);
+                frames = model.generateIsometricSequence(currentOutputSize, viewPitch, viewYaw, wireframe);
             }
 
             model.saveAnimationWebP(id, targetDir, frames);
@@ -417,7 +400,67 @@ void ImageBrowser::render()
 
     ImGui::SameLine();
 
-    generateSlowedButton(buttons[6], [&]() { // Reset
+    generateSlowedButton(buttons["Export as APNG"], [this]() { // APNG
+        if(!currentGenerator || !currentAnimation) return;
+
+        std::thread([id = currentId, this]() mutable {
+            auto window = WindowUtils::createHiddenContext();
+            WindowUtils::makeContextCurrent(window);
+
+            auto model = generateModel(id);
+            if(!model.isValid()) return;
+
+            std::string safeName = changeFilename(id);
+            std::string targetDir = "img/" + safeName;
+            std::vector<RenderedFrame> frames;
+            if(model.isObj())
+            {
+                frames = model.generateIsometricSequenceOBJ(currentOutputSize, viewPitch, viewYaw, wireframe);
+            }
+            else
+            {
+                frames = model.generateIsometricSequence(currentOutputSize, viewPitch, viewYaw, wireframe);
+            }
+
+            model.saveAnimationAPNG(id, targetDir, frames);
+
+            WindowUtils::destroyWindow(window);
+        }).detach();
+    });
+
+    ImGui::SameLine();
+
+    generateSlowedButton(buttons["Export as PNG"], [this]() { // PNG
+        if(!currentGenerator || !currentAnimation) return;
+
+        std::thread([id = currentId, this]() mutable {
+            auto window = WindowUtils::createHiddenContext();
+            WindowUtils::makeContextCurrent(window);
+
+            auto model = generateModel(id);
+            if(!model.isValid()) return;
+
+            std::string safeName = changeFilename(id);
+            std::string targetDir = "img/" + safeName;
+            std::vector<RenderedFrame> frames;
+            if(model.isObj())
+            {
+                frames = model.generateIsometricSequenceOBJ(currentOutputSize, viewPitch, viewYaw, wireframe);
+            }
+            else
+            {
+                frames = model.generateIsometricSequence(currentOutputSize, viewPitch, viewYaw, wireframe);
+            }
+
+            model.saveAnimationPNG(id, targetDir, frames);
+
+            WindowUtils::destroyWindow(window);
+        }).detach();
+    });
+
+    ImGui::SameLine();
+
+    generateSlowedButton(buttons["Clear"], [&]() { // Reset
         currentId.clear();
         id_input_buffer.clear();
         id_input_buffer.shrink_to_fit();
@@ -538,9 +581,9 @@ ModelGenerator ImageBrowser::generateModel(const std::string& id_to_search)
     for(const auto& obj : list_obj)
     {
         std::string pth = obj.path;
-        if(pth.find("/" + path + ".obj") != std::string::npos    ||
-           pth.find("/" + path + ".obj.ie") != std::string::npos ||
-           pth == path + ".obj")
+        if(pth.find("/" + path + ".obj") != std::string::npos ||
+            pth.find("/" + path + ".obj.ie") != std::string::npos ||
+            pth == path + ".obj")
         {
             obj_path = pth;
             break;
@@ -613,11 +656,11 @@ void ImageBrowser::loadImage(const std::string& id)
     {
         if(currentGenerator->isObj())
         {
-            frames = currentGenerator->generateIsometricSequenceOBJ(currentOutputSize, useCustomView, viewPitch, viewYaw, wireframe);
+            frames = currentGenerator->generateIsometricSequenceOBJ(currentOutputSize, viewPitch, viewYaw, wireframe);
         }
         else
         {
-            frames = currentGenerator->generateIsometricSequence(currentOutputSize, useCustomView, viewPitch, viewYaw, wireframe);
+            frames = currentGenerator->generateIsometricSequence(currentOutputSize, viewPitch, viewYaw, wireframe);
         }
     }
     catch(...)

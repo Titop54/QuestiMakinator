@@ -10,6 +10,9 @@
 
 #include <GLFW/glfw3.h>
 
+#include <string>
+#include <unordered_map>
+
 using json = nlohmann::json;
 
 struct AnimationData
@@ -80,7 +83,7 @@ private:
     unsigned int lastTexWidth = 0;
     unsigned int lastTexHeight = 0;
 
-    std::vector<Button> buttons;
+    std::unordered_map<std::string, Button> buttons;
 
 public:
     ImageBrowser();

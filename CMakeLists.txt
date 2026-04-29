@@ -102,6 +102,7 @@ find_package(OpenGL REQUIRED)
 find_package(GLEW CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(tinyfiledialogs CONFIG REQUIRED)
+find_package(lodepng CONFIG REQUIRED)
 
 # Source files configuration (this can be done with all .cpp)
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "src/*.cpp")
@@ -155,6 +156,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     GLEW::GLEW
     glm::glm
     tinyfiledialogs::tinyfiledialogs
+    lodepng
 )
 
 # Installation configuration
