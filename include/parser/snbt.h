@@ -794,7 +794,8 @@ namespace snbt
 
     inline std::string json_to_tag(const std::string& jsonString)
     {
-        nlohmann::json jsonObj = nlohmann::json::parse(jsonString);
+        nlohmann::json jsonObj = nlohmann::json::parse(jsonString, nullptr, false, true);
+        if(jsonObj.empty()) return "";
         Tag root = json_to_tag(jsonObj);
 
         std::ostringstream oss;
