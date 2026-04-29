@@ -1,6 +1,7 @@
+#include "gui/display/window.h"
 #include "gui/elements/button.h"
 #include "gui/elements/menu.h"
-#include "integration/kubejs.h"
+#include "integration/client.h"
 #include "integration/model.h"
 #include <cstddef>
 #include <gui/display/Image.h>
@@ -42,54 +43,64 @@ void parseId(const std::string& fullId, std::string& ns, std::string& path)
 ImageBrowser::ImageBrowser()
 {
     buttons.reserve(10);
-    buttons.push_back({ // 0
+    buttons.push_back({
+        // 0
         "Pause",
-        "Pause the animation"
+        "Pause the animation",
     });
 
-    buttons.push_back({ // 1
+    buttons.push_back({
+        // 1
         " Play ",
-        "Start the animation"
+        "Start the animation",
     });
 
-    buttons.push_back({ // 2
+    buttons.push_back({
+        // 2
         "Reset",
-        "Restart the animation timer"
+        "Restart the animation timer",
     });
 
-    buttons.push_back({ // 3
+    buttons.push_back({
+        // 3
         "Reset View",
-        "Put default values"
+        "Put default values",
     });
 
-    buttons.push_back({ // 4
+    buttons.push_back({
+        // 4
         "Download Assets",
-        "Saves model.json and all textures to folder img/mod_id_assets and Blender .obj"
+        "Saves model.json and all textures to folder img/mod_id_assets and Blender .obj",
     });
 
-    buttons.push_back({ // 5
+    buttons.push_back({
+        // 5
         "Download Animation",
-        "Saves as WebP"
+        "Saves as WebP",
     });
 
-    buttons.push_back({ // 6
+    buttons.push_back({
+        // 6
         "Clear",
-        "Clear the current item/block"
+        "Clear the current item/block",
     });
 
-    buttons.push_back({ // 7
+    buttons.push_back({
+        // 7
         "Connect to KubeJS",
-        "Try to connect to KubeJS localhost server"
+        "Try to connect to KubeJS localhost server",
     });
 
-    buttons.push_back({ // 8
+    buttons.push_back({
+        // 8
         "Download all mods assets",
-        "Download every asset from the mod"
+        "Download every asset from the mod",
     });
 
-    buttons.push_back({ // 9
+    buttons.push_back({
+        // 9
         "Download all mods assets (WebP)",
-        "Make a .webp from all id of the mod"
+        "Make a .webp from all id of the mod",
     });
 
     if(!client.isConnected())
@@ -122,6 +133,8 @@ void ImageBrowser::loadAssets()
     {
         validIds.push_back("[Fluid] " + f);
     }
+
+    models = client.listAssetsByPath("models/");
 
     assetsLoaded = true;
     isLoading = false;
@@ -176,7 +189,16 @@ void ImageBrowser::render()
         return;
     }
 
-    draw_search_bar("Item / Block ID", validIds, idInputBuffer, [this](std::string s) {
+    draw_search_bar("Item / Block ID", validIds, id_input_buffer, [this](std::string s) {
+        try
+        {
+            loadImage(s);
+        }
+        catch(...)
+        {}
+    });
+
+    draw_search_bar("Exact Model", models, model_input_buffer, [this](std::string s) {
         try
         {
             loadImage(s);
@@ -318,7 +340,7 @@ void ImageBrowser::render()
         std::vector<RenderedFrame> frames;
         try
         {
-            if(currentGenerator->isObjModel)
+            if(currentGenerator->isObj())
             {
                 frames = currentGenerator->generateIsometricSequenceOBJ(currentOutputSize, useCustomView, viewPitch, viewYaw, wireframe);
             }
@@ -352,10 +374,14 @@ void ImageBrowser::render()
     generateSlowedButton(buttons[4], [&]() { // Download
         if(!currentGenerator) return;
 
-        std::thread([gen = currentGenerator.value(),
-                        id = currentId,
-                        frames = currentAnimation->frames]() mutable {
-            gen.saveAssets(id, frames);
+        std::thread([id = currentId, this]() mutable {
+            auto window = WindowUtils::createHiddenContext();
+            WindowUtils::makeContextCurrent(window);
+            auto model = generateModel(id);
+            if(!model.isValid()) return;
+
+            model.saveAssets(id, true, currentOutputSize, viewPitch, viewYaw, wireframe);
+            WindowUtils::destroyWindow(window);
         }).detach();
     });
 
@@ -364,14 +390,28 @@ void ImageBrowser::render()
     generateSlowedButton(buttons[5], [this]() { // webp
         if(!currentGenerator || !currentAnimation) return;
 
-        std::thread([modelData = currentGenerator.value(),
-                        id = currentId,
-                        frames = currentAnimation->frames]() mutable {
-            ModelGenerator model(modelData);
+        std::thread([id = currentId, this]() mutable {
+            auto window = WindowUtils::createHiddenContext();
+            WindowUtils::makeContextCurrent(window);
+
+            auto model = generateModel(id);
+            if(!model.isValid()) return;
+
             std::string safeName = changeFilename(id);
             std::string targetDir = "img/" + safeName;
+            std::vector<RenderedFrame> frames;
+            if(model.isObj())
+            {
+                frames = model.generateIsometricSequenceOBJ(currentOutputSize, true, viewPitch, viewYaw, wireframe);
+            }
+            else
+            {
+                frames = model.generateIsometricSequence(currentOutputSize, true, viewPitch, viewYaw, wireframe);
+            }
 
             model.saveAnimationWebP(id, targetDir, frames);
+
+            WindowUtils::destroyWindow(window);
         }).detach();
     });
 
@@ -379,10 +419,13 @@ void ImageBrowser::render()
 
     generateSlowedButton(buttons[6], [&]() { // Reset
         currentId.clear();
-        idInputBuffer[0] = '\0';
+        id_input_buffer.clear();
+        id_input_buffer.shrink_to_fit();
+
+        model_input_buffer.clear();
+        model_input_buffer.shrink_to_fit();
         currentAnimation.reset();
         currentGenerator.reset();
-        animations.clear();
 
         if(currentTexture == 0) return;
 
@@ -413,6 +456,10 @@ ModelGenerator ImageBrowser::generateModel(const std::string& id_to_search)
         fluid = true;
         id = id_to_search.substr(8);
     }
+    else
+    {
+        id = id_to_search;
+    }
 
     parseId(id, ns, path);
 
@@ -424,8 +471,52 @@ ModelGenerator ImageBrowser::generateModel(const std::string& id_to_search)
         return ModelGenerator(fluidModel.dump(), client, id);
     }
 
+    auto ends_with = [](const std::string& str, const std::string& suffix) {
+        return str.size() >= suffix.size() &&
+               str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
+    };
+
+    bool is_json = ends_with(path, ".json");
+    bool is_obj = ends_with(path, ".obj") || ends_with(path, ".obj.ie");
+
     std::string response;
     std::string url;
+
+    if(is_json)
+    {
+        url = "/api/client/assets/get/" + ns + "/models/" + path;
+        client.sendHttpRequest("GET", url, "", response);
+
+        if(response.empty()) return {};
+        return ModelGenerator(response, client, id);
+    }
+    else if(is_obj)
+    {
+        std::string obj_data;
+        url = "/api/client/assets/get/" + ns + "/models/" + path;
+        client.sendHttpRequest("GET", url, "", obj_data);
+
+        if(obj_data.empty()) return {};
+
+        std::string mtl_path = path;
+        size_t extension = mtl_path.rfind(".obj");
+        if(extension != std::string::npos)
+        {
+            mtl_path = mtl_path.substr(0, extension) + ".mtl";
+        }
+        else
+        {
+            mtl_path += ".mtl";
+        }
+
+        std::string mtl_data;
+        url = "/api/client/assets/get/" + ns + "/models/" + mtl_path;
+        client.sendHttpRequest("GET", url, "", mtl_data);
+
+        if(mtl_data.empty()) return {};
+
+        return ModelGenerator(obj_data, mtl_data, client, ns, id);
+    }
 
     if(item)
     {
@@ -511,7 +602,7 @@ void ImageBrowser::loadImage(const std::string& id)
         isLoading = false;
         return;
     }
-    
+
     GLboolean scissorEnabled = glIsEnabled(GL_SCISSOR_TEST);
     GLint prevViewport[4];
     glGetIntegerv(GL_VIEWPORT, prevViewport);
@@ -520,7 +611,7 @@ void ImageBrowser::loadImage(const std::string& id)
     std::vector<RenderedFrame> frames;
     try
     {
-        if(currentGenerator->isObjModel)
+        if(currentGenerator->isObj())
         {
             frames = currentGenerator->generateIsometricSequenceOBJ(currentOutputSize, useCustomView, viewPitch, viewYaw, wireframe);
         }
@@ -529,7 +620,8 @@ void ImageBrowser::loadImage(const std::string& id)
             frames = currentGenerator->generateIsometricSequence(currentOutputSize, useCustomView, viewPitch, viewYaw, wireframe);
         }
     }
-    catch(...){}
+    catch(...)
+    {}
 
     for(auto& img : frames)
     {
@@ -559,8 +651,7 @@ void ImageBrowser::loadImage(const std::string& id)
     anim.totalTicks = std::max(1, tTicks);
     anim.currentTick = 0;
 
-    animations[id] = anim;
-    currentAnimation = animations[id];
+    currentAnimation = anim;
     updateDisplayTexture();
 
     isLoading = false;
