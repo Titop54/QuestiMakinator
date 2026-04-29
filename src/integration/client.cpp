@@ -1,5 +1,6 @@
 #include <SFML/Graphics/Image.hpp>
 #include <SFML/System/Time.hpp>
+#include <SFML/System/Vector2.hpp>
 #include <integration/client.h>
 #include <iostream>
 #include <fstream>
@@ -126,7 +127,7 @@ std::vector<Mod> Client::getAvailableMods()
 
     std::vector<Mod> mods;
     auto j = json::parse(resp, nullptr, false, true);
-    if(j.empty()) return {};
+    if(j.is_discarded()) return {};
 
     mods.resize(j.size());
     for(const auto& item : j)
@@ -152,7 +153,7 @@ std::vector<ListResponse> Client::listAllAssets()
         }
 
         auto j = json::parse(resp, nullptr, false,true);
-        if(j.empty()) return;
+        if(j.is_discarded()) return;
         for(auto& [modId, files] : j.items())
         {
             for(const auto& file : files)
@@ -192,6 +193,41 @@ std::vector<ListResponse> Client::listAssetsByPrefix(const std::string& prefix)
     return filtered;
 }
 
+std::vector<std::string> Client::listAssetsByPath(const std::string& path)
+{
+    std::vector<std::string> assets;
+    std::string resp;
+    
+    std::string url = "/api/client/assets/list/" + path;
+
+    if(!sendHttpRequest("GET", url, "", resp))
+    {
+        return assets;
+    }
+    auto j = json::parse(resp, nullptr, false, true);
+    if(j.is_discarded()) 
+    {
+        return assets;
+    }
+    
+    for(auto& [modId, files] : j.items())
+    {
+        for(const auto& file : files)
+        {
+            try
+            {
+                std::string file_path = file.get<std::string>();
+                assets.push_back(modId + ":" + file_path);
+            }
+            catch(...) 
+            {
+            }
+        }
+    }
+
+    return assets;
+}
+
 bool Client::downloadToFile(const std::string& urlPath, const std::string& outputPath)
 {
     std::string respBody;
@@ -224,7 +260,7 @@ std::vector<std::string> Client::searchBlocks()
     if(!sendHttpRequest("GET", "/api/client/search/blocks", "", resp)) return {};
     
     auto j = json::parse(resp, nullptr, false, true);
-    if(j.empty()) return {};
+    if(j.is_discarded()) return {};
 
     std::vector<std::string> ids;
     for(const auto& block : j)
@@ -241,7 +277,7 @@ std::vector<std::string> Client::searchItems()
     if(!sendHttpRequest("GET", "/api/client/search/items", "", resp)) return {};
 
     auto j = json::parse(resp, nullptr, false, true);
-    if(j.empty()) return {};
+    if(j.is_discarded()) return {};
     if(!j.contains("results")) return {};
 
     std::vector<std::string> ids;
@@ -269,7 +305,7 @@ std::vector<std::string> Client::searchFluids()
     //Why is this different from the rest? Because we got lied on 1.21.1 and there is no search/fluid on 1.20.1
 
     auto j = json::parse(resp, nullptr, false, true);
-    if(j.empty()) return {};
+    if(j.is_discarded()) return {};
 
     std::set<std::string> ids;
     for(auto& [mod_id, files] : j.items())
@@ -349,7 +385,7 @@ std::vector<sf::Image> Client::splitVerticalFrames(const sf::Image& spriteSheet)
 
     for(int i = 0; i < count; i++)
     {
-        sf::Image frame({width, width});
+        sf::Image frame(sf::Vector2u(width, width));
         if(!frame.copy(spriteSheet, {0, 0}, {{0, i*w}, {w, w}}))
         {
             std::cerr << "Failed to copy frame " << i << "\n";

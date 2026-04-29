@@ -100,6 +100,14 @@ public:
      * @return std::vector<std::string> 
      */
     std::vector<ListResponse> listAssetsByPrefix(const std::string& prefix);
+
+    /**
+     * @brief Calls listAllAssets and filter it out based on the prefix
+     * 
+     * @param path /models or /textures
+     * @return std::vector<std::string> 
+     */
+    std::vector<std::string> listAssetsByPath(const std::string& path);
     
     /**
      * @brief Given an id, for example, minecraft:stone, downloads all assests related to it

@@ -22,7 +22,7 @@
 #include <tinyfiledialogs/tinyfiledialogs.h>
 
 #include <parser/raw.h>
-#include <integration/kubejs.h>
+#include <integration/client.h>
 #include <gui/display/Image.h>
 #include <gui/display/window.h>
 #include <gui/display/colors.h>
@@ -607,8 +607,8 @@ int main(int argc, char* argv[])
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
 
-    glfwDestroyWindow(window);
-    glfwTerminate();
+    WindowUtils::destroyWindow(window);
+    WindowUtils::terminateGLFW();
 
     std::cerr.rdbuf(originalCerr);
     std::cout.rdbuf(originalCout);

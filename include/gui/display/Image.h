@@ -6,7 +6,7 @@
 #include <integration/model.h>
 #include <optional>
 #include "gui/elements/button.h"
-#include "integration/kubejs.h"
+#include "integration/client.h"
 
 #include <GLFW/glfw3.h>
 
@@ -49,7 +49,6 @@ void parseId(const std::string& fullId, std::string& ns, std::string& path);
 class ImageBrowser
 {
 private:
-    std::map<std::string, AnimationData> animations;
     int allBlocks = 0;
     int allItems = 0;
     int allFluids = 0;
