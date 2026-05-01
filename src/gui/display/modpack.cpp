@@ -8,6 +8,8 @@
 #include "parser/arguments.h"
 #include <gui/display/modpack.h>
 #include <imgui.h>
+#include <thread>
+#include <atomic>
 #include <tinyfiledialogs.h>
 
 // https://github.com/FTBTeam/FTB-Quests/blob/1.20.1/main/common/src/main/java/dev/ftb/mods/ftbquests/quest/Quest.java
@@ -16,6 +18,23 @@
 
 void createModpackMenu(std::vector<Button>& buttons)
 {
+    static std::string pendingPath;
+    static std::atomic<bool> path_ready{ false };
+
+    static std::string pendingModPath;
+    static std::atomic<bool> mod_path_ready{ false };
+
+    if(path_ready)
+    {
+        settings::modpack.path = pendingPath;
+        path_ready = false;
+    }
+    if(mod_path_ready)
+    {
+        settings::modpack.mod_path = pendingModPath;
+        mod_path_ready = false;
+    }
+
     ImGui::Begin("Modpack Settings");
 
     ImGui::Text("Global Settings:");
@@ -56,17 +75,32 @@ void createModpackMenu(std::vector<Button>& buttons)
     ImGui::Spacing();
 
     generateSlowedButton(buttons[5], [&]() {
-        const char* selected = tinyfd_selectFolderDialog("Select Working Directory", settings::modpack.path.c_str());
-        if(selected) settings::modpack.path = selected;
+        if(path_ready) return;
+        std::thread([]() {
+            const char* selected = tinyfd_selectFolderDialog("Select Working Directory", settings::modpack.path.c_str());
+            if(selected)
+            {
+                pendingPath = selected;
+                path_ready = true;
+            }
+        }).detach();
     });
     ImGui::SameLine();
     ImGui::TextColored(ImGui::GetStyle().Colors[ImGuiCol_TextDisabled],
         " [%s]", settings::modpack.path.empty() ? "Default: Current" : settings::modpack.path.c_str());
 
     generateSlowedButton(buttons[4], [&]() {
-        const char* selected = tinyfd_selectFolderDialog("Select Minecraft Instance Folder", settings::modpack.mod_path.c_str());
-        if(selected) settings::modpack.mod_path = selected;
+        if(mod_path_ready) return;
+        std::thread([]() {
+            const char* selected = tinyfd_selectFolderDialog("Select Minecraft Instance Folder", settings::modpack.mod_path.c_str());
+            if(selected)
+            {
+                pendingModPath = selected;
+                mod_path_ready = true;
+            }
+        }).detach();
     });
+
     ImGui::SameLine();
     ImGui::TextColored(ImGui::GetStyle().Colors[ImGuiCol_TextDisabled],
         " [%s]", settings::modpack.mod_path.empty() ? "Not set" : settings::modpack.mod_path.c_str());
@@ -95,19 +129,23 @@ void createModpackMenu(std::vector<Button>& buttons)
     ImGui::SameLine();
 
     generateSlowedButton(buttons[2], [&]() {
-        args::parser temp_args;
-        if(settings::modpack.using_cf) temp_args.result["--curseforge"] = {};
-        if(!settings::modpack.path.empty()) temp_args.result["--path"] = { settings::modpack.path };
-        gen::generate(temp_args);
+        std::thread([]() {
+            args::parser temp_args;
+            if(settings::modpack.using_cf) temp_args.result["--curseforge"] = {};
+            if(!settings::modpack.path.empty()) temp_args.result["--path"] = { settings::modpack.path };
+            gen::generate(temp_args);
+        }).detach();
     });
     ImGui::SameLine();
 
     generateSlowedButton(buttons[3], [&]() {
-        args::parser temp_args;
-        if(settings::modpack.using_cf) temp_args.result["--curseforge"] = {};
-        if(!settings::modpack.path.empty()) temp_args.result["--path"] = { settings::modpack.path };
-        if(!settings::modpack.mod_path.empty()) temp_args.result["--mods"] = { settings::modpack.mod_path };
-        pack::pack(temp_args);
+        std::thread([]() {
+            args::parser temp_args;
+            if(settings::modpack.using_cf) temp_args.result["--curseforge"] = {};
+            if(!settings::modpack.path.empty()) temp_args.result["--path"] = { settings::modpack.path };
+            if(!settings::modpack.mod_path.empty()) temp_args.result["--mods"] = { settings::modpack.mod_path };
+            pack::pack(temp_args);
+        }).detach();
     });
 
     ImGui::Spacing();
