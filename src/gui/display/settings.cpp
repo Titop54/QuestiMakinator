@@ -14,9 +14,10 @@ namespace fs = std::filesystem;
 
 namespace settings
 {
-
     struct settings current;
     struct settings saved;
+    struct modpack modpack;
+
     bool show_menu = false;
     bool was_menu_open = false;
     std::vector<std::string> cached_fonts;
@@ -354,7 +355,7 @@ namespace settings
         sync(j, "show_image", s.show_image, loading);
         sync(j, "show_colors", s.show_colors, loading);
         sync(j, "textanimator", s.textanimator, loading);
-        sync(j, "show_packing", s.show_packing, loading);
+        sync(j, "show_modpack", s.show_modpack, loading);
 
         // Vec2
         sync_vec2(j, "window_min_size", s.window_min_size, loading);
@@ -438,7 +439,7 @@ namespace settings
                 ImGui::Checkbox("Show images", &current.show_image);
                 ImGui::Checkbox("Show colors", &current.show_colors);
                 ImGui::Checkbox("Show TextAnimator", &current.textanimator);
-                ImGui::Checkbox("Show Modpack Tools", &current.show_packing);
+                ImGui::Checkbox("Show Modpack Tools", &current.show_modpack);
 
                 ImGui::Dummy(ImVec2(0, 10));
                 ImGui::Separator();

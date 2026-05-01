@@ -2,6 +2,8 @@
 #include "args/merger.h"
 #include "args/splitter.h"
 #include "args/pack.h"
+#include "args/ftbq_converter.h"
+#include "gui/display/modpack.h"
 #include "gui/display/settings.h"
 #include "gui/elements/button.h"
 #include "parser/arguments.h"
@@ -37,9 +39,12 @@ int main(int argc, char* argv[])
     if(args.result.contains("--splitter")) splitter::split(args);
     if(args.result.contains("--merger")) merger::merge(args);
     if(args.result.contains("--pack")) pack::pack(args);
+    if(args.result.contains("--upgrade")) ftbq_converter::convert_1_20_to_1_21(args);
+    if(args.result.contains("--extract-lang")) ftbq_converter::extract_to_lang(args);
 
     if(args.result.contains("--pack") || args.result.contains("--generate") ||
-        args.result.contains("--merger") || args.result.contains("--splitter"))
+        args.result.contains("--merger") || args.result.contains("--splitter") ||
+        args.result.contains("--upgrade") || args.result.contains("--extract-lang"))
     {
         return 0; // if we are using these, well, exit
     }
@@ -275,7 +280,9 @@ int main(int argc, char* argv[])
         { "Setup Project", "Initializes a fresh workspace with folders and base scripts.\nRun this when starting a new modpack development." },
         { "Ship Modpack", "Compiles the project into final distribution ZIPs.\nCreates separate Client and Server packages for your players." },
         { "Set Client Root", "Points to your Minecraft instance folder.\nUsed to extract mod metadata for the server-side generation." },
-        { "Set Project Path", "Defines the working directory of your quest project.\nWhere the 'config/ftbquests' folder is located." }
+        { "Set Project Path", "Defines the working directory of your quest project.\nWhere the 'config/ftbquests' folder is located." },
+        { "Upgrade 1.20.1 to 1.21.1", "Converts quest SNBT files from 1.20.1 format to 1.21.1.\nTransforms item stacks (Count/tag to count/components).\nOutput goes to config/ftbquests/quests/1_21_1/chapters/." },
+        { "Extract to Lang", "Extracts hardcoded quest text into lang keys.\nGenerates kubejs/assets/ftbquests/lang/en_us.json.\nReplaces text with {ftbquests.chapter.<file>.quest<ID>.<field>} keys." }
     };
 
     int win_w, win_h;
@@ -285,12 +292,6 @@ int main(int argc, char* argv[])
     {
         ImageBrowser browser;
         bool browserFirstRun = true;
-
-        bool convert = false;
-        bool json = false;
-        bool cf = false;
-        std::string mod_path = "";
-        std::string path = "";
 
         while(!glfwWindowShouldClose(window))
         {
@@ -481,106 +482,6 @@ int main(int argc, char* argv[])
 
             ImGui::NewLine();
             ImGui::Separator();
-            if(settings::current.show_packing)
-            {
-                ImGui::Text("Global Settings:");
-
-                ImGui::Checkbox("Input Format", &json);
-                if(ImGui::IsItemHovered())
-                {
-                    ImGui::SetTooltip(
-                        "Target Output Format (--json):\n\n"
-                        "- Enabled: Outputs generated files as .json. Ideal for translation websites and similar\n"
-                        "- Disabled: Outputs generated files as .snbt .\n\n"
-                        "Note: FTBQ only reads the final assembled file if it is in .snbt.");
-                }
-
-                ImGui::SameLine();
-                ImGui::Checkbox("Output Format", &convert);
-                if(ImGui::IsItemHovered())
-                {
-                    ImGui::SetTooltip(
-                        "Target Input Format (--convert ):\n"
-                        "- If splitting: It will look for .json in the lang folder if enabled, or .snbt if disabled.\n"
-                        "- If merging: It will look for chunks in .json to convert to .snbt.\n"
-                        "Note: FTBQ only reads the final assembled file if it's a .snbt.");
-                }
-
-                ImGui::SameLine();
-                ImGui::Checkbox("Manifest", &cf);
-                if(ImGui::IsItemHovered())
-                {
-                    ImGui::SetTooltip("Use manifest.json instead of mods.json (Prism): \n"
-                                      "- manifest.json comes from the CF launcher\n"
-                                      "- mods.json comes from the Prism Launcher using the export command on JSON\n"
-                                      "Note: manifest.json has the exact file you download, leading to better results");
-                }
-                ImGui::SameLine();
-
-                if(ImGui::IsItemHovered())
-                {
-                    ImGui::SetTooltip("Toggles more effects details (1.21.1+).\n"
-                                      "- Enabled: Shows '&z' and uses detailed modEffects (e.g., <pulse base=...>).\n"
-                                      "- Disabled: Hides '&z' and uses simple tags (e.g., <pulse>).");
-                }
-
-                ImGui::Spacing();
-
-                generateSlowedButton(argsButtons[5], [&]() {
-                    const char* selected = tinyfd_selectFolderDialog("Select Working Directory", path.c_str());
-                    if(selected) path = selected;
-                });
-                ImGui::SameLine();
-                ImGui::TextColored(ImGui::GetStyle().Colors[ImGuiCol_TextDisabled],
-                    " [%s]", path.empty() ? "Default: Current" : path.c_str());
-
-                generateSlowedButton(argsButtons[4], [&]() {
-                    const char* selected = tinyfd_selectFolderDialog("Select Minecraft Instance Folder", mod_path.c_str());
-                    if(selected) mod_path = selected;
-                });
-                ImGui::SameLine();
-                ImGui::TextColored(ImGui::GetStyle().Colors[ImGuiCol_TextDisabled],
-                    " [%s]", mod_path.empty() ? "Not set" : mod_path.c_str());
-
-                ImGui::Spacing();
-
-                ImGui::Separator();
-                ImGui::Text("Execute Operations:");
-
-                generateSlowedButton(argsButtons[0], [&]() {
-                    args::parser temp_args;
-                    if(json) temp_args.result["--json"] = {};
-                    if(convert) temp_args.result["--convert"] = {};
-                    if(!path.empty()) temp_args.result["--path"] = { path };
-                    splitter::split(temp_args);
-                });
-                ImGui::SameLine();
-
-                generateSlowedButton(argsButtons[1], [&]() {
-                    args::parser temp_args;
-                    if(json) temp_args.result["--json"] = {};
-                    if(convert) temp_args.result["--convert"] = {};
-                    if(!path.empty()) temp_args.result["--path"] = { path };
-                    merger::merge(temp_args);
-                });
-                ImGui::SameLine();
-
-                generateSlowedButton(argsButtons[2], [&]() {
-                    args::parser temp_args;
-                    if(cf) temp_args.result["--curseforge"] = {};
-                    if(!path.empty()) temp_args.result["--path"] = { path };
-                    gen::generate(temp_args);
-                });
-                ImGui::SameLine();
-
-                generateSlowedButton(argsButtons[3], [&]() {
-                    args::parser temp_args;
-                    if(cf) temp_args.result["--curseforge"] = {};
-                    if(!path.empty()) temp_args.result["--path"] = { path };
-                    if(!mod_path.empty()) temp_args.result["--mods"] = { mod_path };
-                    pack::pack(temp_args);
-                });
-            }
 
             settings::draw_menu();
             ImGui::SameLine();
@@ -589,6 +490,7 @@ int main(int argc, char* argv[])
 
             if(settings::current.show_image) createImageBrowser(browser, browserFirstRun, dt, window);
             if(settings::current.show_colors) createColorWheel(field);
+            if(settings::current.show_modpack) createModpackMenu(argsButtons);
 
             ImGui::Render();
             int display_w, display_h;

@@ -98,6 +98,16 @@ namespace args
                     result["--convert"] = {};
                 }
 
+                if(v == "--upgrade" || v == "-u")
+                {
+                    result["--upgrade"] = {};
+                }
+
+                if(v == "--extract-lang" || v == "-el")
+                {
+                    result["--extract-lang"] = {};
+                }
+
                 if(v == "--help" || v == "-h")
                 {
                     printf("Usage: %s [OPTIONS]\n\n", argv[0]);
@@ -134,12 +144,22 @@ namespace args
 
                     printf("  -md, --mods [Path]      Path to the client instance base folder for server generation.\n");
                     printf("                          The tool will automatically locate the 'mods' subfolder.\n\n");
+
+                    printf("  -u,  --upgrade          Upgrades quest chapter files from 1.20.1 to 1.21.1 format.\n");
+                    printf("                          Converts item stacks (Count/tag to count/components).\n");
+                    printf("                          Output: config/ftbquests/quests/1_21_1/chapters/\n\n");
+
+                    printf("  -el, --extract-lang     Extracts hardcoded quest text into lang keys.\n");
+                    printf("                          Writes kubejs/assets/ftbquests/lang/en_us.json.\n");
+                    printf("                          Replaces text with {ftbquests.chapter.<file>.quest<ID>.<field>} keys.\n\n");
                     
                     printf("Order of execution, regardless of order:\n");
                     printf("  1. --generate   (Set up the environment)\n");
                     printf("  2. --splitter   (Extract and clean data)\n");
                     printf("  3. --merger     (Reassemble modified data)\n");
-                    printf("  4. --pack       (Finalize for distribution)\n\n");
+                    printf("  4. --upgrade    (Convert 1.20.1 to 1.21.1 format)\n");
+                    printf("  5. --extract-lang (Extract text to lang keys)\n");
+                    printf("  6. --pack       (Finalize for distribution)\n\n");
                     exit(0);
                 }
                 

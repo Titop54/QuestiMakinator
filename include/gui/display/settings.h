@@ -63,11 +63,22 @@ namespace settings
         bool show_image = true;
         bool show_colors = true;
         bool textanimator = true;
-        bool show_packing = true;
+        bool show_modpack = true;
+    };
+
+    struct modpack
+    {
+        bool input_as_json = false;
+        bool output_as_json = false;
+        bool using_cf = true;
+        bool to_lang_files = false;
+        std::string path = ".";
+        std::string mod_path = ".";
     };
 
     extern struct settings current;
     extern struct settings saved;
+    extern struct modpack modpack;
     extern bool show_menu;
 
     void load();
