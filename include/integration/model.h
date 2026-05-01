@@ -1,6 +1,6 @@
 #pragma once
 
-#include "kubejs.h"
+#include "client.h"
 #include <SFML/Graphics.hpp>
 #include <SFML/Graphics/Image.hpp>
 #include <cstdint>
@@ -10,6 +10,10 @@
 #include <vector>
 #include <map>
 #include <set>
+
+typedef int GLint;
+typedef unsigned int GLuint;
+typedef unsigned char GLboolean;
 
 struct RenderedFrame
 {
@@ -113,9 +117,44 @@ inline std::string changeFilename(const std::string& input)
  */
 class ModelGenerator
 {
+public:
+    ModelGenerator() = default;
+
+    ModelGenerator(const std::string& raw_json, Client& client, const std::string& id);
+
+    ModelGenerator(const std::string& obj_data, const std::string& mtl_data, Client& client, const std::string& namespac, const std::string& id);
+
+    std::vector<RenderedFrame> generateIsometricSequence(unsigned int output_size = 128, float pitch = 30.0f, float yaw = 45.0f, bool wireframe = false);
+
+    std::vector<RenderedFrame> generateIsometricSequenceOBJ(unsigned int output_size = 128, float pitch = 30.0f, float yaw = 45.0f, bool wireframe = false);
+
+    void saveAssets(const std::string& item_id, int output_size = 128, float pitch = 30.0f, float yaw = 45.0f, bool wireframe = false);
+    
+    void saveAssets(const std::string& item_id, const std::vector<RenderedFrame>& frames);
+
+    void saveAnimationWebP(const std::string& item_id, const std::string& output_dir, const std::vector<RenderedFrame>& frames);
+
+    void saveAnimationPNG(const std::string& item_id, const std::string& output_dir, const std::vector<RenderedFrame>& frames);
+
+    void saveAnimationAPNG(const std::string& item_id, const std::string& output_dir, const std::vector<RenderedFrame>& frames);
+
+    void exportToObj(const std::string& item_id, const std::string& output_dir);
+
+    std::string getID() const;
+
+    bool isValid() const
+    {
+        return !textures.empty() || !materials.empty();
+    }
+
+    bool isObj() const
+    {
+        return !shapes.empty();
+    }
+
 private:
     std::string id;
-    nlohmann::json modelJson;
+    nlohmann::json model_json;
     std::map<std::string, TextureAnimation> textures;
     std::set<std::string> uniqueTexturePaths;
 
@@ -123,62 +162,129 @@ private:
     std::vector<tinyobj::shape_t> shapes;
     std::vector<tinyobj::material_t> materials;
     
-    int calculateTotalLoopTicks(); 
+    //bool allow_free = false;
+    int calculateTotalLoopTicks();
 
-public:
+    struct GpuVertex
+    {
+        float x, y, z;
+        float r, g, b, a;
+        float u, v;
+    };
 
-    bool isObjModel = false;
+    struct Triangle
+    {
+        GpuVertex v[3];
+        const Texture *texture;
+        float depth;
+    };
 
-    ModelGenerator() = default;
+    struct FaceDef
+    {
+        std::string dir;
+        sf::Vector3f v[4];
+    };
 
-    ModelGenerator(const std::string& rawJson, KubeJSClient& client, const std::string& id);
+    struct FramebufferObjects
+    {
+        GLuint fbo = 0;
+        GLuint render_tex = 0;
+        GLuint rbo = 0;
+    };
 
-    ModelGenerator(const std::string& objData, const std::string& mtlData, KubeJSClient& client, const std::string& checkNamespace, const std::string& id);
-
-    /**
-     * @brief Generate a sequence of images to display
-     * @param outputSize Output size (64x64 or 128x128)
-     * @param customRotation Use custom 3D rotation instead of default isometric
-     * @param pitch X-axis rotation
-     * @param yaw Y-axis rotation
-     * @return vector containing 1 or more images to display
-     */
-    std::vector<RenderedFrame> generateIsometricSequence(unsigned int outputSize = 128, bool customRotation = false, float pitch = 30.0f, float yaw = 45.0f, bool wireframe = false);
-
-    /**
-     * @brief Generate a sequence of images to display
-     * @param outputSize Output size (128x128)
-     * @param customRotation Use custom 3D rotation instead of default isometric
-     * @param pitch X-axis rotation
-     * @param yaw Y-axis rotation
-     * @return vector containing 1 or more images to display
-     */
-    std::vector<RenderedFrame> generateIsometricSequenceOBJ(unsigned int outputSize = 128, bool customRotation = false, float pitch = 30.0f, float yaw = 45.0f, bool wireframe = false);
-
-    /**
-     * @brief Downloads JSON and all textures to a folder named "mod_itemid_assets"
-     */
-    void saveAssets(const std::string& itemId, bool customRotation = false, int customSize = 128, float pitch = 30.0f, float yaw = 45.0f);
-    
-    /**
-     * @brief Downloads JSON and all textures to a folder named "mod_itemid_assets"
-     */
-    void saveAssets(const std::string& itemId, const std::vector<RenderedFrame>& frames);
+    struct OpenGLState
+    {
+        GLint viewport[4];
+        GLint prev_fbo;
+        GLboolean depth_test;
+        GLboolean blend;
+        GLint blend_src;
+        GLint blend_dst;
+    };
 
     /**
-     * @brief Generates an animated .webp file from the generated sequence
+     * @brief Tries to download a PNG from a list of URLs and returns the first valid one.
      */
-    void saveAnimationWebP(const std::string& itemId, const std::string& outputDir, const std::vector<RenderedFrame>& frames);
+    static bool try_load_png(Client &client, const std::vector<std::string> &urls,
+                             std::string &img_data, std::string &successful_url);
 
     /**
-     * @brief Exports the 3D model to .obj and .mtl for Blender
+     * @brief Falls back to searching the client's texture list for a block texture.
      */
-    void exportToObj(const std::string& itemId, const std::string& outputdir);
+    static bool load_fallback_texture(const std::string &ns, const std::string &path_hint,
+                                      Client &client, std::string &img_data, std::string &successful_url);
 
-    std::string getID() const;
+    /**
+     * @brief Downloads and parses an optional .mcmeta file for animation data.
+     */
+    static void load_animation_meta(const std::string &meta_url, Client &client, TextureAnimation &anim_data);
 
-    bool isValid() const {
-        return !textures.empty();
-    }
+    /**
+     * @brief Loads texture pixels from raw PNG data, handles rotation and animation meta.
+     */
+    static bool load_texture_from_memory(const std::string &img_data, const std::string &successful_url,
+                                         Client &client, TextureAnimation &anim_data);
 
+    /**
+     * @brief Loads a Minecraft texture by trying direct URLs, fallback lists, and optional .mcmeta.
+     */
+    static bool try_load_texture_full(Client &client, const std::string &texture_path,
+                                      TextureAnimation &anim_data);
+
+    /**
+     * @brief Applies fluid container specialisation (replaces textures).
+     */
+    void process_fluid_container();
+
+    /**
+     * @brief Downloads parent models recursively and merges textures/elements.
+     */
+    void merge_parent_models(Client &client);
+
+    /**
+     * @brief If no elements exist, tries to pull them from the first override model.
+     */
+    void merge_override_model(Client &client);
+
+    /**
+     * @brief Resolves all texture references and downloads missing textures.
+     */
+    void resolve_and_load_textures(Client &client);
+
+    /**
+     * @brief Clears alpha for specific pixels on bucket textures to simulate fluid container.
+     */
+    void apply_fluid_container_alpha();
+
+    /**
+     * @brief Computes UV coordinates for a single face.
+     */
+    static void compute_uv_for_face(const nlohmann::json &face_json, const FaceDef &face,
+                                    float v_scale, sf::Vector2f uv[4]);
+
+    /**
+     * @brief Processes one element from the model JSON and appends triangles to the list.
+     */
+    void add_triangles_from_element(const nlohmann::json &element, bool is_flat, float scale,
+                                    float cx, float cy, float pitch, float yaw,
+                                    std::vector<Triangle> &triangles);
+
+    /**
+     * @brief Calculates the vertical UV offset for an animated texture at a given tick.
+     */
+    static float compute_animation_offset(const TextureAnimation &anim, const Texture *tex, int tick);
+
+    /**
+     * @brief Renders a sequence of frames for an animated model into an FBO and captures them.
+     */
+    void render_sequence_frames(const std::vector<Triangle> &triangles,
+                                const std::map<const Texture *, GLuint> &gl_textures,
+                                GLuint shader_program, GLuint fbo, GLuint vao,
+                                int outputSize, bool any_animated, int total_ticks,
+                                std::vector<RenderedFrame> &out_frames);
+
+    /**
+     * @brief Ensures the model JSON contains an "elements" array, creating defaults if missing.
+     */
+    void ensure_elements_exist(bool is_flat);
 };
