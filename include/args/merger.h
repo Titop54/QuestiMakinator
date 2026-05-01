@@ -48,8 +48,11 @@ namespace merger
             if(convert)
             {
                 std::ifstream ifs(file.path());
-                nlohmann::json j = nlohmann::json::parse(ifs);
-                parsed_elements = snbt::json_to_tag(j).cast<snbt::Compound>();
+                nlohmann::json j = nlohmann::json::parse(ifs, nullptr, false, true);
+                if(!j.is_discarded())
+                {
+                    parsed_elements = snbt::json_to_tag(j).cast<snbt::Compound>();
+                }
             }
             else
             {

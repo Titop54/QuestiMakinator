@@ -10,7 +10,6 @@
 #include <fstream>
 #include <sstream>
 #include <cmath>
-#include <stdexcept>
 
 namespace snbt
 {
@@ -28,56 +27,83 @@ namespace snbt
     using ByteArray = std::vector<Byte>;
     using IntArray = std::vector<Int>;
     using LongArray = std::vector<Long>;
-    
+
     using List = std::vector<Tag>;
     using Compound = std::map<String, Tag>;
 
-    class Tag {
-    public:
-        enum class Type {
+    class Tag
+    {
+      public:
+        enum class Type
+        {
             End = 0,
-            Byte, Short, Int, Long, Boolean,
-            Float, Double,
+            Byte,
+            Short,
+            Int,
+            Long,
+            Boolean,
+            Float,
+            Double,
             String,
-            ByteArray, IntArray, LongArray,
-            List, Compound
+            ByteArray,
+            IntArray,
+            LongArray,
+            List,
+            Compound
         };
-
 
         using Value = std::variant<
             std::monostate, // End
-            Byte,           // Type::Byte
-            Short,          // Type::Short
-            Int,            // Type::Int
-            Long,           // Type::Long
-            Boolean,        // Type::Boolean
-            Float,          // Type::Float
-            Double,         // Type::Double
-            String,         // Type::String
-            ByteArray,      // Type::ByteArray
-            IntArray,       // Type::IntArray
-            LongArray,      // Type::LongArray
-            List,           // Type::List
-            Compound        // Type::Compound
-        >;
+            Byte, // Type::Byte
+            Short, // Type::Short
+            Int, // Type::Int
+            Long, // Type::Long
+            Boolean, // Type::Boolean
+            Float, // Type::Float
+            Double, // Type::Double
+            String, // Type::String
+            ByteArray, // Type::ByteArray
+            IntArray, // Type::IntArray
+            LongArray, // Type::LongArray
+            List, // Type::List
+            Compound // Type::Compound
+            >;
 
         Type type = Type::End;
         Value value = std::monostate{};
 
         explicit Tag() {};
-        explicit Tag(Byte v) : type(Type::Byte), value(v) {}
-        explicit Tag(Short v) : type(Type::Short), value(v) {}
-        explicit Tag(Int v) : type(Type::Int), value(v) {}
-        explicit Tag(Long v) : type(Type::Long), value(v) {}
-        explicit Tag(Boolean v) : type(Type::Boolean), value(v) {}
-        explicit Tag(Float v) : type(Type::Float), value(v) {}
-        explicit Tag(Double v) : type(Type::Double), value(v) {}
-        explicit Tag(const String& v) : type(Type::String), value(v) {}
-        explicit Tag(const ByteArray& v) : type(Type::ByteArray), value(v) {}
-        explicit Tag(const IntArray& v) : type(Type::IntArray), value(v) {}
-        explicit Tag(const LongArray& v) : type(Type::LongArray), value(v) {}
-        explicit Tag(const List& v) : type(Type::List), value(v) {}
-        explicit Tag(const Compound& v) : type(Type::Compound), value(v) {}
+        explicit Tag(Byte v) : type(Type::Byte), value(v)
+        {}
+        explicit Tag(Short v) : type(Type::Short), value(v)
+        {}
+        explicit Tag(Int v) : type(Type::Int), value(v)
+        {}
+        explicit Tag(Long v) : type(Type::Long), value(v)
+        {}
+        explicit Tag(Boolean v) : type(Type::Boolean), value(v)
+        {}
+        explicit Tag(Float v) : type(Type::Float), value(v)
+        {}
+        explicit Tag(Double v) : type(Type::Double), value(v)
+        {}
+        explicit Tag(const String& v) : type(Type::String), value(v)
+        {}
+        explicit Tag(const ByteArray& v) : type(Type::ByteArray), value(v)
+        {}
+        explicit Tag(const IntArray& v) : type(Type::IntArray), value(v)
+        {}
+        explicit Tag(const LongArray& v) : type(Type::LongArray), value(v)
+        {}
+        explicit Tag(const List& v) : type(Type::List), value(v)
+        {}
+        explicit Tag(const Compound& v) : type(Type::Compound), value(v)
+        {}
+
+        bool is_discarded() const
+        {
+            return type == Type::End;
+        }
 
         void print(std::ostream& os = std::cout, int indent = 0, bool insertComma = false, bool compact = false) const
         {
@@ -87,76 +113,99 @@ namespace snbt
 
             switch(type)
             {
-                case Type::Compound:
+            case Type::Compound: {
+                const auto& map = std::get<Compound>(value);
+                os << "{";
+                if(!compact) os << newline;
+
+                size_t counter = 0;
+                for(const auto& [key, tag] : map)
                 {
-                    const auto& map = std::get<Compound>(value);
-                    os << "{";
+                    os << (compact ? "" : pad) << key << ":" << space;
+                    tag.print(os, compact ? 0 : indent + 4, insertComma, compact);
+                    counter++;
+                    if(insertComma && counter < map.size())
+                    {
+                        os << ",";
+                    }
                     if(!compact) os << newline;
-
-                    size_t counter = 0;
-                    for(const auto& [key, tag] : map)
-                    {
-                        os << (compact ? "" : pad) << key << ":" << space;
-                        tag.print(os, compact ? 0 : indent + 4, insertComma, compact);
-                        counter++;
-                        if(insertComma && counter < map.size())
-                        {
-                            os << ",";
-                        }
-                        if(!compact) os << newline;
-                    }
-                    os << (compact ? "" : std::string(std::max(0, indent - 4), ' ')) << "}";
-                    break;
                 }
+                os << (compact ? "" : std::string(std::max(0, indent - 4), ' ')) << "}";
+                break;
+            }
 
-                case Type::List:
+            case Type::List: {
+                const auto& list = std::get<List>(value);
+                os << "[";
+                if(!compact && list.size() > 1) os << newline;
+
+                size_t counter = 0;
+                for(const auto& tag : list)
                 {
-                    const auto& list = std::get<List>(value);
-                    os << "[";
+                    if(!compact && list.size() > 1) os << pad << "    ";
+                    tag.print(os, compact ? 0 : indent + 4, insertComma, compact);
+                    counter++;
+                    if(insertComma && counter < list.size())
+                    {
+                        os << ",";
+                    }
                     if(!compact && list.size() > 1) os << newline;
-
-                    size_t counter = 0;
-                    for(const auto& tag : list)
-                    {
-                        if(!compact && list.size() > 1) os << pad << "    ";
-                        tag.print(os, compact ? 0 : indent + 4, insertComma, compact);
-                        counter++;
-                        if(insertComma && counter < list.size())
-                        {
-                            os << ",";
-                        }
-                        if(!compact && list.size() > 1) os << newline;
-                    }
-                    if(!compact && list.size() > 1) os << pad;
-                    os << "]";
-                    break;
                 }
+                if(!compact && list.size() > 1) os << pad;
+                os << "]";
+                break;
+            }
 
-                case Type::String:
+            case Type::String: {
+                os << "\"";
+                std::string raw = std::get<String>(value);
+                for(char c : raw)
                 {
-                    os << "\"";
-                    std::string raw = std::get<String>(value);
-                    for(char c : raw)
-                    {
-                        if(c == '"') os << "\\\"";
-                        else if(c == '\\') os << "\\\\";
-                        else if(c == '\n') os << "\\n";
-                        else os << c;
-                    }
-                    os << "\"";
-                    break;
+                    if(c == '"')
+                        os << "\\\"";
+                    else if(c == '\\')
+                        os << "\\\\";
+                    else if(c == '\n')
+                        os << "\\n";
+                    else
+                        os << c;
                 }
-                case Type::Byte: os << (int)std::get<Byte>(value) << "b"; break;
-                case Type::Short: os << std::get<Short>(value) << "s"; break;
-                case Type::Int: os << std::get<Int>(value); break;
-                case Type::Long: os << std::get<Long>(value) << "L"; break;
-                case Type::Float: os << std::get<Float>(value) << "f"; break;
-                case Type::Double: os << std::get<Double>(value) << "d"; break;
-                case Type::Boolean: os << (std::get<Boolean>(value) ? "true" : "false"); break;
-                case Type::ByteArray: os << "[B; ...]"; break; 
-                case Type::IntArray: os << "[I; ...]"; break;
-                case Type::LongArray: os << "[L; ...]"; break;
-                default: os << "Unknown"; break;
+                os << "\"";
+                break;
+            }
+            case Type::Byte:
+                os << (int)std::get<Byte>(value) << "b";
+                break;
+            case Type::Short:
+                os << std::get<Short>(value) << "s";
+                break;
+            case Type::Int:
+                os << std::get<Int>(value);
+                break;
+            case Type::Long:
+                os << std::get<Long>(value) << "L";
+                break;
+            case Type::Float:
+                os << std::get<Float>(value) << "f";
+                break;
+            case Type::Double:
+                os << std::get<Double>(value) << "d";
+                break;
+            case Type::Boolean:
+                os << (std::get<Boolean>(value) ? "true" : "false");
+                break;
+            case Type::ByteArray:
+                os << "[B; ...]";
+                break;
+            case Type::IntArray:
+                os << "[I; ...]";
+                break;
+            case Type::LongArray:
+                os << "[L; ...]";
+                break;
+            default:
+                os << "Unknown";
+                break;
             }
         }
 
@@ -165,160 +214,170 @@ namespace snbt
             std::string indent(indent_level * indent_spaces, ' ');
             std::string next_indent((indent_level + 1) * indent_spaces, ' ');
 
-            switch (type)
+            switch(type)
             {
-                case Type::End:
-                    os << "null";
-                    break;
+            case Type::End:
+                os << "null";
+                break;
 
-                case Type::Byte:
-                    os << static_cast<int>(std::get<Byte>(value));
-                    break;
-                case Type::Short:
-                    os << std::get<Short>(value);
-                    break;
-                case Type::Int:
-                    os << std::get<Int>(value);
-                    break;
-                case Type::Long:
-                    os << std::get<Long>(value);
-                    break;
-                case Type::Float:
-                    os << std::get<Float>(value);
-                    break;
-                case Type::Double:
-                    os << std::get<Double>(value);
-                    break;
-                case Type::Boolean:
-                    os << (std::get<Boolean>(value) ? "true" : "false");
-                    break;
+            case Type::Byte:
+                os << static_cast<int>(std::get<Byte>(value));
+                break;
+            case Type::Short:
+                os << std::get<Short>(value);
+                break;
+            case Type::Int:
+                os << std::get<Int>(value);
+                break;
+            case Type::Long:
+                os << std::get<Long>(value);
+                break;
+            case Type::Float:
+                os << std::get<Float>(value);
+                break;
+            case Type::Double:
+                os << std::get<Double>(value);
+                break;
+            case Type::Boolean:
+                os << (std::get<Boolean>(value) ? "true" : "false");
+                break;
 
-                case Type::String:
+            case Type::String: {
+                os << "\"";
+                const std::string& str = std::get<String>(value);
+                for(char c : str)
                 {
-                    os << "\"";
-                    const std::string& str = std::get<String>(value);
-                    for (char c : str)
+                    switch(c)
                     {
-                        switch (c)
-                        {
-                        case '"':  os << "\\\""; break;
-                        case '\\': os << "\\\\"; break;
-                        case '\b': os << "\\b";  break;
-                        case '\f': os << "\\f";  break;
-                        case '\n': os << "\\n";  break;
-                        case '\r': os << "\\r";  break;
-                        case '\t': os << "\\t";  break;
-                        default:   os << c;      break;
-                        }
+                    case '"':
+                        os << "\\\"";
+                        break;
+                    case '\\':
+                        os << "\\\\";
+                        break;
+                    case '\b':
+                        os << "\\b";
+                        break;
+                    case '\f':
+                        os << "\\f";
+                        break;
+                    case '\n':
+                        os << "\\n";
+                        break;
+                    case '\r':
+                        os << "\\r";
+                        break;
+                    case '\t':
+                        os << "\\t";
+                        break;
+                    default:
+                        os << c;
+                        break;
                     }
-                    os << "\"";
-                    break;
                 }
+                os << "\"";
+                break;
+            }
 
-                case Type::List:
+            case Type::List: {
+                const auto& list = std::get<List>(value);
+                if(list.empty())
                 {
-                    const auto& list = std::get<List>(value);
-                    if (list.empty())
-                    {
-                        os << "[]";
-                        return;
-                    }
-                    os << "[\n";
-                    for (size_t i = 0; i < list.size(); ++i)
-                    {
-                        os << next_indent;
-                        list[i].to_json(os, indent_level + 1, indent_spaces);
-                        if (i != list.size() - 1)
-                            os << ",";
-                        os << "\n";
-                    }
-                    os << indent << "]";
-                    break;
+                    os << "[]";
+                    return;
                 }
+                os << "[\n";
+                for(size_t i = 0; i < list.size(); ++i)
+                {
+                    os << next_indent;
+                    list[i].to_json(os, indent_level + 1, indent_spaces);
+                    if(i != list.size() - 1)
+                        os << ",";
+                    os << "\n";
+                }
+                os << indent << "]";
+                break;
+            }
 
-                case Type::Compound:
+            case Type::Compound: {
+                const auto& comp = std::get<Compound>(value);
+                if(comp.empty())
                 {
-                    const auto& comp = std::get<Compound>(value);
-                    if (comp.empty())
-                    {
-                        os << "{}";
-                        return;
-                    }
-                    os << "{\n";
-                    size_t count = 0;
-                    for (const auto& [key, tag] : comp)
-                    {
-                        os << next_indent << "\"" << key << "\": ";
-                        tag.to_json(os, indent_level + 1, indent_spaces);
-                        if (++count < comp.size())
-                            os << ",";
-                        os << "\n";
-                    }
-                    os << indent << "}";
-                    break;
+                    os << "{}";
+                    return;
                 }
+                os << "{\n";
+                size_t count = 0;
+                for(const auto& [key, tag] : comp)
+                {
+                    os << next_indent << "\"" << key << "\": ";
+                    tag.to_json(os, indent_level + 1, indent_spaces);
+                    if(++count < comp.size())
+                        os << ",";
+                    os << "\n";
+                }
+                os << indent << "}";
+                break;
+            }
 
-                case Type::ByteArray:
+            case Type::ByteArray: {
+                const auto& arr = std::get<ByteArray>(value);
+                if(arr.empty())
                 {
-                    const auto& arr = std::get<ByteArray>(value);
-                    if (arr.empty())
-                    {
-                        os << "[]";
-                        return;
-                    }
-                    os << "[\n";
-                    for (size_t i = 0; i < arr.size(); ++i)
-                    {
-                        os << next_indent << static_cast<int>(arr[i]);
-                        if (i != arr.size() - 1)
-                            os << ",";
-                        os << "\n";
-                    }
-                    os << indent << "]";
-                    break;
+                    os << "[]";
+                    return;
                 }
-                case Type::IntArray:
+                os << "[\n";
+                for(size_t i = 0; i < arr.size(); ++i)
                 {
-                    const auto& arr = std::get<IntArray>(value);
-                    if (arr.empty())
-                    {
-                        os << "[]";
-                        return;
-                    }
-                    os << "[\n";
-                    for (size_t i = 0; i < arr.size(); ++i)
-                    {
-                        os << next_indent << arr[i];
-                        if (i != arr.size() - 1)
-                            os << ",";
-                        os << "\n";
-                    }
-                    os << indent << "]";
-                    break;
+                    os << next_indent << static_cast<int>(arr[i]);
+                    if(i != arr.size() - 1)
+                        os << ",";
+                    os << "\n";
                 }
-                case Type::LongArray:
+                os << indent << "]";
+                break;
+            }
+            case Type::IntArray: {
+                const auto& arr = std::get<IntArray>(value);
+                if(arr.empty())
                 {
-                    const auto& arr = std::get<LongArray>(value);
-                    if (arr.empty())
-                    {
-                        os << "[]";
-                        return;
-                    }
-                    os << "[\n";
-                    for (size_t i = 0; i < arr.size(); ++i)
-                    {
-                        os << next_indent << arr[i];
-                        if (i != arr.size() - 1)
-                            os << ",";
-                        os << "\n";
-                    }
-                    os << indent << "]";
-                    break;
+                    os << "[]";
+                    return;
                 }
+                os << "[\n";
+                for(size_t i = 0; i < arr.size(); ++i)
+                {
+                    os << next_indent << arr[i];
+                    if(i != arr.size() - 1)
+                        os << ",";
+                    os << "\n";
+                }
+                os << indent << "]";
+                break;
+            }
+            case Type::LongArray: {
+                const auto& arr = std::get<LongArray>(value);
+                if(arr.empty())
+                {
+                    os << "[]";
+                    return;
+                }
+                os << "[\n";
+                for(size_t i = 0; i < arr.size(); ++i)
+                {
+                    os << next_indent << arr[i];
+                    if(i != arr.size() - 1)
+                        os << ",";
+                    os << "\n";
+                }
+                os << indent << "]";
+                break;
+            }
 
-                default:
-                    os << "null";
-                    break;
+            default:
+                os << "null";
+                break;
             }
         }
 
@@ -327,7 +386,7 @@ namespace snbt
             return type == Type::End;
         }
 
-        template<typename T>
+        template <typename T>
         T cast()
         {
             try
@@ -343,20 +402,21 @@ namespace snbt
 
     class SnbtParser
     {
-    private:
+      private:
         std::string source = "";
         Tag tag;
         size_t cursor = 0;
 
-    public:
+        bool m_error = false;
+        std::string m_error_msg;
+
+      public:
         SnbtParser(const std::string& input, bool isFile = false)
         {
             tag = parse(input, isFile);
         }
 
-        SnbtParser()
-        {
-        }
+        SnbtParser() = default;
 
         SnbtParser(const std::filesystem::directory_entry entry)
         {
@@ -365,19 +425,20 @@ namespace snbt
 
         Tag parse(const std::string& input, bool isFile = false)
         {
+            m_error = false;
+            m_error_msg.clear();
+
             if(isFile)
             {
                 std::ifstream file(input);
                 if(!file.is_open())
                 {
-                    file.close();
-                    close();
-                    Tag t;
-                    return t;
-
+                    m_error = true;
+                    m_error_msg = "Cannot open file: " + input;
+                    return Tag();
                 }
                 std::string content((std::istreambuf_iterator<char>(file)),
-                                    (std::istreambuf_iterator<char>()));
+                    (std::istreambuf_iterator<char>()));
                 file.close();
                 source = content;
             }
@@ -411,17 +472,35 @@ namespace snbt
             return tag;
         }
 
-    private:
+        bool is_discarded() const
+        {
+            return tag.is_discarded();
+        }
+        bool has_error() const
+        {
+            return m_error;
+        }
+        const std::string& get_error_msg() const
+        {
+            return m_error_msg;
+        }
 
+      private:
         Tag parse()
         {
             skipWhitespace();
             Tag result = parseValue();
+            if(result.is_discarded())
+            {
+                return result;
+            }
+
             skipWhitespace();
             if(cursor < source.length())
             {
-                reportError("Unexpected trailing characters");
+                return reportError("Unexpected trailing characters");
             }
+
             source.clear();
             source.shrink_to_fit();
             return result;
@@ -435,7 +514,7 @@ namespace snbt
 
         char advance()
         {
-            if (cursor >= source.length()) return '\0';
+            if(cursor >= source.length()) return '\0';
             return source[cursor++];
         }
 
@@ -457,30 +536,30 @@ namespace snbt
             return false;
         }
 
-        [[noreturn]] void reportError(const std::string& message)
+        Tag reportError(const std::string& message)
         {
-            size_t lineStart = cursor;
-            while(lineStart > 0 && source[lineStart - 1] != '\n')
-            {
-                lineStart--;
-            }
+            m_error = true;
+            m_error_msg = message;
 
+            source.clear();
+            source.shrink_to_fit();
+
+            size_t lineStart = cursor;
+            while(lineStart > 0 && source[lineStart - 1] != '\n') lineStart--;
             size_t lineEnd = cursor;
-            while(lineEnd < source.length() && source[lineEnd] != '\n')
-            {
-                lineEnd++;
-            }
+            while(lineEnd < source.length() && source[lineEnd] != '\n') lineEnd++;
 
             std::string contextLine = source.substr(lineStart, lineEnd - lineStart);
             std::string pointer(cursor - lineStart, ' ');
             pointer += "^";
 
             std::stringstream ss;
-            ss << "\nSNBT Parsing Error: " << message << "\n";
+            ss << "SNBT Parsing Error: " << message << "\n";
             ss << contextLine << "\n";
             ss << pointer << "\n";
+            m_error_msg = ss.str();
 
-            throw std::runtime_error(ss.str());
+            return Tag();
         }
 
         Tag parseValue()
@@ -488,18 +567,33 @@ namespace snbt
             skipWhitespace();
             char c = peek();
 
-            if (c == '{') return parseCompound();
-            if (c == '[') return parseListOrArray();
-            if (c == '"' || c == '\'') return parseQuotedString();
-            
-            return parseUnquotedStringOrNumber();
+            if(c == '{')
+            {
+                Tag t = parseCompound();
+                return t;
+            }
+
+            if(c == '[')
+            {
+                Tag t = parseListOrArray();
+                return t;
+            }
+
+            if(c == '"' || c == '\'')
+            {
+                Tag t = parseQuotedString();
+                return t;
+            }
+
+            Tag t = parseUnquotedStringOrNumber();
+            return t;
         }
 
         Tag parseCompound()
         {
             match('{');
             Compound map;
-            
+
             while(true)
             {
                 skipWhitespace();
@@ -509,23 +603,28 @@ namespace snbt
                 char c = peek();
                 if(c == '"' || c == '\'')
                 {
-                    key = std::get<String>(parseQuotedString().value);
+                    Tag keyTag = parseQuotedString();
+                    if(keyTag.is_discarded()) return keyTag;
+                    key = std::get<String>(keyTag.value);
                 }
                 else
                 {
                     key = readUnquotedString();
-                    if(key.empty()) reportError("Expected key");
+                    if(key.empty()) return reportError("Expected key");
                 }
 
                 skipWhitespace();
-                if(!match(':')) reportError("Expected ':' after key");
-                
-                // Parse Value
-                map[key] = parseValue();
+                if(!match(':')) return reportError("Expected ':' after key");
+
+                // Parsear valor
+                Tag valueTag = parseValue();
+                if(valueTag.is_discarded()) return valueTag;
+
+                map[key] = valueTag;
 
                 skipWhitespace();
                 if(match('}')) break;
-                match(',');
+                if(!match(',')) return reportError("Expected ',' or '}'");
             }
             return Tag(map);
         }
@@ -540,17 +639,17 @@ namespace snbt
             {
                 char typeChar = std::toupper(peek());
                 if(typeChar == 'B')
-                { 
+                {
                     cursor += 2;
                     return parseByteArray();
                 }
                 if(typeChar == 'I')
-                { 
+                {
                     cursor += 2;
                     return parseIntArray();
                 }
                 if(typeChar == 'L')
-                { 
+                {
                     cursor += 2;
                     return parseLongArray();
                 }
@@ -562,11 +661,14 @@ namespace snbt
                 skipWhitespace();
                 if(match(']')) break;
 
-                list.push_back(parseValue());
+                Tag element = parseValue();
+                if(element.is_discarded()) return element;
+
+                list.push_back(element);
 
                 skipWhitespace();
                 if(match(']')) break;
-                match(',');
+                if(!match(',')) return reportError("Expected ',' or ']'");
             }
             return Tag(list);
         }
@@ -580,12 +682,14 @@ namespace snbt
                 if(match(']')) break;
 
                 Tag valTag = parseValue();
-                if(valTag.type != Tag::Type::Byte) reportError("Expected Byte (suffix 'b') in Byte Array");
+                if(valTag.is_discarded()) return valTag;
+                if(valTag.type != Tag::Type::Byte) return reportError("Expected Byte (suffix 'b') in Byte Array");
+
                 arr.push_back(std::get<Byte>(valTag.value));
 
                 skipWhitespace();
                 if(match(']')) break;
-                match(',');
+                if(!match(',')) return reportError("Expected ',' or ']' in ByteArray");
             }
             return Tag(arr);
         }
@@ -599,12 +703,14 @@ namespace snbt
                 if(match(']')) break;
 
                 Tag valTag = parseValue();
-                if(valTag.type != Tag::Type::Int) reportError("Expected Int in Int Array");
-                arr.push_back(std::get<Int>(valTag.value));
+                if(valTag.is_discarded()) return valTag;
+                if(valTag.type != Tag::Type::Int) return reportError("Expected Int in Int Array");
+
+                arr.emplace_back(std::get<Int>(valTag.value));
 
                 skipWhitespace();
                 if(match(']')) break;
-                match(',');
+                if(!match(',')) return reportError("Expected ',' or ']' in IntArray");
             }
             return Tag(arr);
         }
@@ -618,12 +724,14 @@ namespace snbt
                 if(match(']')) break;
 
                 Tag valTag = parseValue();
-                if(valTag.type != Tag::Type::Long) reportError("Expected Long (suffix 'L') in Long Array");
+                if(valTag.is_discarded()) return valTag;
+                if(valTag.type != Tag::Type::Long) return reportError("Expected Long (suffix 'L') in Long Array");
+
                 arr.push_back(std::get<Long>(valTag.value));
 
                 skipWhitespace();
                 if(match(']')) break;
-                match(',');
+                if(!match(',')) return reportError("Expected ',' or ']' in LongArray");
             }
             return Tag(arr);
         }
@@ -637,15 +745,20 @@ namespace snbt
                 char c = advance();
                 if(c == '\\')
                 {
-                    if(cursor >= source.length()) reportError("Unexpected end of string in escape");
+                    if(cursor >= source.length()) return reportError("Unexpected end of string in escape");
                     char esc = advance();
-                    if(esc == 'n') res += '\n';
-                    else if(esc == '"') res += '"';
-                    else if(esc == '\'') res += '\'';
-                    else if(esc == '\\') res += '\\';
-                    else res += esc; 
+                    if(esc == 'n')
+                        res += '\n';
+                    else if(esc == '"')
+                        res += '"';
+                    else if(esc == '\'')
+                        res += '\'';
+                    else if(esc == '\\')
+                        res += '\\';
+                    else
+                        res += esc;
                 }
-                else if (c == quoteType)
+                else if(c == quoteType)
                 {
                     return Tag(res);
                 }
@@ -654,7 +767,7 @@ namespace snbt
                     res += c;
                 }
             }
-            reportError("Unterminated string");
+            return reportError("Unterminated string");
         }
 
         String readUnquotedString()
@@ -663,8 +776,8 @@ namespace snbt
             while(cursor < source.length())
             {
                 char c = peek();
-                if((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || 
-                   (c >= '0' && c <= '9') || c == '_' || c == '-' || 
+                if((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                    (c >= '0' && c <= '9') || c == '_' || c == '-' ||
                     c == '.' || c == '+')
                 {
                     cursor++;
@@ -680,7 +793,7 @@ namespace snbt
         Tag parseUnquotedStringOrNumber()
         {
             String raw = readUnquotedString();
-            if(raw.empty()) reportError("Expected value");
+            if(raw.empty()) return reportError("Expected value");
 
             if(raw == "true") return Tag(true);
             if(raw == "false") return Tag(false);
@@ -689,12 +802,12 @@ namespace snbt
             {
                 char suffix = raw.back();
                 char lowerSuffix = std::tolower(suffix);
-                bool hasSuffix = (lowerSuffix == 'b' || lowerSuffix == 's' || 
-                                  lowerSuffix == 'l' || lowerSuffix == 'f' || 
+                bool hasSuffix = (lowerSuffix == 'b' || lowerSuffix == 's' ||
+                                  lowerSuffix == 'l' || lowerSuffix == 'f' ||
                                   lowerSuffix == 'd');
-                
+
                 String numPart = hasSuffix ? raw.substr(0, raw.size() - 1) : raw;
-                
+
                 bool isNumeric = true;
                 bool hasDecimal = false;
                 for(char c : numPart)
@@ -735,60 +848,57 @@ namespace snbt
     {
         switch(j.type())
         {
-            case nlohmann::json::value_t::null:
-                return Tag();
+        case nlohmann::json::value_t::null:
+            return Tag();
 
-            case nlohmann::json::value_t::boolean:
-                return Tag(j.get<bool>());
+        case nlohmann::json::value_t::boolean:
+            return Tag(j.get<bool>());
 
-            case nlohmann::json::value_t::number_integer:
-            case nlohmann::json::value_t::number_unsigned:
+        case nlohmann::json::value_t::number_integer:
+        case nlohmann::json::value_t::number_unsigned: {
+
+            int64_t val = j.get<int64_t>();
+            if(val >= std::numeric_limits<Int>::min() && val <= std::numeric_limits<Int>::max())
             {
-                    
-                int64_t val = j.get<int64_t>();
-                if(val >= std::numeric_limits<Int>::min() && val <= std::numeric_limits<Int>::max())
-                {
-                    return Tag(static_cast<Int>(val));
-                }     
-                else
-                {
-                    return Tag(static_cast<Long>(val));
-                }
+                return Tag(static_cast<Int>(val));
+            }
+            else
+            {
+                return Tag(static_cast<Long>(val));
+            }
+        }
+
+        case nlohmann::json::value_t::number_float:
+            return Tag(j.get<double>());
+
+        case nlohmann::json::value_t::string:
+            return Tag(j.get<std::string>());
+
+        case nlohmann::json::value_t::array: {
+            List list;
+            for(const auto& elem : j)
+            {
+                list.emplace_back(json_to_tag(elem));
             }
 
-            case nlohmann::json::value_t::number_float:
-                return Tag(j.get<double>());
+            return Tag(list);
+        }
 
-            case nlohmann::json::value_t::string:
-                return Tag(j.get<std::string>());
-
-            case nlohmann::json::value_t::array:
+        case nlohmann::json::value_t::object: {
+            Compound compound;
+            for(auto it = j.begin(); it != j.end(); it++)
             {
-                List list;
-                for(const auto& elem : j)
+                Tag valueTag = json_to_tag(it.value());
+                if(!valueTag.empty())
                 {
-                    list.emplace_back(json_to_tag(elem));
+                    compound[it.key()] = std::move(valueTag);
                 }
-                        
-                return Tag(list);
             }
+            return Tag(compound);
+        }
 
-            case nlohmann::json::value_t::object:
-            {
-                Compound compound;
-                for(auto it = j.begin(); it != j.end(); it++)
-                {
-                    Tag valueTag = json_to_tag(it.value());
-                    if(!valueTag.empty())
-                    {
-                        compound[it.key()] = std::move(valueTag);
-                    }
-                }
-                return Tag(compound);
-            }
-
-            default:
-                return Tag();
+        default:
+            return Tag();
         }
     }
 
@@ -802,4 +912,4 @@ namespace snbt
         root.print(oss, 0, true, true);
         return oss.str();
     }
-}
+} // namespace snbt

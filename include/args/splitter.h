@@ -74,8 +74,11 @@ namespace splitter
         if(convert)
         {
             std::ifstream ifs(path);
-            nlohmann::json j = nlohmann::json::parse(ifs);
-            tag = snbt::json_to_tag(j);
+            nlohmann::json j = nlohmann::json::parse(ifs, nullptr, false, true);
+            if(!j.is_discarded())
+            {
+                tag = snbt::json_to_tag(j);
+            }
         }
         else
         {
@@ -139,8 +142,11 @@ namespace splitter
             if(convert)
             {
                 std::ifstream ifs(file.path());
-                nlohmann::json j = nlohmann::json::parse(ifs);
-                quest = snbt::json_to_tag(j);
+                nlohmann::json j = nlohmann::json::parse(ifs, nullptr, false, true);
+                if(!j.is_discarded())
+                {
+                    quest = snbt::json_to_tag(j);
+                }
             }
             else
             {
