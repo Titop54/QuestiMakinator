@@ -624,7 +624,7 @@ namespace snbt
 
                 skipWhitespace();
                 if(match('}')) break;
-                if(!match(',')) return reportError("Expected ',' or '}'");
+                match(',');
             }
             return Tag(map);
         }
