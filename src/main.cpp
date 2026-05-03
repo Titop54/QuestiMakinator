@@ -81,6 +81,7 @@ int main(int argc, char* argv[])
     std::string inputText2 = "";
 
     int selected_option = 0;
+    bool force = false;
 
     settings::load();
 
@@ -431,6 +432,12 @@ int main(int argc, char* argv[])
 
             // Radio buttons (only one selected)
             ImGui::Text("Options:");
+            ImGui::Checkbox("Force Array", &force);
+            if(ImGui::IsItemHovered())
+            {
+                ImGui::SetTooltip("Forces json output");
+            }
+            ImGui::SameLine();
             ImGui::RadioButton("Array", &selected_option, 0);
             if(ImGui::IsItemHovered())
             {
@@ -442,12 +449,12 @@ int main(int argc, char* argv[])
             {
                 ImGui::SetTooltip("Uses only an JSON object with extra field (1.19.2+)");
             }
-            ImGui::SameLine();
+            ImGui::NewLine();
 
             // Action buttons
             size_t action_idx = 0;
             generateSlowedButton(actionButtons[action_idx++], [&]() {
-                inputText2 = raw::to_json(field.text, selected_option ? true : false);
+                inputText2 = raw::to_json(field.text, selected_option ? true : false, force);
                 ImGui::SetClipboardText(inputText2.c_str());
             });
             ImGui::SameLine();

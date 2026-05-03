@@ -122,7 +122,7 @@ void ImageBrowser::loadAssets()
     assetsLoaded = true;
     isLoading = false;
     allBlocks = blocks.size();
-    allItems = blocks.size();
+    allItems = items.size();
     allFluids = fluids.size();
 }
 

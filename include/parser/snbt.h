@@ -541,9 +541,6 @@ namespace snbt
             m_error = true;
             m_error_msg = message;
 
-            source.clear();
-            source.shrink_to_fit();
-
             size_t lineStart = cursor;
             while(lineStart > 0 && source[lineStart - 1] != '\n') lineStart--;
             size_t lineEnd = cursor;
@@ -558,6 +555,9 @@ namespace snbt
             ss << contextLine << "\n";
             ss << pointer << "\n";
             m_error_msg = ss.str();
+
+            source.clear();
+            source.shrink_to_fit();
 
             return Tag();
         }
@@ -668,7 +668,7 @@ namespace snbt
 
                 skipWhitespace();
                 if(match(']')) break;
-                if(!match(',')) return reportError("Expected ',' or ']'");
+                match(',');
             }
             return Tag(list);
         }
@@ -689,7 +689,7 @@ namespace snbt
 
                 skipWhitespace();
                 if(match(']')) break;
-                if(!match(',')) return reportError("Expected ',' or ']' in ByteArray");
+                match(',');
             }
             return Tag(arr);
         }
@@ -710,7 +710,7 @@ namespace snbt
 
                 skipWhitespace();
                 if(match(']')) break;
-                if(!match(',')) return reportError("Expected ',' or ']' in IntArray");
+                match(',');
             }
             return Tag(arr);
         }
@@ -731,7 +731,7 @@ namespace snbt
 
                 skipWhitespace();
                 if(match(']')) break;
-                if(!match(',')) return reportError("Expected ',' or ']' in LongArray");
+                match(',');
             }
             return Tag(arr);
         }

@@ -265,7 +265,10 @@ std::vector<std::string> Client::searchBlocks()
     std::vector<std::string> ids;
     for(const auto& block : j)
     {
-        ids.emplace_back(block["id"]);
+        if(block.contains("id"))
+        {
+            ids.emplace_back(block["id"]);
+        }
     }
 
     return ids;
@@ -283,6 +286,7 @@ std::vector<std::string> Client::searchItems()
     std::vector<std::string> ids;
     for(const auto& res : j["results"])
     {
+        if(!res.contains("id")) continue;
         if(res.contains("block"))
         {
             if(res["id"] != res["block"])

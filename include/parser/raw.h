@@ -47,8 +47,10 @@ namespace raw
         return "#ffffff";
     }
 
-    inline bool check_non_ftb(const std::string& text)
+    inline bool check_non_ftb(const std::string& text, bool force)
     {
+        if(force) return true;
+
         if(text.contains("&@url:") ||
             text.contains("&@in:") ||
             text.contains("&@file:") ||
@@ -281,12 +283,12 @@ namespace raw
         return text_input;
     }
 
-    inline std::string to_json(std::string& input, bool use_extra = false)
+    inline std::string to_json(std::string& input, bool use_extra = false, bool force = false)
     {
         std::string text_input = change_gradient(input);
         bool is_1_21_5 = settings::current.mc_version >= settings::MC_1_21_5;
 
-        if(!check_non_ftb(text_input))
+        if(!check_non_ftb(text_input, force))
         {
             std::string json_str = nlohmann::json(text_input).dump();
             return is_1_21_5 ? snbt::json_to_tag(json_str) : json_str;
