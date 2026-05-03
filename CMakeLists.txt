@@ -99,7 +99,6 @@ find_package(WebP CONFIG REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
 find_package(glad CONFIG REQUIRED)
 find_package(OpenGL REQUIRED)
-find_package(GLEW CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(tinyfiledialogs CONFIG REQUIRED)
 find_package(lodepng CONFIG REQUIRED)
@@ -153,7 +152,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     glfw
     glad::glad
     OpenGL::GL
-    GLEW::GLEW
     glm::glm
     tinyfiledialogs::tinyfiledialogs
     lodepng
