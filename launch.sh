@@ -9,6 +9,7 @@ DYNAMIC=false
 OS_TARGET="linux"
 TIME="OFF"
 BUILD_ALL=false
+UNITY_FLAG="OFF"
 
 # Procesar argumentos
 while [[ $# -gt 0 ]]; do
@@ -45,6 +46,10 @@ while [[ $# -gt 0 ]]; do
             TIME="ON"
             shift
             ;;
+        --unity)
+            UNITY_FLAG="ON"
+            shift
+            ;;
         --help | -h)
             printf "Usage: %s [OPTIONS]\n\n" "$0"
             printf "Options:\n"
@@ -57,6 +62,7 @@ while [[ $# -gt 0 ]]; do
             printf "  --release                     Set build type to Release (Default).\n"
             printf "  --dynamic                     Build dynamic libraries (Default is static).\n"
             printf "  --time                        Enable time-trace for compilation profiling.\n"
+            printf "  --unity                       Enable big compilation of files.\n"
             printf "  -h, --help                    Show this help message and exit.\n"
             exit 0
             ;;
@@ -103,9 +109,6 @@ for CURRENT_TRIPLET in "${TARGET_TRIPLETS[@]}"; do
 
     CMAKE_DYNAMIC_FLAG="OFF"
     [[ "$CURRENT_TRIPLET" == *"dynamic"* ]] && CMAKE_DYNAMIC_FLAG="ON"
-
-    UNITY_FLAG="ON"
-    [ -d "build/${CURRENT_TRIPLET}" ] && UNITY_FLAG="OFF"
 
     mkdir -p "build/${CURRENT_TRIPLET}"
     
