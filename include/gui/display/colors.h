@@ -186,7 +186,7 @@ inline void createColorWheel(TextField& field)
     ImGui::Checkbox("Upper Case", &upper);
 
     generateSlowedButton(apply_btn, [&field]() {
-        std::string hex = "#" + decimal_to_hex(colors, upper);
+        std::string hex = "&#" + decimal_to_hex(colors, upper);
         if(field.hasSelection)
         {
             field.wrapSelection(hex, "&r");

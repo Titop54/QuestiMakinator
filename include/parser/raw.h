@@ -62,6 +62,7 @@ namespace raw
             text.contains("&&item:") ||
             text.contains("&&shadow:")) return true;
 
+        if(settings::current.mc_version < settings::MCVersion::MC_1_21_1 && text.contains("&#")) return true;
         return false;
     }
 
