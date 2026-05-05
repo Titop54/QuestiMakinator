@@ -257,7 +257,7 @@ inline void createColorWheel(TextField& field)
         auto& pal = loaded_palettes[current_palette_idx];
         if(pal.colors.size() < 16)
         {
-            pal.colors.push_back("#" + decimal_to_hex(colors, upper));
+            pal.colors.push_back("&#" + decimal_to_hex(colors, upper));
             save_palettes();
         }
     });

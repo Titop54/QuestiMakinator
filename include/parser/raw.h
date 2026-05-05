@@ -291,8 +291,7 @@ namespace raw
 
         if(!check_non_ftb(text_input, force))
         {
-            std::string json_str = nlohmann::json(text_input).dump();
-            return is_1_21_5 ? snbt::json_to_tag(json_str) : json_str;
+            return input;
         }
 
         struct State
