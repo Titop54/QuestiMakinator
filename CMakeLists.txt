@@ -89,6 +89,14 @@ endif()
 
 add_compile_definitions(GLFW_INCLUDE_NONE)
 
+include(FetchContent)
+FetchContent_Declare(uuid_v4
+    GIT_REPOSITORY https://github.com/crashoz/uuid_v4.git
+    GIT_SHALLOW ON
+    GIT_TAG ee590705fb9058fbf1698f03f73f2250813e7b3d
+)
+FetchContent_MakeAvailable(uuid_v4)
+
 # Dependency search
 find_package(SFML COMPONENTS Network Graphics Audio System CONFIG REQUIRED)
 find_package(ImGui-SFML CONFIG REQUIRED)
@@ -102,6 +110,7 @@ find_package(OpenGL REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(tinyfiledialogs CONFIG REQUIRED)
 find_package(lodepng CONFIG REQUIRED)
+find_package(unofficial-imgui-node-editor CONFIG REQUIRED)
 
 # Source files configuration (this can be done with all .cpp)
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "src/*.cpp")
@@ -155,6 +164,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     glm::glm
     tinyfiledialogs::tinyfiledialogs
     lodepng
+    uuid_v4::uuid_v4
+    unofficial::imgui-node-editor::imgui-node-editor
 )
 
 # Installation configuration

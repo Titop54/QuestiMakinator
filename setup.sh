@@ -87,7 +87,7 @@ export PATH=$VCPKG_ROOT:$PATH
 export VCPKG_MAX_CONCURRENCY=$(nproc)
 export VCPKG_DISABLE_METRICS=1
 
-LIBS="imgui-sfml imgui[glfw-binding,opengl3-binding] nlohmann-json libwebp tinyobjloader backward-cpp glfw3 glad glm tinyfiledialogs lodepng"
+LIBS="imgui-sfml imgui[glfw-binding,opengl3-binding] nlohmann-json libwebp tinyobjloader backward-cpp glfw3 glad glm tinyfiledialogs lodepng imgui-node-editor"
 vcpkg new --application
 vcpkg add port $LIBS
 

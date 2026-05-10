@@ -6,6 +6,8 @@ ContinuationIndentWidth: 4
 UseTab: Never
 TabWidth: 4
 PointerAlignment: Left
+InsertBraces: true
+RemoveBracesLLVM: false
 BreakBeforeBraces: Custom
 BraceWrapping:
   AfterClass: true
@@ -39,9 +41,9 @@ AlignConsecutiveAssignments: false
 AlignConsecutiveDeclarations: false
 AlignOperands: Align
 AlignTrailingComments: false
-AllowShortFunctionsOnASingleLine: None
-AllowShortIfStatementsOnASingleLine: true
-AllowShortLoopsOnASingleLine: true
+AllowShortBlocksOnASingleLine: false
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
 ColumnLimit: 0
 BreakStringLiterals: false
 SortIncludes: false

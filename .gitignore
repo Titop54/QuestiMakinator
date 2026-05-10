@@ -13,4 +13,5 @@ logs.txt
 config/**
 output/**
 settings.json
+quest_editor.json
 colors.json

@@ -19,7 +19,7 @@ namespace pack
         std::string name, version, loader, loader_version, mc_version, git, branch;
     };
 
-    inline bool command_exists(const std::string &cmd)
+    inline bool command_exists(const std::string& cmd)
     {
 #ifdef _WIN32
         return std::system(("where " + cmd + " >nul 2>nul").c_str()) == 0;
@@ -28,13 +28,13 @@ namespace pack
 #endif
     }
 
-    inline void create_packwizignore(const fs::path &base_path)
+    inline void create_packwizignore(const fs::path& base_path)
     {
         std::string content = "packwiz\npackwiz.exe\ninfo.json\nmods.json\nmanifest.json\n.git/\n*.zip\nQuestiMakinator*\n";
         std::ofstream(base_path / ".packwizignore") << content;
     }
 
-    inline void generate_server_startup_scripts(const fs::path &server_dir, const std::string &loader_version)
+    inline void generate_server_startup_scripts(const fs::path& server_dir, const std::string& loader_version)
     {
         std::string sh_content = R"SCRIPT(#!/bin/sh
 set -eu
@@ -168,8 +168,7 @@ timeout /t %TIME_SLEEP% /nobreak >nul
 goto loop
 )SCRIPT";
 
-        auto replace_all = [](std::string &str, const std::string &from, const std::string &to)
-        {
+        auto replace_all = [](std::string& str, const std::string& from, const std::string& to) {
             size_t start_pos = 0;
             while((start_pos = str.find(from, start_pos)) != std::string::npos)
             {
@@ -185,16 +184,16 @@ goto loop
         sh_file << sh_content;
         sh_file.close();
 
-        #ifndef _WIN32
+#ifndef _WIN32
         fs::permissions(server_dir / "start.sh", fs::perms::owner_all | fs::perms::group_read | fs::perms::group_exec | fs::perms::others_read | fs::perms::others_exec);
-        #endif
+#endif
 
         std::ofstream bat_file(server_dir / "start.bat");
         bat_file << bat_content;
         bat_file.close();
     }
 
-    inline void generate_server_from_client(const std::string &name, const std::string &version, const std::string &loader_version, const fs::path &client_base_path)
+    inline void generate_server_from_client(const std::string& name, const std::string& version, const std::string& loader_version, const fs::path& client_base_path)
     {
         std::cout << "\nGenerating Server from Local Client\n";
 
@@ -220,7 +219,7 @@ goto loop
         {
             fs::create_directories(server_mods_dir);
         }
-        catch(const fs::filesystem_error &e)
+        catch(const fs::filesystem_error& e)
         {
             std::cerr << "[ERROR] Error while creating folder:\n"
                       << e.what() << "\n";
@@ -228,8 +227,8 @@ goto loop
         }
 
         std::cout << "Copying configurations (config, kubejs, defaultconfigs)...\n";
-        std::vector<std::string> folders = {"config", "kubejs", "defaultconfigs"};
-        for(const auto &folder : folders)
+        std::vector<std::string> folders = { "config", "kubejs", "defaultconfigs" };
+        for(const auto& folder : folders)
         {
             if(fs::exists(folder))
             {
@@ -237,7 +236,7 @@ goto loop
                 {
                     fs::copy(folder, server_dir / folder, fs::copy_options::recursive | fs::copy_options::overwrite_existing);
                 }
-                catch(const std::exception &e)
+                catch(const std::exception& e)
                 {
                     std::cerr << "[WARN] Error copying " << folder << ": " << e.what() << "\n";
                 }
@@ -257,7 +256,7 @@ goto loop
         std::cout << "\nCopying mods from " << client_mods_dir.string() << "...\n";
         int copied_count = 0;
 
-        for(const auto &entry : fs::directory_iterator(client_mods_dir))
+        for(const auto& entry : fs::directory_iterator(client_mods_dir))
         {
             if(entry.is_regular_file() && entry.path().extension() == ".jar")
             {
@@ -274,17 +273,18 @@ goto loop
             "mousetweaks", "controlling", "searchables", "defaultoptions",
             "soundphysics", "ambientsounds", "presencefootsteps",
             "moreoverlays", "entityculling", "blur", "inventoryprofiles",
-            "lighty", "emixx", "watermedia", "onlyexcavator"};
+            "lighty", "emixx", "watermedia", "onlyexcavator"
+        };
 
         int removed_count = 0;
-        for(const auto &entry : fs::directory_iterator(server_mods_dir))
+        for(const auto& entry : fs::directory_iterator(server_mods_dir))
         {
             std::string filename = entry.path().filename().string();
             std::string lower_name = filename;
             std::transform(lower_name.begin(), lower_name.end(), lower_name.begin(), ::tolower);
 
             bool is_client = false;
-            for(const auto &keyword : client_only_keywords)
+            for(const auto& keyword : client_only_keywords)
             {
                 if(lower_name.find(keyword) != std::string::npos)
                 {
@@ -339,12 +339,12 @@ goto loop
         generate_server_startup_scripts(server_dir, loader_version);
 
         std::cout << "\nCompressing server pack into " << server_dir_name << ".zip...\n";
-        
-        #ifdef _WIN32
+
+#ifdef _WIN32
         std::string zip_cmd = "tar -a -c -f " + server_dir_name + ".zip " + server_dir_name;
-        #else
+#else
         std::string zip_cmd = "zip -r " + server_dir_name + ".zip " + server_dir_name + " > /dev/null";
-        #endif
+#endif
         std::system(zip_cmd.c_str());
 
         std::cout << "Cleaning up temporary server folder...\n";
@@ -352,7 +352,7 @@ goto loop
         {
             fs::remove_all(server_dir);
         }
-        catch(const fs::filesystem_error &e)
+        catch(const fs::filesystem_error& e)
         {
             std::cerr << "[WARN] Couldn't clean up temp folder: " << e.what() << "\n";
         }
@@ -383,7 +383,8 @@ goto loop
         info pack_info = {
             ij.value("name", "Pack"), ij.value("version", "1.0.0"),
             ij.value("loader", "neoforge"), ij.value("loader_version", "21.1.219"),
-            ij.value("mc_version", "1.21.1"), ij.value("git", ""), ij.value("branch", "main")};
+            ij.value("mc_version", "1.21.1"), ij.value("git", ""), ij.value("branch", "main")
+        };
 
         if(fs::exists(base_path / ".git") && !pack_info.git.empty() && command_exists("git"))
         {
@@ -392,11 +393,11 @@ goto loop
             std::system(pull_cmd.c_str());
         }
 
-        #ifdef _WIN32
+#ifdef _WIN32
         std::string pw = (base_path / "packwiz.exe").string();
-        #else
+#else
         std::string pw = "./packwiz";
-        #endif
+#endif
 
         auto old_path = fs::current_path();
 
@@ -404,7 +405,7 @@ goto loop
         {
             fs::current_path(base_path);
         }
-        catch(const fs::filesystem_error &e)
+        catch(const fs::filesystem_error& e)
         {
             std::cerr << "[ERROR] Couldn't access the folder (" << base_path << "):\n"
                       << e.what() << "\n";
@@ -432,10 +433,13 @@ goto loop
             std::cout << "\nPackwiz already started, deleting cache files!\n";
             try
             {
-                if(fs::exists("index.toml")) fs::remove("index.toml");
+                if(fs::exists("index.toml"))
+                {
+                    fs::remove("index.toml");
+                }
                 std::ofstream("index.toml", std::ios::out);
             }
-            catch(const fs::filesystem_error &e)
+            catch(const fs::filesystem_error& e)
             {
                 std::cerr << "[WARN] Error creating index.toml: " << e.what() << "\n";
             }
@@ -449,15 +453,28 @@ goto loop
 
             if(manifest.contains("files"))
             {
-                for(const auto &f : manifest["files"])
+                std::string batch_cmd = "";
+                int count = 0;
+
+                for(const auto& f : manifest["files"])
                 {
                     std::string project_id = std::to_string(f.value("projectID", 0));
                     std::string file_id = std::to_string(f.value("fileID", 0));
 
-                    std::cout << "[INFO] Added mod from CF (Proyect ID: " << project_id << ", exact file: " << file_id << ")\n";
+                    batch_cmd += "echo n | " + pw + " curseforge add --addon-id " + project_id + " --file-id " + file_id + " && ";
+                    count++;
 
-                    std::string cmd = "echo n | " + pw + " curseforge add --addon-id " + project_id + " --file-id " + file_id;
-                    std::system(cmd.c_str());
+                    if(count % 50 == 0)
+                    {
+                        batch_cmd = batch_cmd.substr(0, batch_cmd.size() - 4);
+                        std::system(batch_cmd.c_str());
+                        batch_cmd = "";
+                    }
+                }
+
+                if(!batch_cmd.empty())
+                {
+                    std::system(batch_cmd.substr(0, batch_cmd.size() - 4).c_str());
                 }
             }
         }
@@ -470,7 +487,7 @@ goto loop
             std::regex project_regex(R"(projects/(\d+))");
             std::smatch match;
 
-            for(const auto &mod : prism_mods)
+            for(const auto& mod : prism_mods)
             {
                 if(mod.contains("url"))
                 {
@@ -507,7 +524,7 @@ goto loop
 
                 if(extra_mods.is_array())
                 {
-                    for(const auto &item : extra_mods)
+                    for(const auto& item : extra_mods)
                     {
                         if(item.is_string())
                         {
@@ -524,7 +541,7 @@ goto loop
                     std::cerr << "[WARN] extra.json must be a JSON array of strings! These strings are Modrith url.\n";
                 }
             }
-            catch(const json::parse_error &e)
+            catch(const json::parse_error& e)
             {
                 std::cerr << "[ERROR] Error reading extra.json: " << e.what() << "\n";
             }
@@ -551,4 +568,4 @@ goto loop
         fs::current_path(old_path);
         std::cout << "\n[SUCCESS] Pack generated!.\n";
     }
-}
+} // namespace pack
