@@ -30,6 +30,10 @@ namespace pack
 
     inline void create_packwizignore(const fs::path& base_path)
     {
+        if(fs::exists(".packwizignore"))
+        {
+            return;
+        }
         std::string content = "packwiz\npackwiz.exe\ninfo.json\nmods.json\nmanifest.json\n.git/\n*.zip\nQuestiMakinator*\n";
         std::ofstream(base_path / ".packwizignore") << content;
     }
@@ -444,6 +448,13 @@ goto loop
                 std::cerr << "[WARN] Error creating index.toml: " << e.what() << "\n";
             }
         }
+#ifdef _WIN32
+        std::string sep = " & ";
+#else
+        std::string sep = " ; ";
+#endif
+
+        std::system((pw + " settings acceptable-versions 1.21").c_str());
 
         std::cout << "\nInstalling Client mods\n";
         if(has_cf && fs::exists("manifest.json"))
@@ -461,7 +472,7 @@ goto loop
                     std::string project_id = std::to_string(f.value("projectID", 0));
                     std::string file_id = std::to_string(f.value("fileID", 0));
 
-                    batch_cmd += "echo n | " + pw + " curseforge add --addon-id " + project_id + " --file-id " + file_id + " && ";
+                    batch_cmd += "echo n | " + pw + " curseforge add --addon-id " + project_id + " --file-id " + file_id + " " + sep + " ";
                     count++;
 
                     if(count % 50 == 0)
@@ -549,6 +560,45 @@ goto loop
         else
         {
             std::cerr << "[ERROR] No extra.json found, an array of URL in JSON array\n";
+        }
+
+        if(fs::exists("resourcepacks.json"))
+        {
+            std::ifstream rp_file("resourcepacks.json");
+            json resource_packs = json::parse(rp_file);
+
+            if(resource_packs.is_array())
+            {
+                std::cout << "[INFO] Preparing Resources Packs...\n";
+
+                std::string batch_cmd = "";
+                size_t count = 0;
+                size_t batch_size = 10;
+
+                for(const auto& url : resource_packs)
+                {
+                    std::string rp_url = url.get<std::string>();
+
+                    batch_cmd += "echo n | " + pw + " curseforge add \"" + rp_url + "\"";
+
+                    count++;
+                    if(count % batch_size == 0 || count == resource_packs.size())
+                    {
+                        std::cout << "[INFO] Command block for resources pack (" << count << "/" << resource_packs.size() << ")...\n";
+
+                        std::system(batch_cmd.c_str());
+                        batch_cmd = "";
+                    }
+                    else
+                    {
+                        batch_cmd += " "+ sep + " ";
+                    }
+                }
+            }
+        }
+        else
+        {
+            std::cout << "[WARN] No se encontró resourcepacks.json\n";
         }
 
         create_packwizignore(".");

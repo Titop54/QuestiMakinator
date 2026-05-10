@@ -64,6 +64,7 @@ namespace settings
         bool show_colors = true;
         bool textanimator = true;
         bool show_modpack = true;
+        bool show_quest_editor = true;
     };
 
     struct modpack

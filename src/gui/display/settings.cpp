@@ -356,6 +356,7 @@ namespace settings
         sync(j, "show_colors", s.show_colors, loading);
         sync(j, "textanimator", s.textanimator, loading);
         sync(j, "show_modpack", s.show_modpack, loading);
+        sync(j, "show_quest_editor", s.show_quest_editor, loading);
 
         // Vec2
         sync_vec2(j, "window_min_size", s.window_min_size, loading);
@@ -440,6 +441,7 @@ namespace settings
                 ImGui::Checkbox("Show colors", &current.show_colors);
                 ImGui::Checkbox("Show TextAnimator", &current.textanimator);
                 ImGui::Checkbox("Show Modpack Tools", &current.show_modpack);
+                ImGui::Checkbox("Show Quest Node Editor", &current.show_quest_editor);
 
                 ImGui::Dummy(ImVec2(0, 10));
                 ImGui::Separator();
