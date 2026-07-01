@@ -48,13 +48,13 @@ namespace gen
         std::string check_name;
 
 #ifdef _WIN32
-        url = "https://nightly.link/packwiz/packwiz/workflows/go/main/Windows%2064-bit.zip";
+        url = "https://github.com/Titop54/packwiz/releases/download/latest/packwiz-windows.zip";
         check_name = "packwiz.exe";
 #elif __linux__
-        url = "https://nightly.link/packwiz/packwiz/workflows/go/main/Linux%2064-bit%20x86.zip";
+        url = "https://github.com/Titop54/packwiz/releases/download/latest/packwiz-linux.zip";
         check_name = "packwiz";
 #elif __APPLE__
-        url = "https://nightly.link/packwiz/packwiz/workflows/go/main/macOS%2064-bit%20x86.zip";
+        url = "https://github.com/Titop54/packwiz/releases/download/latest/packwiz-macos.zip";
         check_name = "packwiz";
 #else
         std::cerr << "[ERROR] OS not supported by packwiz.\n";

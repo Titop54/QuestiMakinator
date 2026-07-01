@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+cd .. || exit -1
+
 PROJECT_NAME="QuestiMakinator"
 OUTPUT_BASE="build/output"
 
@@ -10,7 +12,7 @@ DO_DYNAMIC=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --windows | --window)
+        --windows | --window | --win)
             DO_WINDOWS=true
             shift
             ;;
@@ -38,7 +40,7 @@ while [[ $# -gt 0 ]]; do
             printf "Options:\n"
             printf "  --all                 Package ALL configurations (Windows/Linux, Static/Dynamic).\n"
             printf "  --windows             Package for Windows target.\n"
-            printf "                        Aliases: --window\n"
+            printf "                        Aliases: --window, --win\n"
             printf "  --linux               Package for Linux target.\n"
             printf "  --static              Package static build.\n"
             printf "  --dynamic             Package dynamic build.\n"
@@ -212,3 +214,5 @@ for TRIPLET in "${TRIPLETS[@]}"; do
 done
 
 printf "\nProcess finished. Everything is ready in %s/\n" "$OUTPUT_BASE"
+
+cd scripts/ || exit 1

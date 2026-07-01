@@ -1,18 +1,25 @@
 #!/usr/bin/env bash
 
+cd .. || exit -1
+
 tools=("git" "python3" "clang" "clang++" "make" "cmake")
 no_win=false
+only_win=false
 dynamic=false
 build_all=false
-
-#sudo apt install libfuse2
-#wget https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
-#chmod +x appimagetool-x86_64.AppImage
-#sudo mv appimagetool-x86_64.AppImage /usr/local/bin/appimagetool
+clean=false
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
+        --clean)
+            clean=true
+            shift
+            ;;
+        --windows|--win|--window)
+            only_win=true
+            shift
+            ;;
         --no_win|--no|--no_windows|--no-windows|--no_window|--no-window)
             no_win=true
             shift
@@ -30,6 +37,7 @@ while [[ $# -gt 0 ]]; do
             printf "Options:\n"
             printf "  --all                  Build all 4 configurations (Linux & Windows, Static & Dynamic).\n"
             printf "                         Note: This overrides any Windows-skipping flags.\n"
+            printf "  --windows, --win       Skip checking tools and building Linux libraries, build ONLY Windows.\n"
             printf "  --no_win               Skip checking tools and building Windows (MinGW) libraries.\n"
             printf "                         Aliases: --no, --no_windows, --no-windows, --no_window, --no-window\n"
             printf "  --dynamic              Build dynamic libraries instead of the default static ones.\n"
@@ -44,11 +52,19 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+if [ "$clean" = true ]; then
+    printf "[!] Cleaning up previous installation artifacts...\n"
+    rm -rf build vcpkg vcpkg_installed custom-triplets
+    rm -f vcpkg.json vcpkg-configuration.json
+    printf "[+]Cleanup complete. Proceeding with a fresh setup...\n\n"
+fi
+
 if [ "$build_all" = true ]; then
-    if [ "$no_win" = true ]; then
-        printf "Warning: '--all' overrides '--no_win'. Windows tools will be required and built.\n\n"
+    if [ "$no_win" = true ] || [ "$only_win" = true ]; then
+        printf "Warning: '--all' overrides '--no_win' and '--windows'. All tools will be required and built.\n\n"
     fi
     no_win=false
+    only_win=false
 fi
 
 printf "Checking for required tools...\n"
@@ -62,6 +78,22 @@ for tool in "${tools[@]}"; do
 done
 
 if [ "$no_win" = false ]; then
+
+    SYS_GXX="/usr/bin/x86_64-w64-mingw32-g++"
+    SYS_GCC="/usr/bin/x86_64-w64-mingw32-gcc"
+
+    if [ -f "$SYS_GXX" ] || [ -f "$SYS_GCC" ]; then
+        DETECTED_COMPILER="${SYS_GXX}"
+        [ ! -f "$SYS_GXX" ] && DETECTED_COMPILER="${SYS_GCC}"
+        
+        printf "\n[!] Traditional mingw32-g++/gcc compiler detected at: %s\n" "${DETECTED_COMPILER}"
+        printf "[!] To prevent ABI mismatches and ensure everything is compiled cleanly using llvm-mingw,\n"
+        printf "[!] please uninstall it first before proceeding.\n\n"
+        printf "    Run the following command to remove it:\n"
+        printf "    sudo apt purge g++-mingw-w64-x86-64 gcc-mingw-w64-x86-64 && sudo apt autoremove\n\n"
+        exit 255
+    fi
+
     mingw_tools=("x86_64-w64-mingw32-clang++" "x86_64-w64-mingw32-clang" "x86_64-w64-mingw32-windres")
     for tool in "${mingw_tools[@]}"; do
         if ! command -v "$tool" &> /dev/null; then
@@ -122,8 +154,10 @@ else
         vcpkg install --triplet "$win_trip" --host-triplet="$win_trip" --x-install-root="./vcpkg_installed/$win_trip"
     fi
 
-    printf "\nInstalling %s libraries\n" "$lin_root"
-    vcpkg install --triplet "$lin_trip" --host-triplet="$lin_trip" --x-install-root="./vcpkg_installed/$lin_root"
+    if [ "$only_win" = false ]; then
+        printf "\nInstalling %s libraries\n" "$lin_root"
+        vcpkg install --triplet "$lin_trip" --host-triplet="$lin_trip" --x-install-root="./vcpkg_installed/$lin_root"
+    fi
 fi
 
 python3 licenses.py --no_print $LIBS
@@ -132,3 +166,5 @@ printf "(FTL OR GPL-2.0-or-later) -> Choosen FTL license\n"
 printf "(MIT OR CC-PDDC) -> Choosen MIT license\n"
 printf "(Unlicense OR MIT-0) -> Choosen MIT-0 license\n"
 printf "In case of license change, it will always be the less restrictive\n"
+
+cd scripts/ || exit 1

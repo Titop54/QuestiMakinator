@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
-# Configuración
+cd .. || exit -1
+
+# Configuration
 PROJECT_NAME="QuestiMakinator"
 VCPKG_ROOT_DIR="$(pwd)/vcpkg/"
 BUILD_TYPE="Release"
@@ -18,7 +20,7 @@ while [[ $# -gt 0 ]]; do
             BUILD_ALL=true
             shift
             ;;
-        --windows | --window)
+        --windows | --window | --win)
             OS_TARGET="windows"
             shift
             ;;
@@ -54,7 +56,7 @@ while [[ $# -gt 0 ]]; do
             printf "Usage: %s [OPTIONS]\n\n" "$0"
             printf "Options:\n"
             printf "  --all                         Build ALL targets (Windows/Linux, Static/Dynamic).\n"
-            printf "  --windows, --window           Build for Windows target.\n"
+            printf "  --windows, --window, --win    Build for Windows target.\n"
             printf "  --linux                       Build for Linux target (Default).\n"
             printf "  --no_config                   Skip configuration step.\n"
             printf "                                Aliases: --no, --no-config\n"
@@ -173,6 +175,7 @@ for CURRENT_TRIPLET in "${TARGET_TRIPLETS[@]}"; do
 
     if [ -n "$EXECUTABLE_PATH" ]; then
         printf "  -> Executable successfully found at: %s\n" "$EXECUTABLE_PATH"
+        printf "\n[+] Build process finished!\n"
     else
         printf "\n  [!] Error: Could not find the executable for '%s'.\n" "$PROJECT_NAME"
         printf "  Searched in the following locations:\n"
@@ -184,4 +187,29 @@ for CURRENT_TRIPLET in "${TARGET_TRIPLETS[@]}"; do
     fi
 done
 
-printf "\n[+] Build process finished!\n"
+CLANGD_TRIPLET=""
+
+if [ -f "build/x64-linux/compile_commands.json" ]; then
+    CLANGD_TRIPLET="x64-linux"
+elif [ -f "build/x64-linux-dynamic/compile_commands.json" ]; then
+    CLANGD_TRIPLET="x64-linux-dynamic"
+elif [ -f "build/x64-mingw-static/compile_commands.json" ]; then
+    CLANGD_TRIPLET="x64-mingw-static"
+elif [ -f "build/x64-mingw-dynamic/compile_commands.json" ]; then
+    CLANGD_TRIPLET="x64-mingw-dynamic"
+fi
+
+if [ -n "$CLANGD_TRIPLET" ]; then
+    ln -sf "build/${CLANGD_TRIPLET}/compile_commands.json" compile_commands.json
+    printf "\n[+] Automatically updated 'compile_commands.json' link for Clangd using target: %s\n" "$CLANGD_TRIPLET"
+
+    CLANGD_PID=$(pgrep -f "clangd")
+    if [ -n "$CLANGD_PID" ]; then
+        kill -1 $CLANGD_PID &> /dev/null
+        printf "[+] Restarted the clangd LSP with PID (%s).\n" "$CLANGD_PID"
+    fi
+else
+    printf "\n[!] Error: 'compile_commands.json' does not exist in any of the build directory triplets.\n"
+fi
+
+cd scripts/ || exit 1

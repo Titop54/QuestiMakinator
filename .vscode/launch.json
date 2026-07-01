@@ -8,11 +8,11 @@
             "name": "Debug Setup Script",
             "type": "bashdb",
             "request": "launch",
-            "program": "${workspaceFolder}/setup.sh",
+            "program": "${workspaceFolder}/scripts/setup.sh",
             "args": [
                 "--no_win"
             ],
-            "cwd": "${workspaceFolder}",
+            "cwd": "${workspaceFolder}/scripts/",
             "terminalKind": "integrated",
             "presentation": {
                 "hidden": false,
@@ -24,9 +24,9 @@
             "name": "Debug Launch Script (Linux)",
             "type": "bashdb",
             "request": "launch",
-            "program": "${workspaceFolder}/launch.sh",
+            "program": "${workspaceFolder}/scripts/launch.sh",
             "args": ["--linux"],
-            "cwd": "${workspaceFolder}",
+            "cwd": "${workspaceFolder}/scripts/",
             "terminalKind": "integrated",
             "presentation": {
                 "hidden": false,
@@ -38,9 +38,9 @@
             "name": "Debug Launch Script (Win)",
             "type": "bashdb",
             "request": "launch",
-            "program": "${workspaceFolder}/launch.sh",
+            "program": "${workspaceFolder}/scripts/launch.sh",
             "args": ["--windows"],
-            "cwd": "${workspaceFolder}",
+            "cwd": "${workspaceFolder}/scripts/",
             "terminalKind": "integrated",
             "presentation": {
                 "hidden": false,
@@ -82,13 +82,13 @@
             "name": "Debug Pack script",
             "type": "bashdb",
             "request": "launch",
-            "program": "${workspaceFolder}/pack.sh",
+            "program": "${workspaceFolder}/scripts/pack.sh",
             "args": [
                 "--linux",
                 "--dynamic",
                 "--pack"
             ],
-            "cwd": "${workspaceFolder}",
+            "cwd": "${workspaceFolder}/scripts/",
             "terminalKind": "integrated",
             "presentation": {
                 "hidden": false,

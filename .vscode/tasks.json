@@ -4,7 +4,7 @@
         {
             "label": "setup-project",
             "type": "shell",
-            "command": "${workspaceFolder}/setup.sh",
+            "command": "${workspaceFolder}/scripts/setup.sh",
             "group": "build",
             "presentation": {
                 "echo": true,
@@ -14,12 +14,15 @@
                 "showReuseMessage": true,
                 "clear": false
             },
-            "problemMatcher": []
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}/scripts"
+            }
         },
         {
             "label": "build-release-linux",
             "type": "shell",
-            "command": "${workspaceFolder}/launch.sh",
+            "command": "${workspaceFolder}/scripts/launch.sh",
             "args": ["--linux", "--release"],
             "group": "build",
             "presentation": {
@@ -30,12 +33,15 @@
                 "showReuseMessage": true,
                 "clear": false
             },
-            "problemMatcher": []
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}/scripts"
+            }
         },
         {
             "label": "build-debug-linux",
             "type": "shell",
-            "command": "${workspaceFolder}/launch.sh",
+            "command": "${workspaceFolder}/scripts/launch.sh",
             "args": ["--linux", "--debug"],
             "group": "build",
             "presentation": {
@@ -46,12 +52,15 @@
                 "showReuseMessage": true,
                 "clear": false
             },
-            "problemMatcher": []
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}/scripts"
+            }
         },
         {
             "label": "build-debug-linux-no-config",
             "type": "shell",
-            "command": "${workspaceFolder}/launch.sh",
+            "command": "${workspaceFolder}/scripts/launch.sh",
             "args": ["--linux", "--no_config", "--debug"],
             "group": "build",
             "presentation": {
@@ -62,12 +71,15 @@
                 "showReuseMessage": true,
                 "clear": false
             },
-            "problemMatcher": []
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}/scripts"
+            }
         },
         {
             "label": "build-debug-windows-no-config",
             "type": "shell",
-            "command": "${workspaceFolder}/launch.sh",
+            "command": "${workspaceFolder}/scripts/launch.sh",
             "args": ["--windows", "--no_config", "--debug"],
             "group": "build",
             "presentation": {
@@ -78,7 +90,10 @@
                 "showReuseMessage": true,
                 "clear": false
             },
-            "problemMatcher": []
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}/scripts"
+            }
         },
         {
             "label": "run-licences",
