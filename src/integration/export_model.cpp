@@ -385,10 +385,10 @@ void ModelGenerator::saveAnimationPNG(const std::string& item_id,
     const std::string& output_dir,
     const std::vector<RenderedFrame>& frames)
 {
-    // Crear directorio si no existe
+    // Create a directory if it doesn't exist already
     fs::create_directories(output_dir);
 
-    // Prefijo para los archivos: sanitizar item_id
+    // Get a good looking id so OS doesnt complain
     std::string safe_name = item_id;
     std::replace(safe_name.begin(), safe_name.end(), ':', '_');
     std::replace(safe_name.begin(), safe_name.end(), '/', '_');
@@ -405,7 +405,7 @@ void ModelGenerator::saveAnimationPNG(const std::string& item_id,
 
         if(!frames[i].image.saveToFile(filename))
         {
-            std::cerr << "Error guardando frame " << i << " en " << filename << std::endl;
+            std::cerr << "Error saving frame " << i << " in " << filename << std::endl;
         }
     }
 }

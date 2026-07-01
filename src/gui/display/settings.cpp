@@ -410,6 +410,21 @@ namespace settings
 
     void draw_menu()
     {
+        ImGuiIO &io = ImGui::GetIO();
+        if(io.KeyCtrl && io.MouseWheel != 0.0f)
+        {
+            io.FontGlobalScale += io.MouseWheel * 0.05f;
+
+            if(io.FontGlobalScale < 0.5f)
+            {
+                io.FontGlobalScale = 0.5f;
+            }
+            if(io.FontGlobalScale > 4.0f)
+            {
+                io.FontGlobalScale = 4.0f;
+            }
+        }
+
         if(show_menu && !was_menu_open)
         {
             current = saved;

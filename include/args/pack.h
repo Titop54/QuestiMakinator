@@ -478,7 +478,12 @@ goto loop
                     if(count % 50 == 0)
                     {
                         batch_cmd = batch_cmd.substr(0, batch_cmd.size() - 4);
-                        std::system(batch_cmd.c_str());
+                        int result = std::system(batch_cmd.c_str());
+                        if(result != 0)
+                        {
+                            std::cerr << "Failed on the command!\n";
+                        }
+
                         batch_cmd = "";
                     }
                 }
@@ -524,6 +529,8 @@ goto loop
         {
             std::cout << "[WARN] No mods installed!.\n";
         }
+
+        std::cout.flush();
 
         if(fs::exists("extra.json"))
         {
