@@ -3,7 +3,7 @@ import csv
 import sys
 from typing import Dict, List, Tuple
 
-BASE_DIR: str = "vcpkg_installed"
+BASE_DIR: str = "../vcpkg_installed"
 LICENSES_DIR = os.path.join(BASE_DIR, "licenses")
 
 def print_help() -> None:

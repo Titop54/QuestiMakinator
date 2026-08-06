@@ -197,4 +197,4 @@ printf "In case of license change, it will always be the less restrictive\n"
 
 cd scripts/ || exit 1
 
-python3 licenses.py --no_print $LIBS
+python3 licenses.py --no $LIBS
