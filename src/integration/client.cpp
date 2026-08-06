@@ -7,6 +7,8 @@
 #include <filesystem>
 #include <nlohmann/json.hpp>
 #include <set>
+#include <unordered_set>
+#include <mutex>
 
 Client client(61423, "");
 
@@ -141,7 +143,7 @@ std::vector<Mod> Client::getAvailableMods()
     return mods;
 }
 
-std::vector<ListResponse> Client::listAllAssets()
+std::vector<ListResponse> Client::listAllAssetsImage()
 {
     std::vector<ListResponse> assets;
     
@@ -179,9 +181,54 @@ std::vector<ListResponse> Client::listAllAssets()
     return assets;
 }
 
+std::vector<ListResponse> Client::listAllAssets()
+{
+    std::vector<ListResponse> assets;
+    
+    auto fetch_and_append = [&](const std::string& url, TypeElement type) {
+        std::string resp;
+        if(!sendHttpRequest("GET", url, "", resp)) return;
+
+        auto j = json::parse(resp, nullptr, false, true);
+        if(j.is_discarded()) return;
+
+        for(auto& [modId, files] : j.items())
+        {
+            for(const auto& file : files)
+            {
+                try
+                {
+                    assets.push_back({
+                        modId,
+                        file.get<std::string>(),
+                        type
+                    });
+                }
+                catch(...) {}
+            }
+        }
+    };
+
+    fetch_and_append("/api/client/assets/list/models", TypeElement::BLOCK);
+
+    fetch_and_append("/api/client/assets/list/textures/block", TypeElement::BLOCK);
+    fetch_and_append("/api/client/assets/list/textures/item", TypeElement::ITEM);
+    fetch_and_append("/api/client/assets/list/textures/gui", TypeElement::GUI);
+    fetch_and_append("/api/client/assets/list/textures/entity", TypeElement::ENTITY);
+    fetch_and_append("/api/client/assets/list/textures/font", TypeElement::NONE);
+    fetch_and_append("/api/client/assets/list/textures/environment", TypeElement::NONE);
+    fetch_and_append("/api/client/assets/list/textures/particle", TypeElement::NONE);
+    fetch_and_append("/api/client/assets/list/textures/misc", TypeElement::NONE);
+
+    fetch_and_append("/api/client/assets/list/lang", TypeElement::NONE);
+    fetch_and_append("/api/client/assets/list/sounds", TypeElement::MUSIC);
+
+    return assets;
+}
+
 std::vector<ListResponse> Client::listAssetsByPrefix(const std::string& prefix)
 {
-    auto all = listAllAssets();
+    auto all = listAllAssetsImage();
     std::vector<ListResponse> filtered;
     for(const auto& asset : all)
     {
@@ -228,16 +275,48 @@ std::vector<std::string> Client::listAssetsByPath(const std::string& path)
     return assets;
 }
 
+static std::unordered_set<std::string> g_createdDirs;
+static std::mutex g_dirMutex;
+
 bool Client::downloadToFile(const std::string& urlPath, const std::string& outputPath)
 {
+    std::error_code ec;
+
+    if(std::filesystem::exists(outputPath, ec) && std::filesystem::file_size(outputPath, ec) > 0)
+    {
+        return true; 
+    }
+
     std::string respBody;
     if(!sendHttpRequest("GET", urlPath, "", respBody)) return false;
+    if(respBody.empty()) return false;
 
     std::filesystem::path path(outputPath);
-    if(path.has_parent_path()) std::filesystem::create_directories(path.parent_path());
+    if(path.has_parent_path())
+    {
+        std::string parentStr = path.parent_path().string();
+        
+        bool needsCreation = false;
+        {
+            std::lock_guard<std::mutex> lock(g_dirMutex);
+            if(g_createdDirs.find(parentStr) == g_createdDirs.end())
+            {
+                needsCreation = true;
+            }
+        }
+
+        if(needsCreation)
+        {
+            std::filesystem::create_directories(path.parent_path(), ec);
+            std::lock_guard<std::mutex> lock(g_dirMutex);
+            g_createdDirs.insert(parentStr);
+        }
+    }
 
     std::ofstream file(outputPath, std::ios::binary);
-    file.write(respBody.c_str(), respBody.size());
+    if(!file.is_open()) return false;
+    
+    file.write(respBody.data(), respBody.size());
     return file.good();
 }
 

@@ -105,6 +105,12 @@ class Client
      *
      * @return std::vector<ListResponse>
      */
+    std::vector<ListResponse> listAllAssetsImage();
+
+    /**
+     * @brief This return a list of mostly guesses directories
+     * @return std::vector<ListResponse>
+     */
     std::vector<ListResponse> listAllAssets();
 
     /**

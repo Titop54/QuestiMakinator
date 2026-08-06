@@ -3,6 +3,8 @@
 #include "gui/elements/menu.h"
 #include "integration/client.h"
 #include "integration/model.h"
+#include "integration/zip.h"
+#include <SFML/System/Exception.hpp>
 #include <cstddef>
 #include <gui/display/Image.h>
 #include <imgui.h>
@@ -46,7 +48,7 @@ ImageBrowser::ImageBrowser()
         "Connect to KubeJS",
         "Try to connect to KubeJS's localhost server",
     };
-    
+
     buttons["Pause"] = {
         "Pause",
         "Pause the animation",
@@ -86,6 +88,18 @@ ImageBrowser::ImageBrowser()
         "Make a PNG or multiple\nIf it has an animation, one PNG per unique frame",
     };
 
+    buttons["Download All Data"] = {
+        "Download All Data",
+        "All assets from the game\n"
+        "Saved on dump/all folder"
+    };
+
+    buttons["Download All Textures"] = {
+        "Download All Textures",
+        "Download only textures and .mcmeta \n"
+        "Saved on dump/textures/ folder"
+    };
+
     if(!client.isConnected())
     {
         client.connect();
@@ -94,7 +108,10 @@ ImageBrowser::ImageBrowser()
 
 void ImageBrowser::loadAssets()
 {
-    if(assetsLoaded) return;
+    if(assetsLoaded)
+    {
+        return;
+    }
     isLoading = true;
 
     auto blocks = client.searchBlocks();
@@ -106,11 +123,17 @@ void ImageBrowser::loadAssets()
     validIds.reserve(blocks.size() + items.size() + fluids.size());
     for(const auto& b : blocks)
     {
-        if(fluidSet.find(b) == fluidSet.end()) validIds.push_back("[Block] " + b);
+        if(fluidSet.find(b) == fluidSet.end())
+        {
+            validIds.push_back("[Block] " + b);
+        }
     }
     for(const auto& i : items)
     {
-        if(fluidSet.find(i) == fluidSet.end()) validIds.push_back("[Item] " + i);
+        if(fluidSet.find(i) == fluidSet.end())
+        {
+            validIds.push_back("[Item] " + i);
+        }
     }
     for(const auto& f : fluids)
     {
@@ -128,9 +151,15 @@ void ImageBrowser::loadAssets()
 
 void ImageBrowser::update(float deltaTime)
 {
-    if(!currentAnimation && !currentAnimation->isPlaying) return;
+    if(!currentAnimation && !currentAnimation->isPlaying)
+    {
+        return;
+    }
 
-    if(currentAnimation->totalTicks == 1) return; // we don't have animation to play
+    if(currentAnimation->totalTicks == 1)
+    {
+        return; // we don't have animation to play
+    }
 
     currentAnimation->accumulatedTime += deltaTime;
     bool tickChanged = false;
@@ -338,9 +367,18 @@ void ImageBrowser::render()
 
         for(auto& img : frames)
         {
-            if(flip_horizontal) img.image.flipHorizontally();
-            if(flip_vertical) img.image.flipVertically();
-            if(rotate) rotateSfImage90(img.image);
+            if(flip_horizontal)
+            {
+                img.image.flipHorizontally();
+            }
+            if(flip_vertical)
+            {
+                img.image.flipVertically();
+            }
+            if(rotate)
+            {
+                rotateSfImage90(img.image);
+            }
         }
 
         if(!frames.empty())
@@ -355,30 +393,289 @@ void ImageBrowser::render()
     ImGui::Text("Export Options:");
 
     generateSlowedButton(buttons["Download Assets"], [&]() { // Download
-        if(!currentGenerator) return;
+        if(!currentGenerator)
+        {
+            return;
+        }
 
         std::thread([id = currentId, this]() mutable {
             auto window = WindowUtils::createHiddenContext();
             WindowUtils::makeContextCurrent(window);
             auto model = generateModel(id);
-            if(!model.isValid()) return;
+            if(!model.isValid())
+            {
+                return;
+            }
 
             model.saveAssets(id, currentOutputSize, viewPitch, viewYaw, wireframe);
             WindowUtils::destroyWindow(window);
         }).detach();
     });
 
+    generateSlowedButton(buttons["Download All Data"], []() {
+        std::thread([]() {
+            auto starts_with = [](const std::string& str, const std::string& prefix) {
+                return str.rfind(prefix, 0) == 0;
+            };
+
+            auto ends_with = [](const std::string& str, const std::string& suffix) {
+                return str.size() >= suffix.size() &&
+                       str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
+            };
+
+            ZipWriter zip("dump/all_assets.zip");
+            if(!zip.isOpen())
+            {
+                return;
+            }
+
+            bool newApiSuccess = false;
+            std::string jsonResponse;
+
+            if(client.sendHttpRequest("GET", "/api/resources", "", jsonResponse) &&
+                !jsonResponse.empty() && jsonResponse.front() == '{')
+            {
+                try
+                {
+                    auto j = nlohmann::json::parse(jsonResponse, nullptr, false, true);
+
+                    for(auto& [modId, fileList] : j.items())
+                    {
+                        for(const auto& fileItem : fileList)
+                        {
+                            std::string relativePath = fileItem.get<std::string>();
+                            std::string serverUrl;
+
+                            if(starts_with(relativePath, "assets/"))
+                            {
+                                serverUrl = "/api/client/assets/get/" + relativePath.substr(7);
+                            }
+                            else if(starts_with(relativePath, "data/"))
+                            {
+                                serverUrl = "/api/client/data/get/" + relativePath.substr(5);
+                            }
+                            else
+                            {
+                                serverUrl = "/api/client/assets/get/" + relativePath;
+                            }
+
+                            std::string fileData;
+                            if(client.sendHttpRequest("GET", serverUrl, "", fileData) && !fileData.empty())
+                            {
+                                zip.addFile(relativePath, fileData);
+                            }
+                            else
+                            {
+                                std::cout << "[New API] Error descargando: " << serverUrl << "\n";
+                            }
+                        }
+                    }
+                    newApiSuccess = true;
+                }
+                catch(const std::exception& e)
+                {
+                    std::cout << "Error al parsear /api/resources JSON: " << e.what() << "\n";
+                    newApiSuccess = false;
+                }
+            }
+
+            if(!newApiSuccess)
+            {
+                std::cout << "Using catalytictweaks mod on 1.21.1 to get better functions\n";
+                auto assets = client.listAllAssets();
+
+                for(const auto& asset : assets)
+                {
+                    std::string category;
+                    std::string cleanPath = asset.path;
+
+                    if(asset.type == TypeElement::MUSIC || ends_with(cleanPath, ".ogg") || cleanPath == "sounds.json")
+                    {
+                        category = "sounds";
+                    }
+                    else if(asset.type == TypeElement::NONE && ends_with(cleanPath, ".json"))
+                    {
+                        category = "lang";
+                    }
+                    else if(ends_with(cleanPath, ".png") || ends_with(cleanPath, ".mcmeta"))
+                    {
+                        category = "textures";
+
+                        bool hasPrefix = starts_with(cleanPath, "block/") ||
+                                         starts_with(cleanPath, "item/") ||
+                                         starts_with(cleanPath, "gui/") ||
+                                         starts_with(cleanPath, "entity/") ||
+                                         starts_with(cleanPath, "font/") ||
+                                         starts_with(cleanPath, "environment/") ||
+                                         starts_with(cleanPath, "particle/") ||
+                                         starts_with(cleanPath, "misc/");
+
+                        if(!hasPrefix)
+                        {
+                            if(asset.type == TypeElement::ITEM)
+                            {
+                                cleanPath = "item/" + cleanPath;
+                            }
+                            else if(asset.type == TypeElement::GUI)
+                            {
+                                cleanPath = "gui/" + cleanPath;
+                            }
+                            else if(asset.type == TypeElement::ENTITY)
+                            {
+                                cleanPath = "entity/" + cleanPath;
+                            }
+                            else if(asset.type == TypeElement::BLOCK)
+                            {
+                                cleanPath = "block/" + cleanPath;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        category = "models";
+                    }
+
+                    std::string serverUrl = "/api/client/assets/get/" + asset.mod + "/" + category + "/" + cleanPath;
+                    std::string pathInZip = "assets/" + asset.mod + "/" + category + "/" + cleanPath;
+                    std::string fileData;
+
+                    if(client.sendHttpRequest("GET", serverUrl, "", fileData) && !fileData.empty())
+                    {
+                        zip.addFile(pathInZip, fileData);
+                    }
+                    else
+                    {
+                        std::cout << "[Fallback] Error descargando: " << serverUrl << "\n";
+                    }
+
+                    if(category == "textures" && ends_with(cleanPath, ".png"))
+                    {
+                        std::string metaUrl = serverUrl + ".mcmeta";
+                        std::string metaPathInZip = pathInZip + ".mcmeta";
+                        std::string metaData;
+
+                        if(client.sendHttpRequest("GET", metaUrl, "", metaData) &&
+                            !metaData.empty() &&
+                            metaData.find("404") == std::string::npos &&
+                            metaData.front() == '{')
+                        {
+                            zip.addFile(metaPathInZip, metaData);
+                        }
+                    }
+                }
+            }
+
+            zip.close();
+        }).detach();
+    });
+
+    ImGui::SameLine();
+
+    generateSlowedButton(buttons["Download All Textures"], []() {
+        std::thread([]() {
+            auto assets = client.listAllAssetsImage();
+
+            auto starts_with = [](const std::string& str, const std::string& prefix) {
+                return str.rfind(prefix, 0) == 0;
+            };
+
+            auto ends_with = [](const std::string& str, const std::string& suffix) {
+                return str.size() >= suffix.size() &&
+                       str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
+            };
+
+            ZipWriter zip("dump/textures_assets.zip");
+            if(!zip.isOpen())
+            {
+                return;
+            }
+
+            for(const auto& asset : assets)
+            {
+                bool isModel = (asset.path.find(".json") != std::string::npos ||
+                                asset.path.find(".obj") != std::string::npos);
+                if(isModel || ends_with(asset.path, ".ogg") || asset.path == "sounds.json")
+                {
+                    continue;
+                }
+
+                std::string cleanPath = asset.path;
+
+                bool hasPrefix = starts_with(cleanPath, "block/") ||
+                                 starts_with(cleanPath, "item/") ||
+                                 starts_with(cleanPath, "gui/") ||
+                                 starts_with(cleanPath, "entity/") ||
+                                 starts_with(cleanPath, "font/") ||
+                                 starts_with(cleanPath, "environment/") ||
+                                 starts_with(cleanPath, "particle/") ||
+                                 starts_with(cleanPath, "misc/");
+
+                if(!hasPrefix)
+                {
+                    if(asset.type == TypeElement::ITEM)
+                    {
+                        cleanPath = "item/" + cleanPath;
+                    }
+                    else if(asset.type == TypeElement::GUI)
+                    {
+                        cleanPath = "gui/" + cleanPath;
+                    }
+                    else if(asset.type == TypeElement::ENTITY)
+                    {
+                        cleanPath = "entity/" + cleanPath;
+                    }
+                    else
+                    {
+                        cleanPath = "block/" + cleanPath;
+                    }
+                }
+
+                std::string serverUrl = "/api/client/assets/get/" + asset.mod + "/textures/" + cleanPath;
+                std::string pathInZip = "assets/" + asset.mod + "/textures/" + cleanPath;
+
+                std::string textureData;
+                if(client.sendHttpRequest("GET", serverUrl, "", textureData) && !textureData.empty())
+                {
+                    zip.addFile(pathInZip, textureData);
+                }
+
+                if(ends_with(cleanPath, ".png"))
+                {
+                    std::string metaUrl = serverUrl + ".mcmeta";
+                    std::string metaPathInZip = pathInZip + ".mcmeta";
+                    std::string metaResp;
+
+                    if(client.sendHttpRequest("GET", metaUrl, "", metaResp) &&
+                        !metaResp.empty() &&
+                        metaResp.find("404") == std::string::npos &&
+                        metaResp.front() == '{')
+                    {
+                        zip.addFile(metaPathInZip, metaResp);
+                    }
+                }
+            }
+
+            zip.close();
+        }).detach();
+    });
+
     ImGui::SameLine();
 
     generateSlowedButton(buttons["Export as WebP"], [this]() { // webp
-        if(!currentGenerator || !currentAnimation) return;
+        if(!currentGenerator || !currentAnimation)
+        {
+            return;
+        }
 
         std::thread([id = currentId, this]() mutable {
             auto window = WindowUtils::createHiddenContext();
             WindowUtils::makeContextCurrent(window);
 
             auto model = generateModel(id);
-            if(!model.isValid()) return;
+            if(!model.isValid())
+            {
+                return;
+            }
 
             std::string safeName = changeFilename(id);
             std::string targetDir = "img/" + safeName;
@@ -401,14 +698,20 @@ void ImageBrowser::render()
     ImGui::SameLine();
 
     generateSlowedButton(buttons["Export as APNG"], [this]() { // APNG
-        if(!currentGenerator || !currentAnimation) return;
+        if(!currentGenerator || !currentAnimation)
+        {
+            return;
+        }
 
         std::thread([id = currentId, this]() mutable {
             auto window = WindowUtils::createHiddenContext();
             WindowUtils::makeContextCurrent(window);
 
             auto model = generateModel(id);
-            if(!model.isValid()) return;
+            if(!model.isValid())
+            {
+                return;
+            }
 
             std::string safeName = changeFilename(id);
             std::string targetDir = "img/" + safeName;
@@ -431,14 +734,20 @@ void ImageBrowser::render()
     ImGui::SameLine();
 
     generateSlowedButton(buttons["Export as PNG"], [this]() { // PNG
-        if(!currentGenerator || !currentAnimation) return;
+        if(!currentGenerator || !currentAnimation)
+        {
+            return;
+        }
 
         std::thread([id = currentId, this]() mutable {
             auto window = WindowUtils::createHiddenContext();
             WindowUtils::makeContextCurrent(window);
 
             auto model = generateModel(id);
-            if(!model.isValid()) return;
+            if(!model.isValid())
+            {
+                return;
+            }
 
             std::string safeName = changeFilename(id);
             std::string targetDir = "img/" + safeName;
@@ -470,7 +779,10 @@ void ImageBrowser::render()
         currentAnimation.reset();
         currentGenerator.reset();
 
-        if(currentTexture == 0) return;
+        if(currentTexture == 0)
+        {
+            return;
+        }
 
         glDeleteTextures(1, &currentTexture);
         currentTexture = 0;
@@ -530,7 +842,10 @@ ModelGenerator ImageBrowser::generateModel(const std::string& id_to_search)
         url = "/api/client/assets/get/" + ns + "/models/" + path;
         client.sendHttpRequest("GET", url, "", response);
 
-        if(response.empty()) return {};
+        if(response.empty())
+        {
+            return {};
+        }
         return ModelGenerator(response, client, id);
     }
     else if(is_obj)
@@ -539,7 +854,10 @@ ModelGenerator ImageBrowser::generateModel(const std::string& id_to_search)
         url = "/api/client/assets/get/" + ns + "/models/" + path;
         client.sendHttpRequest("GET", url, "", obj_data);
 
-        if(obj_data.empty()) return {};
+        if(obj_data.empty())
+        {
+            return {};
+        }
 
         std::string mtl_path = path;
         size_t extension = mtl_path.rfind(".obj");
@@ -556,7 +874,10 @@ ModelGenerator ImageBrowser::generateModel(const std::string& id_to_search)
         url = "/api/client/assets/get/" + ns + "/models/" + mtl_path;
         client.sendHttpRequest("GET", url, "", mtl_data);
 
-        if(mtl_data.empty()) return {};
+        if(mtl_data.empty())
+        {
+            return {};
+        }
 
         return ModelGenerator(obj_data, mtl_data, client, ns, id);
     }
@@ -566,14 +887,20 @@ ModelGenerator ImageBrowser::generateModel(const std::string& id_to_search)
         url = "/api/client/assets/get/" + ns + "/models/item/" + path + ".json";
         client.sendHttpRequest("GET", url, "", response);
 
-        if(response.empty()) return {};
+        if(response.empty())
+        {
+            return {};
+        }
         return ModelGenerator(response, client, id);
     }
 
     url = "/api/client/assets/get/" + ns + "/models/block/" + path + ".json";
     client.sendHttpRequest("GET", url, "", response);
 
-    if(!response.empty()) return ModelGenerator(response, client, id);
+    if(!response.empty())
+    {
+        return ModelGenerator(response, client, id);
+    }
 
     auto list_obj = client.listAssetsByPrefix(".obj");
     std::string obj_path = "";
@@ -590,13 +917,19 @@ ModelGenerator ImageBrowser::generateModel(const std::string& id_to_search)
         }
     }
 
-    if(obj_path.empty()) return {};
+    if(obj_path.empty())
+    {
+        return {};
+    }
 
     std::string obj_data = "";
     url = "/api/client/assets/get/" + ns + "/models/" + obj_path;
     client.sendHttpRequest("GET", url, "", obj_data);
 
-    if(obj_data.empty()) return {};
+    if(obj_data.empty())
+    {
+        return {};
+    }
 
     std::string mtl_path = obj_path;
     size_t extension = mtl_path.rfind(".obj");
@@ -613,7 +946,10 @@ ModelGenerator ImageBrowser::generateModel(const std::string& id_to_search)
     std::string mtl_data;
     client.sendHttpRequest("GET", url, "", mtl_data);
 
-    if(mtl_data.empty()) return {};
+    if(mtl_data.empty())
+    {
+        return {};
+    }
 
     return ModelGenerator(obj_data, mtl_data, client, ns, id);
 }
@@ -638,7 +974,10 @@ void ImageBrowser::loadImage(const std::string& id)
     currentGenerator.reset();
 
     ModelGenerator m = generateModel(id);
-    if(m.isValid()) currentGenerator.emplace(m);
+    if(m.isValid())
+    {
+        currentGenerator.emplace(m);
+    }
 
     if(!currentGenerator.has_value())
     {
@@ -668,9 +1007,18 @@ void ImageBrowser::loadImage(const std::string& id)
 
     for(auto& img : frames)
     {
-        if(flip_horizontal) img.image.flipHorizontally();
-        if(flip_vertical) img.image.flipVertically();
-        if(rotate) rotateSfImage90(img.image);
+        if(flip_horizontal)
+        {
+            img.image.flipHorizontally();
+        }
+        if(flip_vertical)
+        {
+            img.image.flipVertically();
+        }
+        if(rotate)
+        {
+            rotateSfImage90(img.image);
+        }
     }
 
     if(scissorEnabled)
@@ -690,7 +1038,10 @@ void ImageBrowser::loadImage(const std::string& id)
     anim.frames = frames;
 
     int tTicks = 0;
-    for(const auto& f : frames) tTicks += f.timeInTicks;
+    for(const auto& f : frames)
+    {
+        tTicks += f.timeInTicks;
+    }
     anim.totalTicks = std::max(1, tTicks);
     anim.currentTick = 0;
 
@@ -721,7 +1072,10 @@ void ImageBrowser::updateDisplayTexture()
     unsigned int width = img.getSize().x;
     unsigned int height = img.getSize().y;
 
-    if(width == 0 || height == 0) return;
+    if(width == 0 || height == 0)
+    {
+        return;
+    }
 
     GLboolean scissorWasEnabled = glIsEnabled(GL_SCISSOR_TEST);
     glDisable(GL_SCISSOR_TEST);

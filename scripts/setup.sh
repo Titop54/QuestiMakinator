@@ -8,6 +8,9 @@ only_win=false
 dynamic=false
 build_all=false
 clean=false
+release_only=false
+use_cache=true
+cache_dir="$HOME/.vcpkg_global_cache"
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -32,6 +35,18 @@ while [[ $# -gt 0 ]]; do
             build_all=true
             shift
             ;;
+        --release|--release-only)
+            release_only=true
+            shift
+            ;;
+        --cache-dir)
+            cache_dir="$2"
+            shift 2
+            ;;
+        --no-cache)
+            use_cache=false
+            shift
+            ;;
         --help|-h)
             printf "Usage: %s [OPTIONS]\n\n" "$0"
             printf "Options:\n"
@@ -41,6 +56,10 @@ while [[ $# -gt 0 ]]; do
             printf "  --no_win               Skip checking tools and building Windows (MinGW) libraries.\n"
             printf "                         Aliases: --no, --no_windows, --no-windows, --no_window, --no-window\n"
             printf "  --dynamic              Build dynamic libraries instead of the default static ones.\n"
+            printf "  --release              Build ONLY Release versions\n"
+            printf "  --cache-dir <path>     Directory for binary caching (default: ~/.vcpkg_global_cache).\n"
+            printf "  --no-cache             Disable vcpkg binary caching.\n"
+            printf "  --clean                Clean build artifacts before setting up.\n"
             printf "  -h, --help             Show this help message and exit.\n"
             exit 0
             ;;
@@ -54,9 +73,9 @@ done
 
 if [ "$clean" = true ]; then
     printf "[!] Cleaning up previous installation artifacts...\n"
-    rm -rf build vcpkg vcpkg_installed custom-triplets
+    rm -rf build vcpkg vcpkg_installed
     rm -f vcpkg.json vcpkg-configuration.json
-    printf "[+]Cleanup complete. Proceeding with a fresh setup...\n\n"
+    printf "[+] Cleanup complete. Proceeding with a fresh setup...\n\n"
 fi
 
 if [ "$build_all" = true ]; then
@@ -119,7 +138,18 @@ export PATH=$VCPKG_ROOT:$PATH
 export VCPKG_MAX_CONCURRENCY=$(nproc)
 export VCPKG_DISABLE_METRICS=1
 
-LIBS="imgui-sfml imgui[glfw-binding,opengl3-binding] nlohmann-json libwebp tinyobjloader backward-cpp glfw3 glad glm tinyfiledialogs lodepng imgui-node-editor"
+if [ "$use_cache" = true ]; then
+    mkdir -p "$cache_dir"
+    export VCPKG_BINARY_SOURCES="clear;files,$cache_dir,readwrite"
+    printf "[+] Binary caching enabled at: %s\n" "$cache_dir"
+fi
+
+if [ "$release_only" = true ]; then
+    export VCPKG_BUILD_TYPE=release
+    printf "[+] Building ONLY Release packages.\n"
+fi
+
+LIBS="imgui-sfml imgui[glfw-binding,opengl3-binding] nlohmann-json libwebp tinyobjloader backward-cpp glfw3 glad glm tinyfiledialogs lodepng imgui-node-editor zlib"
 vcpkg new --application
 vcpkg add port $LIBS
 
@@ -160,11 +190,11 @@ else
     fi
 fi
 
-python3 licenses.py --no_print $LIBS
-
 printf "(FTL OR GPL-2.0-or-later) -> Choosen FTL license\n"
 printf "(MIT OR CC-PDDC) -> Choosen MIT license\n"
 printf "(Unlicense OR MIT-0) -> Choosen MIT-0 license\n"
 printf "In case of license change, it will always be the less restrictive\n"
 
 cd scripts/ || exit 1
+
+python3 licenses.py --no_print $LIBS
