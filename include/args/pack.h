@@ -16,7 +16,7 @@ namespace pack
 
     struct info
     {
-        std::string name, version, loader, loader_version, mc_version, git, branch;
+        std::string name, version, loader, loader_version, mc_version, git, branch, author;
     };
 
     inline bool command_exists(const std::string& cmd)
@@ -203,10 +203,16 @@ goto loop
 
         std::string safe_name = name;
         std::string safe_version = version;
-        std::replace(safe_name.begin(), safe_name.end(), '/', '_');
-        std::replace(safe_name.begin(), safe_name.end(), '\\', '_');
-        std::replace(safe_version.begin(), safe_version.end(), '/', '_');
-        std::replace(safe_version.begin(), safe_version.end(), '\\', '_');
+
+        auto sanitize = [](std::string& s) {
+            std::replace(s.begin(), s.end(), '/', '_');
+            std::replace(s.begin(), s.end(), '\\', '_');
+            std::replace(s.begin(), s.end(), ' ', '_');
+            std::replace(s.begin(), s.end(), ':', '_');
+        };
+
+        sanitize(safe_name);
+        sanitize(safe_version);
 
         std::string server_dir_name = safe_name + "_Server_" + safe_version;
         fs::path server_dir = fs::absolute(server_dir_name).lexically_normal();
@@ -271,7 +277,7 @@ goto loop
         std::cout << " -> " << copied_count << " mods copied to the server.\n";
 
         std::cout << "\nCleaning client-side only mods to prevent server crashes...\n";
-        std::vector<std::string> client_only_keywords = {
+        std::vector<std::string> default_keywords = {
             "oculus", "embeddium", "rubidium", "sodium", "iris",
             "xaero", "journeymap", "minimap",
             "mousetweaks", "controlling", "searchables", "defaultoptions",
@@ -279,6 +285,49 @@ goto loop
             "moreoverlays", "entityculling", "blur", "inventoryprofiles",
             "lighty", "emixx", "watermedia", "onlyexcavator"
         };
+
+        std::vector<std::string> client_only_keywords;
+        fs::path keywords_path = "client_keywords.json";
+
+        if(!fs::exists(keywords_path))
+        {
+            std::ofstream out(keywords_path);
+            if(out.is_open())
+            {
+                json j_default = default_keywords;
+                out << j_default.dump(4);
+                out.close();
+            }
+            client_only_keywords = default_keywords;
+        }
+        else
+        {
+            std::ifstream in(keywords_path);
+            if(in.is_open())
+            {
+                json j = json::parse(in, nullptr, false);
+
+                if(!j.is_discarded() && j.is_array())
+                {
+                    for(const auto& item : j)
+                    {
+                        if(item.is_string())
+                        {
+                            client_only_keywords.push_back(item.get<std::string>());
+                        }
+                    }
+                }
+                else
+                {
+                    std::cerr << "[WARN] client_keywords.json has an invalid format. It should be a list of strings. Using default.\n";
+                    client_only_keywords = default_keywords;
+                }
+            }
+            else
+            {
+                client_only_keywords = default_keywords;
+            }
+        }
 
         int removed_count = 0;
         for(const auto& entry : fs::directory_iterator(server_mods_dir))
@@ -386,8 +435,9 @@ goto loop
         json ij = json::parse(info_file);
         info pack_info = {
             ij.value("name", "Pack"), ij.value("version", "1.0.0"),
-            ij.value("loader", "neoforge"), ij.value("loader_version", "21.1.219"),
-            ij.value("mc_version", "1.21.1"), ij.value("git", ""), ij.value("branch", "main")
+            ij.value("loader", "neoforge"), ij.value("loader_version", "21.1.248"),
+            ij.value("mc_version", "1.21.1"), ij.value("git", ""), ij.value("branch", "main"),
+            ij.value("author", "Auto Generated")
         };
 
         if(fs::exists(base_path / ".git") && !pack_info.git.empty() && command_exists("git"))
@@ -417,7 +467,6 @@ goto loop
         }
 
         std::cout << "\nStarting Packwiz\n";
-        std::string author = ij.value("author", "Auto-Generator");
 
         if(!fs::exists("pack.toml"))
         {
@@ -425,7 +474,7 @@ goto loop
                                " --name \"" + pack_info.name + "\"" +
                                " --version \"" + pack_info.version + "\"" +
                                " --mc-version " + pack_info.mc_version +
-                               " --author \"" + author + "\"" +
+                               " --author \"" + pack_info.author + "\"" +
                                " --modloader " + pack_info.loader +
                                " --" + pack_info.loader + "-version " + pack_info.loader_version +
                                " -r";

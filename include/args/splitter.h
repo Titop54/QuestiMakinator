@@ -8,13 +8,23 @@
 #include <ios>
 #include <iostream>
 #include <ostream>
-#include <stdexcept>
 #include <string>
 #include <vector>
 
 namespace splitter
 {
     namespace fs = std::filesystem;
+
+    inline const std::vector<std::string> names = { //different type
+            "file",
+            "chapter",
+            "chapter_group",
+            "reward",
+            "reward_table",
+            "task",
+            "image",
+            "misc"
+        };
 
     inline void construct_folder_and_files(const fs::path& path, std::vector<std::string>& paths, bool use_json)
     {
@@ -26,14 +36,7 @@ namespace splitter
 
         fs::create_directories(destination + "/misc/");
 
-        std::vector<std::string> names = { //different type
-            "file",
-            "chapter",
-            "chapter_group",
-            "reward",
-            "reward_table",
-            "task"
-        };
+        
 
         std::string ext = use_json ? ".json" : ".snbt";
 
@@ -241,9 +244,7 @@ namespace splitter
             }
         }
 
-        std::vector<snbt::Compound> files_to_handle = {
-            {},{},{},{},{},{}
-        };
+        std::vector<snbt::Compound> files_to_handle(names.size());
 
         for(auto& misc : comp)
         {
@@ -254,7 +255,9 @@ namespace splitter
                 "chapter_group", 2
                 "reward", 3
                 "reward_table", 4
-                "task" 5
+                "task" 5,
+                "image" 6,
+                "misc" 7,
             };
             */
 
@@ -282,9 +285,15 @@ namespace splitter
             {
                 files_to_handle[5][misc.first] = misc.second;
             }
+            else if(misc.first.starts_with("image"))
+            {
+                files_to_handle[6][misc.first] = misc.second;
+            }
             else if(!misc.first.starts_with("quest"))
             {
-                throw std::runtime_error("We got some quests not done!!!\n" + misc.first);
+                std::cerr << "We got some quests not done!!!\n" + misc.first;
+                std::cerr << "It's going to the misc file!";
+                files_to_handle[7][misc.first] = misc.second;
             }
         }
         
@@ -324,22 +333,24 @@ namespace splitter
         
         for(auto& file : fs::directory_iterator(path))
         {
-            if(file.is_regular_file())
+            if(!file.is_regular_file())
             {
-                if(args.result.contains("--lang"))
-                {
-                    for(auto& lang : args.result["--lang"])
-                    {
-                        if(file.path().stem().string().contains(lang))
-                        {
-                            read_and_split(file.path(), use_json, convert);
-                        }
-                    }
-                    continue;
-                }
-                //We dont have the --lang flag, so we dont care 
-                read_and_split(file.path(), use_json, convert);
+                continue;
             }
+
+            if(args.result.contains("--lang"))
+            {
+                for(auto& lang : args.result["--lang"])
+                {
+                    if(file.path().stem().string().contains(lang))
+                    {
+                        read_and_split(file.path(), use_json, convert);
+                    }
+                }
+                continue;
+            }
+            //We dont have the --lang flag, so we dont care 
+            read_and_split(file.path(), use_json, convert);
         }
     }
 }

@@ -23,7 +23,9 @@ namespace merger
             "chapter_group",
             "reward",
             "reward_table",
-            "task"
+            "task",
+            "image",
+            "misc"
         };
 
         for(auto& file : fs::recursive_directory_iterator(path))

@@ -43,10 +43,10 @@ void createModpackMenu(std::vector<Button>& buttons)
     if(ImGui::IsItemHovered())
     {
         ImGui::SetTooltip(
-            "Target Output Format (--json):\n\n"
-            "- Enabled: Outputs generated files as .json. Ideal for translation websites and similar\n"
-            "- Disabled: Outputs generated files as .snbt .\n\n"
-            "Note: FTBQ only reads the final assembled file if it is in .snbt.");
+            "Target Input Format (--convert ):\n"
+            "- If splitting: It will look for .json in the lang folder if enabled, or .snbt if disabled.\n"
+            "- If merging: It will look for chunks in .json to convert to .snbt.\n"
+            "Note: FTBQ only reads the final assembled file if it's a .snbt.");
     }
 
     ImGui::SameLine();
@@ -54,10 +54,10 @@ void createModpackMenu(std::vector<Button>& buttons)
     if(ImGui::IsItemHovered())
     {
         ImGui::SetTooltip(
-            "Target Input Format (--convert ):\n"
-            "- If splitting: It will look for .json in the lang folder if enabled, or .snbt if disabled.\n"
-            "- If merging: It will look for chunks in .json to convert to .snbt.\n"
-            "Note: FTBQ only reads the final assembled file if it's a .snbt.");
+            "Target Output Format (--json):\n\n"
+            "- Enabled: Outputs generated files as .json. Ideal for translation websites and similar\n"
+            "- Disabled: Outputs generated files as .snbt .\n\n"
+            "Note: FTBQ only reads the final assembled file if it is in .snbt.");
     }
 
     ImGui::SameLine();
