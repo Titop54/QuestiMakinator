@@ -6,6 +6,7 @@
 - linux builds --> Done
 - github actions
 - Script to make all this happens without github, just in case --> Done
-- HotSpot + perf
-- Valgrid or similar for leaks
+- HotSpot perf.data + perf record -g ./Questi
+- heaptrack-gui (open automatically) + heaptrack (heaptrack ./Questi)
 - Fix text insertion --> Done
+- {image:<image> width:100 height:100 align:center} o {image:relics:textures/abilities/clot_of_time/rewind.png width:100 height:100 align:center}
